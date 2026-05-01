@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparativa Tarifas Naturgy — Canarias</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* ── RESET ── */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            font-size: 14px;
+            font-family: system-ui, -apple-system, sans-serif;
+            color: #1a1a1a;
+            background: #edecea;
+            min-height: 100vh;
+            padding: 20px
+        }
+
+        /* ── APP SHELL ── */
+        #app {
+            max-width: 1060px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, .12)
+        }
+
+        /* ── HEADER — Naturgy navy ── */
+        .app-header {
+            padding: 0;
+            display: flex;
+            align-items: stretch;
+            background: #002855
+        }
+
+        .app-header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 24px;
+            flex: 1
+        }
+
+        .app-header-brand h1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff
+        }
+
+        .app-header-brand .sub {
+            font-size: 11px;
+            color: rgba(255, 255, 255, .55);
+            margin-top: 1px
+        }
+
+        .app-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 18px
+        }
+
+        .admin-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1.5px solid rgba(255, 255, 255, .3);
+            background: transparent;
+            color: rgba(255, 255, 255, .8);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s
+        }
+
+        .admin-btn:hover {
+            border-color: #F5821F;
+            color: #F5821F
+        }
+
+        .admin-btn.on {
+            border-color: #F5821F;
+            background: #F5821F;
+            color: #fff
+        }
+
+        .naturgy-stripe {
+            height: 4px;
+            background: linear-gradient(90deg, #F5821F 0%, #F5821F 30%, #002855 30%)
+        }
+
+        /* ── SEGMENT TABS ── */
+        .seg-bar {
+            display: flex;
+            border-bottom: 1px solid #e5e3de;
+            overflow-x: auto;
+            background: #fafaf8
+        }
+
+        .seg-btn {
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: #888;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -1px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            transition: color .15s
+        }
+
+        .seg-btn .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            opacity: .4;
+            transition: opacity .15s;
+            flex-shrink: 0
+        }
+
+        .seg-btn.active .dot {
+            opacity: 1
+        }
+
+        .seg-btn[data-seg="res"] .dot {
+            background: #185FA5
+        }
+
+        .seg-btn[data-seg="pyme20"] .dot {
+            background: #0F6E56
+        }
+
+        .seg-btn[data-seg="pyme20one"] .dot {
+            background: #B45309
+        }
+
+        .seg-btn[data-seg="pyme361"] .dot {
+            background: #6D28D9
+        }
+
+        .seg-btn[data-seg="res"].active {
+            color: #185FA5;
+            border-bottom-color: #185FA5
+        }
+
+        .seg-btn[data-seg="pyme20"].active {
+            color: #0F6E56;
+            border-bottom-color: #0F6E56
+        }
+
+        .seg-btn[data-seg="pyme20one"].active {
+            color: #B45309;
+            border-bottom-color: #B45309
+        }
+
+        .seg-btn[data-seg="pyme361"].active {
+            color: #6D28D9;
+            border-bottom-color: #6D28D9
+        }
+
+        /* ── SUB TABS ── */
+        .sub-bar {
+            display: flex;
+            padding: 0 24px;
+            background: #fff;
+            border-bottom: 1px solid #e5e3de
+        }
+
+        .sub-btn {
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #999;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color .15s
+        }
+
+        .sub-btn.active {
+            font-weight: 600
+        }
+
+        /* ── CONTENT ── */
+        .pane {
+            padding: 26px
+        }
+
+        .stitle {
+            font-size: 10px;
+            font-weight: 700;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            margin: 22px 0 10px
+        }
+
+        .stitle:first-child {
+            margin-top: 0
+        }
+
+        .g2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px
+        }
+
+        .g3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px
+        }
+
+        .g6 {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-bottom: 12px
+        }
+
+        .fl {
+            display: flex;
+            flex-direction: column;
+            gap: 4px
+        }
+
+        .fl label {
+            font-size: 11px;
+            color: #888;
+            font-weight: 600;
+            letter-spacing: .02em
+        }
+
+        .fl input,
+        .fl select {
+            width: 100%;
+            padding: 8px 10px;
+            font-size: 13px;
+            border: 1px solid #e0ddd8;
+            border-radius: 8px;
+            background: #fff;
+            color: #1a1a1a;
+            outline: none;
+            transition: border-color .15s
+        }
+
+        .fl input:focus,
+        .fl select:focus {
+            border-color: #F5821F;
+            box-shadow: 0 0 0 3px rgba(245, 130, 31, .08)
+        }
+
+        .hr {
+            height: 1px;
+            background: #f0eeea;
+            margin: 20px 0
+        }
+
+        /* ── TARIFF CARDS ── */
+        .tc {
+            border: 1px solid #e5e3de;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden
+        }
+
+        .th {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            cursor: pointer;
+            background: #fafaf8;
+            transition: background .15s
+        }
+
+        .th:hover {
+            background: #f3f2ef
+        }
+
+        .th-accent {
+            width: 3px;
+            height: 28px;
+            border-radius: 2px;
+            background: #F5821F;
+            flex-shrink: 0
+        }
+
+        .ti {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: #1a1a1a;
+            padding: 0;
+            outline: none;
+            min-width: 60px
+        }
+
+        .tbadge {
+            font-size: 10px;
+            padding: 3px 9px;
+            border-radius: 10px;
+            white-space: nowrap;
+            font-weight: 700
+        }
+
+        .b-blue {
+            background: #dbeafe;
+            color: #1e40af
+        }
+
+        .b-green {
+            background: #d1fae5;
+            color: #065f46
+        }
+
+        .b-amber {
+            background: #fef3c7;
+            color: #92400e
+        }
+
+        .b-purple {
+            background: #ede9fe;
+            color: #5b21b6
+        }
+
+        .tprev {
+            font-size: 14px;
+            font-weight: 700;
+            white-space: nowrap;
+            color: #002855
+        }
+
+        .tsav {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-weight: 600
+        }
+
+        .spos {
+            background: #d1fae5;
+            color: #065f46
+        }
+
+        .sneg {
+            background: #fee2e2;
+            color: #991b1b
+        }
+
+        .sneu {
+            background: #f3f4f6;
+            color: #6b7280
+        }
+
+        .chev {
+            font-size: 10px;
+            transition: transform .15s;
+            color: #c0bdb8
+        }
+
+        .chev.r {
+            transform: rotate(90deg)
+        }
+
+        .tb {
+            padding: 18px 18px;
+            border-top: 1px solid #f0eeea;
+            display: none
+        }
+
+        .tb.on {
+            display: block
+        }
+
+        /* ── PRICE ROWS ── */
+        .price-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 14px
+        }
+
+        .price-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #fafaf8;
+            border-radius: 7px;
+            border: 1px solid #f0eeea
+        }
+
+        .price-row .pr-label {
+            font-size: 12px;
+            color: #666
+        }
+
+        .price-row .pr-val {
+            font-size: 13px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: #002855
+        }
+
+        .price-row .pr-unit {
+            font-size: 10px;
+            color: #aaa;
+            margin-left: 3px
+        }
+
+        .lock-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #bbb;
+            padding: 8px 12px;
+            background: #fafaf8;
+            border-radius: 8px;
+            border: 1px solid #f0eeea;
+            margin-bottom: 12px
+        }
+
+        /* ── VERTICAL BREAKDOWN ── */
+        .rsub {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 2px solid #f0eeea
+        }
+
+        .rsub-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            margin-bottom: 10px
+        }
+
+        .rsub-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 12px;
+            border-radius: 7px;
+            font-size: 13px
+        }
+
+        .rsub-row:nth-child(even) {
+            background: #fafaf8
+        }
+
+        .rsub-row .rr-label {
+            color: #555;
+            font-weight: 500
+        }
+
+        .rsub-row .rr-val {
+            font-weight: 700;
+            color: #1a1a1a;
+            font-variant-numeric: tabular-nums
+        }
+
+        .rsub-sep {
+            height: 1px;
+            background: #e5e3de;
+            margin: 6px 0
+        }
+
+        .rsub-total {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: #002855;
+            border-radius: 9px;
+            margin-top: 8px
+        }
+
+        .rsub-total .rt-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, .7);
+            text-transform: uppercase;
+            letter-spacing: .05em
+        }
+
+        .rsub-total .rt-val {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums
+        }
+
+        /* ── BUTTONS ── */
+        .btn {
+            padding: 7px 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            background: #fff;
+            color: #333;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .btn:hover {
+            background: #f5f4f0
+        }
+
+        .btn-d {
+            color: #dc2626;
+            border-color: #fca5a5
+        }
+
+        .btn-d:hover {
+            background: #fef2f2
+        }
+
+        .btn-export {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .btn-pdf {
+            background: #002855;
+            color: #fff
+        }
+
+        .btn-pdf:hover {
+            background: #003f8a
+        }
+
+        .btn-xls {
+            background: #1a7a3f;
+            color: #fff
+        }
+
+        .btn-xls:hover {
+            background: #14612f
+        }
+
+        .export-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px
+        }
+
+        .add-btn {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            background: #fff;
+            color: #aaa;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: all .15s
+        }
+
+        .add-btn:hover {
+            border-color: #F5821F;
+            color: #F5821F;
+            background: #fff8f3
+        }
+
+        .ra {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px
+        }
+
+        /* ── COMPARATIVA SUMMARY CARDS ── */
+        .sc {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 22px
+        }
+
+        .sm {
+            background: #fafaf8;
+            border-radius: 10px;
+            padding: 16px 18px;
+            border: 1px solid #eee
+        }
+
+        .sm.sm-best {
+            border-color: #F5821F;
+            background: #fff8f3
+        }
+
+        .sm.sm-saving {
+            border-color: #a7f3d0
+        }
+
+        .sm.sm-loss {
+            border-color: #fca5a5
+        }
+
+        .sm .sl {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 5px;
+            font-weight: 500
+        }
+
+        .sm .sv {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.1
+        }
+
+        .sm .sn {
+            font-size: 11px;
+            color: #bbb;
+            margin-top: 4px
+        }
+
+        /* ── COMPARISON TABLE ── */
+        .ct {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px
+        }
+
+        .ct th {
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            padding: 9px 12px;
+            text-align: right;
+            background: #002855
+        }
+
+        .ct th:first-child {
+            text-align: left;
+            border-radius: 0
+        }
+
+        .ct td {
+            padding: 9px 12px;
+            text-align: right;
+            border-bottom: 1px solid #f0eeea
+        }
+
+        .ct td:first-child {
+            text-align: left;
+            color: #555;
+            font-size: 12px
+        }
+
+        .ct tr:hover td {
+            background: #fafaf8
+        }
+
+        .ct .tr td {
+            font-weight: 700;
+            background: #FFF4EC;
+            border-top: 2px solid #F5821F
+        }
+
+        .ct .tr td:first-child {
+            color: #002855
+        }
+
+        /* ── CHART ── */
+        .ch-wrap {
+            position: relative;
+            width: 100%;
+            height: 190px;
+            margin-top: 20px
+        }
+
+        .hint {
+            font-size: 11px;
+            color: #bbb;
+            margin-top: 12px;
+            font-style: italic;
+            line-height: 1.7
+        }
+
+        .btn-clear {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 8px;
+            border: 1.5px solid #fca5a5;
+            background: #fff;
+            color: #dc2626;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .btn-clear:hover {
+            background: #fef2f2
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+            color: #bbb
+        }
+
+        .empty-state-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: #f5f4f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px
+        }
+
+        .empty-state h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #aaa;
+            margin-bottom: 6px
+        }
+
+        .empty-state p {
+            font-size: 13px;
+            color: #ccc;
+            max-width: 320px;
+            line-height: 1.6
+        }
+
+        @media(max-width:640px) {
+            .g3 {
+                grid-template-columns: 1fr 1fr
+            }
+
+            .g6 {
+                grid-template-columns: 1fr 1fr
+            }
+
+            .pane {
+                padding: 16px
+            }
+
+            .seg-btn {
+                padding: 10px 14px;
+                font-size: 12px
+            }
+        }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(3px)
+        }
+
+        .modal-overlay.hidden {
+            display: none
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, .2)
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 22px
+        }
+
+        .modal-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #002855;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0
+        }
+
+        .modal-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #002855
+        }
+
+        .modal-sub {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 2px
+        }
+
+        .modal .fl {
+            margin-bottom: 14px
+        }
+
+        .modal .fl label {
+            color: #555
+        }
+
+        .modal .fl input {
+            font-size: 14px;
+            padding: 10px 12px;
+            letter-spacing: .05em
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 9px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .modal-btn-primary {
+            background: #002855;
+            color: #fff
+        }
+
+        .modal-btn-primary:hover {
+            background: #003f8a
+        }
+
+        .modal-btn-secondary {
+            background: #f3f4f6;
+            color: #555
+        }
+
+        .modal-btn-secondary:hover {
+            background: #e5e7eb
+        }
+
+        .modal-error {
+            font-size: 12px;
+            color: #dc2626;
+            margin-top: 8px;
+            display: none
+        }
+
+        .modal-info {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 16px;
+            padding: 10px 12px;
+            background: #f8f7f4;
+            border-radius: 8px;
+            line-height: 1.6
+        }
+
+        .modal-divider {
+            height: 1px;
+            background: #f0eeea;
+            margin: 16px 0
+        }
+
+        /* ── FOOTER ── */
+        .app-footer {
+            padding: 24px;
+            background: #fafaf8;
+            border-top: 1px solid #e5e3de;
+            text-align: center;
+        }
+
+        .footer-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .footer-text {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .footer-text strong {
+            color: #002855;
+            font-weight: 700;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #888;
+            text-decoration: none;
+            transition: all 0.2s;
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #e5e3de;
+        }
+
+        .footer-link:hover {
+            color: #F5821F;
+            border-color: #F5821F;
+            background: #fff8f3;
+            transform: translateY(-1px);
+        }
+
+        .footer-link svg {
+            opacity: 0.7;
+        }
+
+        .footer-link:hover svg {
+            opacity: 1;
+            stroke: #F5821F;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="naturgy-stripe"></div>
+        <div class="app-header">
+            <div class="app-header-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F5821F" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+                <div>
+                    <h1>Comparativa Tarifas Naturgy — Canarias</h1>
+                    <div class="sub">Herramienta de comparativa comercial</div>
+                </div>
+            </div>
+            <div class="app-header-right">
+                <button class="admin-btn" id="adminBtn" onclick="toggleAdmin()">🔒 Admin</button>
+            </div>
+        </div>
+        <div class="seg-bar" id="segBar"></div>
+        <div class="sub-bar" id="subBar"></div>
+        <div id="content"></div>
+
+        <!-- ── AUTH MODAL ── -->
+        <div class="modal-overlay hidden" id="modalOverlay" onclick="modalBgClick(event)">
+            <div class="modal" id="modalBox">
+                <div class="modal-header">
+                    <div class="modal-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F5821F" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="modal-title" id="modalTitle">Acceso de administrador</div>
+                        <div class="modal-sub" id="modalSub">Introduce tu contrasena</div>
+                    </div>
+                </div>
+                <div id="modalBody"></div>
+            </div>
+        </div>
+
+        <div class="app-footer">
+            <div class="footer-content">
+                <div class="footer-text">App creada por <strong>NEXUS SALES</strong></div>
+                <div class="footer-links">
+                    <a href="mailto:admin@nexus-sales.eu" class="footer-link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                        admin@nexus-sales.eu
+                    </a>
+                    <a href="https://github.com/nexus-sales/Comparativa-Naturgy.git" target="_blank"
+                        class="footer-link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                        </svg>
+                        GitHub
+                    </a>
+                </div>
+                <div class="footer-text" style="margin-top: 8px; font-size: 11px; opacity: 0.8;">
+                    App Creada por <strong>NEXUS SALES</strong> — todos los derechos reservados
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let charts = {}, adminMode = false, _tariffId = 0;
+        const NAT_ORANGE = '#F5821F', NAT_NAVY = '#002855';
+        const COLS = [NAT_NAVY, '#0F6E56', '#B45309', '#6D28D9', '#be185d', '#0e7490'];
+
+        function mkT(id, nombre, tipo, potUnit, rPot, rEn, sva) {
+            return { id, nombre, tipo, potUnit, rPot: [...rPot, ...Array(6).fill(0)].slice(0, 6), rEn: [...rEn, ...Array(6).fill(0)].slice(0, 6), sva: sva || 0, open: false, selected: true };
+        }
+        const INIT = {
+            res: {
+                id: 'res', label: 'Residencial', taxModel: 'res', potP: 2,
+                cliente: { nombre: '', cups: '', dir: '', f1: '2026-03-09', f2: '2026-04-10', dias: 32, kw: [8, 8, 0, 0, 0, 0], en: [48.64, 42.09, 57.42, 0, 0, 0], factura: 58.25, alquiler: 0.86, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 7, taxIGICRed: 0, taxIGIC7: 7 },
+                tarifas: [mkT('r1', 'Por Uso (imp. reducidos)', 'uni', 'anio', [34.341384, 10.30104], [0.140599]), mkT('r2', 'Por Uso Luz 2.0', 'uni', 'dia', [0.12303, 0.037337], [0.1099]), mkT('r3', 'Noche Luz 2.0', 'tri', 'dia', [0.11097, 0.033677], [0.189562, 0.116955, 0.082281])]
+            },
+            pyme20: {
+                id: 'pyme20', label: 'Pyme 2.0TD', taxModel: 'pyme', potP: 2,
+                cliente: { nombre: '', cups: '', dir: '', f1: '2025-11-18', f2: '2026-01-20', dias: 63, kw: [8.8, 8.8, 0, 0, 0, 0], en: [248.07, 271.87, 204.98, 0, 0, 0], factura: 292.18, alquiler: 1.68, bonoRate: 0.019121, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+                tarifas: [mkT('p1', 'Plan Fijo Luz 24h', 'uni', 'dia', [0.122973, 0.043976], [0.136171]), mkT('p2', 'Plan Fijo Luz 24h SUPRA', 'uni', 'dia', [0.122973, 0.043976], [0.149171]), mkT('p3', 'PFL ONE 24h', 'uni', 'dia', [0.116318, 0.044521], [0.115099]), mkT('p4', 'Plan Fijo Trihorario', 'tri', 'dia', [0.120853, 0.0439], [0.201461, 0.132213, 0.097634]), mkT('p5', 'PFL Trihorario ONE', 'tri', 'dia', [0.116318, 0.044521], [0.1705, 0.116499, 0.0819]), mkT('p6', 'Plan Fijo SUPRA Trihorario', 'tri', 'dia', [0.120853, 0.0439], [0.214461, 0.145213, 0.110634])]
+            },
+            pyme20one: {
+                id: 'pyme20one', label: 'Pyme ONE 2.0TD', taxModel: 'pyme', potP: 2,
+                cliente: { nombre: '', cups: '', dir: '', f1: '2026-01-31', f2: '2026-02-28', dias: 28, kw: [5.75, 5.75, 0, 0, 0, 0], en: [33.55, 29.43, 60.42, 0, 0, 0], factura: 42.48, alquiler: 0.75, bonoRate: 0.019121, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+                tarifas: [mkT('o1', 'Plan Fijo Luz 24h One', 'uni', 'dia', [0.122973, 0.043976], [0.120671]), mkT('o2', 'PFL ONE 24h', 'uni', 'dia', [0.116318, 0.044521], [0.115099]), mkT('o3', 'Plan Fijo Luz One (trihoraria)', 'tri', 'dia', [0.122973, 0.043976], [0.190964, 0.117811, 0.082473]), mkT('o4', 'PFL Trihorario ONE', 'tri', 'dia', [0.116318, 0.044521], [0.1705, 0.116499, 0.0819])]
+            },
+            pyme361: {
+                id: 'pyme361', label: 'Pyme 3.0/6.1TD', taxModel: 'pyme', potP: 6,
+                cliente: { nombre: '', cups: '', dir: '', f1: '', f2: '', dias: 30, kw: [0, 0, 0, 0, 0, 0], en: [0, 0, 0, 0, 0, 0], factura: 0, alquiler: 1.68, bonoRate: 0.019121, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+                tarifas: [mkT('x1', 'Plan Fijo Luz BASIC 3.0', 'hex', 'dia', [0.055959, 0.030187, 0.013779, 0.012187, 0.008479, 0.005817], [0.190851, 0.165002, 0.142965, 0.130256, 0.123688, 0.11613]), mkT('x2', 'Plan Fijo Luz ONE 3.0', 'hex', 'dia', [0.055959, 0.030187, 0.013779, 0.012187, 0.008479, 0.005817], [0.185351, 0.159502, 0.137465, 0.124756, 0.118188, 0.11063]), mkT('x3', 'Plan Fijo Luz BASIC 6.1', 'hex', 'dia', [0.078882, 0.041309, 0.01797, 0.01417, 0.005295, 0.00251], [0.166016, 0.144923, 0.130155, 0.121017, 0.114657, 0.108359]), mkT('x4', 'Plan Fijo Luz ONE 6.1', 'hex', 'dia', [0.078882, 0.041309, 0.01797, 0.01417, 0.005295, 0.00251], [0.160516, 0.139423, 0.124655, 0.115517, 0.109157, 0.102859])]
+            }
+        };
+        let segs = JSON.parse(JSON.stringify(INIT));
+        let activeSeg = 'res';
+        let activeSubTab = { res: 'comp', pyme20: 'comp', pyme20one: 'comp', pyme361: 'comp' };
+
+        // ── PASSWORD / AUTH ──────────────────────────────────
+        const STORAGE_KEY = 'naturgy_admin_hash';
+        // Hash por defecto (SHA-256). La contraseña inicial es: Naturgy2025!
+        // Cámbiala desde la app en el primer acceso. Este hash no permite recuperar la contraseña original.
+        const DEFAULT_HASH = '220d7e6bc08476d254692e2a664a9c6d49bcd5ce68325359c6007cdff4c633d8';
+        function getStoredHash() { return localStorage.getItem(STORAGE_KEY) || DEFAULT_HASH; }
+
+        async function sha256(str) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function showModal(titleText, subText, bodyHtml) {
+            document.getElementById('modalTitle').textContent = titleText;
+            document.getElementById('modalSub').textContent = subText;
+            document.getElementById('modalBody').innerHTML = bodyHtml;
+            document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+        function hideModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+            document.getElementById('modalBody').innerHTML = '';
+        }
+        function modalBgClick(e) { if (e.target === document.getElementById('modalOverlay')) hideModal(); }
+        function showModalError(msg) {
+            const el = document.getElementById('modalErr');
+            if (el) { el.textContent = msg; el.style.display = 'block'; }
+        }
+
+        function toggleAdmin() {
+            if (adminMode) { adminMode = false; updateAdminBtn(); renderContent(); return; }
+            // Siempre pide contraseña. Si no hay hash en localStorage usa el DEFAULT_HASH del código.
+            showModal('Acceso de administrador', 'Introduce tu contraseña de admin', `
+    <div class="fl"><label>Contraseña</label><input type="password" id="pw1" placeholder="Contraseña" onkeydown="if(event.key==='Enter')confirmLogin()"/></div>
+    <div class="modal-error" id="modalErr"></div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-secondary" onclick="hideModal()">Cancelar</button>
+      <button class="modal-btn modal-btn-primary" onclick="confirmLogin()">Entrar</button>
+    </div>
+  `);
+            setTimeout(() => document.getElementById('pw1')?.focus(), 50);
+        }
+
+        async function confirmLogin() {
+            const p1 = document.getElementById('pw1')?.value || '';
+            const hash = await sha256(p1);
+            const stored = getStoredHash();
+            if (hash === stored) {
+                hideModal();
+                adminMode = true;
+                updateAdminBtn();
+                renderContent();
+            } else {
+                showModalError('Contraseña incorrecta.');
+                document.getElementById('pw1').value = '';
+                document.getElementById('pw1').focus();
+            }
+        }
+
+        function changePassword() {
+            showModal('Cambiar contraseña', 'Introduce la contraseña actual y la nueva', `
+    <div class="fl"><label>Contraseña actual</label><input type="password" id="pwOld" placeholder="Contraseña actual" onkeydown="if(event.key==='Enter')confirmChange()"/></div>
+    <div class="modal-divider"></div>
+    <div class="fl"><label>Nueva contraseña</label><input type="password" id="pw1" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')confirmChange()"/></div>
+    <div class="fl"><label>Repite la nueva</label><input type="password" id="pw2" placeholder="Confirma la nueva" onkeydown="if(event.key==='Enter')confirmChange()"/></div>
+    <div class="modal-error" id="modalErr"></div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-secondary" onclick="hideModal()">Cancelar</button>
+      <button class="modal-btn modal-btn-primary" onclick="confirmChange()">Cambiar</button>
+    </div>
+  `);
+            setTimeout(() => document.getElementById('pwOld')?.focus(), 50);
+        }
+
+        async function confirmChange() {
+            const old = document.getElementById('pwOld')?.value || '';
+            const p1 = document.getElementById('pw1')?.value || '';
+            const p2 = document.getElementById('pw2')?.value || '';
+            const stored = getStoredHash();
+            const hashOld = await sha256(old);
+            if (hashOld !== stored) { showModalError('La contraseña actual es incorrecta.'); return; }
+            if (p1.length < 6) { showModalError('La nueva contraseña debe tener al menos 6 caracteres.'); return; }
+            if (p1 !== p2) { showModalError('Las nuevas contraseñas no coinciden.'); return; }
+            const hashNew = await sha256(p1);
+            localStorage.setItem(STORAGE_KEY, hashNew);
+            hideModal();
+            // Show success inline
+            const btn = document.getElementById('adminBtn');
+            const orig = btn.textContent;
+            btn.textContent = '✓ Contraseña cambiada';
+            setTimeout(() => { btn.textContent = '🔓 Admin activo'; }, 2000);
+        }
+
+        function updateAdminBtn() {
+            const b = document.getElementById('adminBtn');
+            b.className = 'admin-btn' + (adminMode ? ' on' : '');
+            b.innerHTML = adminMode
+                ? '🔓 Admin activo &nbsp;<span style="opacity:.6;font-weight:400">·</span>&nbsp; <span style="font-weight:400;text-decoration:underline;cursor:pointer" onclick="event.stopPropagation();changePassword()">Cambiar contraseña</span>'
+                : '🔒 Admin';
+        }
+
+        // ── CALCULATION ──────────────────────────────────────
+        function calc(seg, t) {
+            const c = seg.cliente, dias = +c.dias || 1, potP = seg.potP || 2;
+            let costPot = 0;
+            for (let i = 0; i < potP; i++) { const r = +(t.rPot[i] || 0), kw = +(c.kw[i] || 0); if (!r || !kw) continue; costPot += t.potUnit === 'dia' ? r * kw * dias : (r / 365) * kw * dias; }
+            let costEn = 0; const nEn = { uni: 1, tri: 3, hex: 6 }[t.tipo] || 1;
+            if (t.tipo === 'uni') { costEn = (+(t.rEn[0]) || 0) * c.en.reduce((a, v) => a + (+v || 0), 0); }
+            else { for (let i = 0; i < nEn; i++)costEn += (+(t.rEn[i] || 0)) * (+(c.en[i] || 0)); }
+            const sva = +(t.sva || 0), alq = +(c.alquiler || 0), subtotal = costPot + costEn + sva + alq;
+            const impElec = (subtotal - alq) * (+(c.taxImpElec || 0) / 100), bono = (+(c.bonoRate || 0)) * dias;
+            if (seg.taxModel === 'res') { const igic = alq * (+(c.taxIGIC || 0) / 100); return { potencia: +costPot.toFixed(4), energia: +costEn.toFixed(4), sva, alquiler: alq, subtotal: +subtotal.toFixed(4), impElec: +impElec.toFixed(4), igic: +igic.toFixed(4), bonoSocial: +bono.toFixed(4), total: +(subtotal + impElec + igic + bono).toFixed(4) }; }
+            const igicRed = (subtotal + impElec + bono) * (+(c.taxIGICRed || 0) / 100), igic7 = alq * (+(c.taxIGIC7 || 0) / 100);
+            return { potencia: +costPot.toFixed(4), energia: +costEn.toFixed(4), sva, alquiler: alq, subtotal: +subtotal.toFixed(4), impElec: +impElec.toFixed(4), igicRed: +igicRed.toFixed(4), igic7: +igic7.toFixed(4), bonoSocial: +bono.toFixed(4), total: +(subtotal + impElec + igicRed + igic7).toFixed(4) };
+        }
+
+        function f(v, d = 2) { if (v === null || v === undefined || isNaN(+v)) return '—'; return (+v).toFixed(d).replace('.', ',') + '\u202f€'; }
+        function fRaw(v, d = 2) { if (v === null || v === undefined || isNaN(+v)) return ''; return (+v).toFixed(d).replace('.', ','); }
+
+        // ── BREAKDOWN VERTICAL ──
+        function buildRsub(r, isPyme) {
+            const rows = isPyme
+                ? [['Coste potencia', r.potencia], ['Coste energía', r.energia], r.sva ? ['SVA', r.sva] : null, ['Alquiler contador', r.alquiler], null, ['Subtotal', r.subtotal], ['Imp. electricidad', r.impElec], ['IGIC Reducido 3%', r.igicRed], ['IGIC 7% alquiler', r.igic7]]
+                : [['Coste potencia', r.potencia], ['Coste energía', r.energia], r.sva ? ['SVA', r.sva] : null, ['Alquiler contador', r.alquiler], null, ['Subtotal', r.subtotal], ['Imp. electricidad', r.impElec], ['IGIC alquiler', r.igic || 0], ['Financiación Bono Social', r.bonoSocial]];
+            const html = rows.map(row => {
+                if (row === null) return '<div class="rsub-sep"></div>';
+                const [label, val] = row;
+                return `<div class="rsub-row"><span class="rr-label">${label}</span><span class="rr-val">${f(val)}</span></div>`;
+            }).join('');
+            return `<div class="rsub"><div class="rsub-title">Resumen de costes</div>${html}<div class="rsub-total"><span class="rt-label">Total estimado</span><span class="rt-val">${f(r.total)}</span></div></div>`;
+        }
+
+        // ── NAVIGATION ──────────────────────────────────────
+        function renderSegBar() { document.getElementById('segBar').innerHTML = Object.values(segs).map(s => `<button class="seg-btn${s.id === activeSeg ? ' active' : ''}" data-seg="${s.id}" onclick="setSeg('${s.id}')"><span class="dot"></span>${s.label}</button>`).join(''); }
+        function renderSubBar() {
+            const col = { res: '#185FA5', pyme20: '#0F6E56', pyme20one: '#B45309', pyme361: '#6D28D9' }[activeSeg];
+            document.getElementById('subBar').innerHTML = [['cli', 'Datos cliente'], ['tar', 'Tarifas'], ['comp', 'Comparativa']].map(([id, l]) => `<button class="sub-btn${activeSubTab[activeSeg] === id ? ' active' : ''}" style="${activeSubTab[activeSeg] === id ? `border-bottom-color:${col};color:${col}` : ''}" onclick="setSubTab('${id}')">${l}</button>`).join('');
+        }
+        function setSeg(id) { activeSeg = id; updateAdminBtn(); renderSegBar(); renderSubBar(); renderContent(); }
+        function setSubTab(id) { activeSubTab[activeSeg] = id; renderSubBar(); renderContent(); }
+        function renderContent() {
+            const seg = segs[activeSeg], sub = activeSubTab[activeSeg], el = document.getElementById('content');
+            if (sub === 'cli') el.innerHTML = renderCli(seg);
+            else if (sub === 'tar') el.innerHTML = renderTar(seg);
+            else el.innerHTML = renderComp(seg);
+            if (sub === 'comp') drawChart(seg);
+        }
+
+        // ── CLIENT FORM ──────────────────────────────────────
+        function renderCli(seg) {
+            const c = seg.cliente, potP = seg.potP || 2;
+            const lbs = ['P1 — Punta', 'P2 — Valle', 'P3', 'P4', 'P5', 'P6'];
+            const potF = Array.from({ length: potP }, (_, i) => `<div class="fl"><label>${lbs[i]} (kW)</label><input type="number" step="0.001" value="${c.kw[i] || 0}" oninput="upC('${seg.id}','kw',${i},this.value)"/></div>`).join('');
+            const enF = Array.from({ length: potP === 6 ? 6 : 3 }, (_, i) => `<div class="fl"><label>${lbs[i]} (kWh)</label><input type="number" step="0.01" value="${c.en[i] || 0}" oninput="upC('${seg.id}','en',${i},this.value)"/></div>`).join('');
+            const isPyme = seg.taxModel !== 'res';
+            const taxInfo = isPyme
+                ? `Imp. elec. ${c.taxImpElec}% · IGIC red. ${c.taxIGICRed}% · IGIC alquiler ${c.taxIGIC7}% · Bono Social ${c.bonoRate} €/día`
+                : `Imp. elec. ${c.taxImpElec}% · IGIC alquiler ${c.taxIGIC}% · Bono Social ${c.bonoRate} €/día`;
+            let adminTaxBlock = adminMode ? `<div class="hr"></div><div class="stitle" style="display:flex;align-items:center;gap:6px">Configuración fiscal <span style="font-size:10px;font-weight:500;color:#dc2626;background:#fef2f2;padding:2px 8px;border-radius:6px;text-transform:none;letter-spacing:0">Solo admin</span></div><div style="font-size:11px;color:#aaa;margin-bottom:10px">Fijados por normativa Canarias. No modificar salvo cambio regulatorio.</div>` +
+                (isPyme ? `<div class="g3"><div class="fl"><label>Imp. electricidad (%)</label><input type="number" step="0.001" value="${c.taxImpElec}" oninput="upCf('${seg.id}','taxImpElec',this.value)"/></div><div class="fl"><label>IGIC Reducido (%)</label><input type="number" step="0.01" value="${c.taxIGICRed}" oninput="upCf('${seg.id}','taxIGICRed',this.value)"/></div><div class="fl"><label>IGIC 7% alquiler (%)</label><input type="number" step="0.01" value="${c.taxIGIC7}" oninput="upCf('${seg.id}','taxIGIC7',this.value)"/></div></div><div class="g2"><div class="fl"><label>Bono Social (€/día)</label><input type="number" step="0.000001" value="${c.bonoRate}" oninput="upCf('${seg.id}','bonoRate',this.value)"/></div></div>`
+                    : `<div class="g3"><div class="fl"><label>Imp. electricidad (%)</label><input type="number" step="0.001" value="${c.taxImpElec}" oninput="upCf('${seg.id}','taxImpElec',this.value)"/></div><div class="fl"><label>IGIC alquiler (%)</label><input type="number" step="0.01" value="${c.taxIGIC}" oninput="upCf('${seg.id}','taxIGIC',this.value)"/></div><div class="fl"><label>Bono Social (€/día)</label><input type="number" step="0.000001" value="${c.bonoRate}" oninput="upCf('${seg.id}','bonoRate',this.value)"/></div></div>`)
+                : `<div style="font-size:11px;color:#bbb;margin-top:14px;padding:9px 12px;background:#fafaf8;border-radius:8px;border:1px solid #f0eeea">🔒 Tipos aplicados (normativa Canarias): ${taxInfo}</div>`;
+            return `<div class="pane">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="stitle" style="margin:0">Datos del cliente</div>
+      <button class="btn-clear" onclick="clearCliente('${seg.id}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Limpiar datos
+      </button>
+    </div>
+    <div class="g2"><div class="fl"><label>Nombre</label><input value="${c.nombre}" oninput="upCf('${seg.id}','nombre',this.value)"/></div><div class="fl"><label>CUPS</label><input value="${c.cups}" oninput="upCf('${seg.id}','cups',this.value)"/></div></div>
+    <div class="fl" style="margin-bottom:12px"><label>Dirección</label><input value="${c.dir}" oninput="upCf('${seg.id}','dir',this.value)"/></div>
+    <div class="g3"><div class="fl"><label>Lectura anterior</label><input type="date" value="${c.f1}" onchange="upDate('${seg.id}','f1',this.value)"/></div><div class="fl"><label>Lectura actual</label><input type="date" value="${c.f2}" onchange="upDate('${seg.id}','f2',this.value)"/></div><div class="fl"><label>Días del período</label><input type="number" id="dias_${seg.id}" value="${c.dias}" oninput="upCf('${seg.id}','dias',this.value)"/></div></div>
+    <div class="hr"></div>
+    <div class="stitle">Potencia contratada</div>
+    <div class="${potP === 6 ? 'g6' : 'g2'}">${potF}</div>
+    <div class="hr"></div>
+    <div class="stitle">Consumo energía</div>
+    <div class="${potP === 6 ? 'g6' : 'g3'}">${enF}</div>
+    <div class="hr"></div>
+    <div class="stitle">Otros cargos</div>
+    <div class="g2" style="margin-bottom:12px"><div class="fl"><label>Factura actual cliente (€)</label><input type="number" step="0.01" value="${c.factura}" oninput="upCf('${seg.id}','factura',this.value)"/></div><div class="fl"><label>Alquiler contador (€)</label><input type="number" step="0.01" value="${c.alquiler}" oninput="upCf('${seg.id}','alquiler',this.value)"/></div></div>
+    ${adminTaxBlock}
+  </div>`;
+        }
+
+        // ── TARIFF LIST ──────────────────────────────────────
+        function renderTar(seg) { return `<div class="pane">${seg.tarifas.map((t, i) => renderTCard(seg, t, i)).join('')}<button class="add-btn" onclick="addTariff('${seg.id}')">+ Añadir tarifa</button></div>`; }
+
+        function renderTCard(seg, t, idx) {
+            const r = calc(seg, t), ah = +(seg.cliente.factura - r.total).toFixed(2);
+            const ac = ah > 0.005 ? 'spos' : ah < -0.005 ? 'sneg' : 'sneu';
+            const at = ah > 0.005 ? `−${f(ah)}` : ah < -0.005 ? `+${f(Math.abs(ah))}` : 'Igual';
+            const tipoBadge = { uni: '1 período', tri: 'Trihoraria', hex: '6 períodos' }[t.tipo] || t.tipo;
+            const tipoBadgeCls = { uni: 'b-blue', tri: 'b-amber', hex: 'b-purple' }[t.tipo] || 'b-blue';
+            const body = t.open ? buildTBody(seg, t, idx) : '';
+            return `<div class="tc"><div class="th" onclick="togT('${seg.id}','${t.id}')"><span class="th-accent" style="${t.selected ? '' : 'background:#ccc'}"></span><input type="checkbox" ${t.selected ? 'checked' : ''} onclick="event.stopPropagation();togSelect('${seg.id}','${t.id}')" style="cursor:pointer;width:16px;height:16px"/><span class="chev${t.open ? ' r' : ''}">▶</span><input class="ti" value="${t.nombre}" onclick="event.stopPropagation()" oninput="renT('${seg.id}','${t.id}',this.value)"/><span class="tbadge ${tipoBadgeCls}">${tipoBadge}</span><span class="tprev" id="prev_${t.id}">${f(r.total)}</span><span class="tsav ${ac}" id="sav_${t.id}">${at}</span></div><div class="tb${t.open ? ' on' : ''}" id="body_${t.id}">${body}</div></div>`;
+        }
+
+        function buildTBody(seg, t, idx) {
+            const potP = seg.potP || 2, lbs = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'], isPyme = seg.taxModel !== 'res';
+            const r = calc(seg, t), nEnShow = { uni: 1, tri: 3, hex: 6 }[t.tipo] || 1, pUL = t.potUnit === 'dia' ? '€/kW·día' : '€/kWaño';
+            const types = potP === 6 ? [['uni', '1 período'], ['hex', '6 períodos']] : [['uni', '1 período'], ['tri', 'Trihoraria']];
+            const tipoBlock = adminMode ? `<div style="display:flex;gap:6px;margin-bottom:14px">${types.map(([tp, lb]) => `<button style="padding:5px 14px;border:1.5px solid ${t.tipo === tp ? NAT_ORANGE : '#ddd'};border-radius:8px;font-size:11px;font-weight:600;background:${t.tipo === tp ? NAT_ORANGE : '#fff'};color:${t.tipo === tp ? '#fff' : '#777'};cursor:pointer" onclick="chgTipo('${seg.id}','${t.id}','${tp}')">${lb}</button>`).join('')}</div>`
+                : `<div style="margin-bottom:14px"><span class="tbadge ${{ uni: 'b-blue', tri: 'b-amber', hex: 'b-purple' }[t.tipo] || 'b-blue'}">${{ uni: '1 período de energía', tri: 'Trihoraria — 3 períodos', hex: 'Hexoraria — 6 períodos' }[t.tipo]}</span></div>`;
+            const lockBar = !adminMode ? `<div class="lock-bar">🔒 Precios oficiales Naturgy — actualizables solo en modo admin</div>` : '';
+            let potContent = '';
+            if (adminMode) {
+                const unitSel = `<div class="fl" style="margin-bottom:10px;max-width:220px"><label>Unidad</label><select onchange="upTf('${seg.id}','${t.id}','potUnit',this.value)"><option value="dia"${t.potUnit === 'dia' ? ' selected' : ''}>€/kW·día</option><option value="anio"${t.potUnit === 'anio' ? ' selected' : ''}>€/kWaño</option></select></div>`;
+                const grid = `<div class="${potP === 6 ? 'g6' : 'g2'}">${lbs.slice(0, potP).map((lb, i) => `<div class="fl"><label>${lb} (${pUL})</label><input type="number" step="0.000001" value="${t.rPot[i] || 0}" oninput="upTarr('${seg.id}','${t.id}','rPot',${i},this.value)"/></div>`).join('')}</div>`;
+                potContent = unitSel + grid;
+            } else {
+                potContent = `<div class="price-grid">${lbs.slice(0, potP).filter((_, i) => t.rPot[i]).map((lb, i) => `<div class="price-row"><span class="pr-label">Potencia ${lb}</span><span><span class="pr-val">${(+t.rPot[i]).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}</span><span class="pr-unit">${pUL}</span></span></div>`).join('')}</div>`;
+            }
+            let enContent = '';
+            if (adminMode) {
+                enContent = `<div class="${nEnShow === 6 ? 'g6' : nEnShow === 3 ? 'g3' : 'g2'}">${lbs.slice(0, nEnShow).map((lb, i) => `<div class="fl"><label>${t.tipo === 'uni' && i === 0 ? 'Energía — todos los períodos' : `Energía ${lb}`} (€/kWh)</label><input type="number" step="0.000001" value="${t.rEn[i] || 0}" oninput="upTarr('${seg.id}','${t.id}','rEn',${i},this.value)"/></div>`).join('')}</div>`;
+            } else {
+                enContent = `<div class="price-grid">${lbs.slice(0, nEnShow).map((lb, i) => `<div class="price-row"><span class="pr-label">${t.tipo === 'uni' && i === 0 ? 'Energía (todos los períodos)' : `Energía ${lb}`}</span><span><span class="pr-val">${(+t.rEn[i]).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}</span><span class="pr-unit">€/kWh</span></span></div>`).join('')}</div>`;
+            }
+            return `<div>${tipoBlock}${lockBar}
+    <div style="margin-bottom:16px"><div class="stitle" style="margin-top:0">Término de potencia</div>${potContent}</div>
+    <div style="margin-bottom:16px"><div class="stitle" style="margin-top:0">Término de energía</div>${enContent}</div>
+    <div class="fl" style="margin-bottom:6px;max-width:220px"><label>SVA (€)</label><input type="number" step="0.01" value="${t.sva || 0}" oninput="upTf('${seg.id}','${t.id}','sva',this.value)"/></div>
+    <div id="rsub_${t.id}">${buildRsub(r, isPyme)}</div>
+    <div class="ra">${adminMode ? `<button class="btn btn-d" onclick="delT('${seg.id}','${t.id}')">Eliminar tarifa</button>` : ''}</div>
+  </div>`;
+        }
+
+        // ── COMPARATIVA ──────────────────────────────────────
+        function renderComp(seg) {
+            // Empty state check
+            if (clienteVacio(seg)) {
+                return `<div class="pane"><div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <h3>Sin datos de cliente</h3>
+      <p>Introduce los datos del cliente en la pestaña <strong>Datos cliente</strong> para ver la comparativa de tarifas.</p>
+    </div></div>`;
+            }
+            const c = seg.cliente, results = seg.tarifas.filter(t => t.selected).map((t, i) => ({ t, r: calc(seg, t), color: COLS[i % COLS.length] }));
+            if (results.length === 0) {
+                return `<div class="pane"><div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+      </div>
+      <h3>No hay tarifas seleccionadas</h3>
+      <p>Ve a la pestaña <strong>Tarifas</strong> y selecciona al menos una para comparar.</p>
+    </div></div>`;
+            }
+            const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
+            const bestAh = best ? +(c.factura - best.r.total).toFixed(2) : 0;
+            const isPyme = seg.taxModel !== 'res';
+            const sc = `<div class="sc">
+    <div class="sm"><div class="sl">Factura actual</div><div class="sv">${f(c.factura)}</div><div class="sn">${c.nombre || 'Cliente'}</div></div>
+    ${best ? `<div class="sm sm-best"><div class="sl">Mejor opción</div><div class="sv" style="color:${NAT_ORANGE}">${f(best.r.total)}</div><div class="sn">${best.t.nombre}</div></div>` : ''}
+    ${best ? `<div class="sm ${bestAh >= 0 ? 'sm-saving' : 'sm-loss'}"><div class="sl">Ahorro máximo</div><div class="sv" style="color:${bestAh >= 0 ? '#065f46' : '#dc2626'}">${bestAh >= 0 ? '−' : '+'}${f(Math.abs(bestAh))}</div><div class="sn">vs factura actual</div></div>` : ''}
+    <div class="sm"><div class="sl">Tarifas comparadas</div><div class="sv">${seg.tarifas.length}</div></div>
+  </div>`;
+            const rowDefs = isPyme
+                ? [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC Red. 3%', 'igicRed'], ['IGIC 7% alquiler', 'igic7'], ['Bono Social *', 'bonoSocial']]
+                : [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC alquiler', 'igic'], ['Bono Social', 'bonoSocial']];
+            const ths = ['Componente', 'Factura actual', ...results.map(x => `<span style="font-weight:700">${x.t.nombre}</span>`)].join('</th><th>');
+            const trs = rowDefs.map(([lbl, key]) => {
+                const isBono = key === 'bonoSocial' && isPyme;
+                const base = key === 'alquiler' ? f(c.alquiler) : '—';
+                return `<tr${isBono ? ' style="color:#ccc"' : ''}><td>${lbl}</td><td>${base}</td>${results.map(x => `<td>${x.r[key] !== undefined ? f(x.r[key]) : '—'}</td>`).join('')}</tr>`;
+            }).join('');
+            const totTds = results.map(x => {
+                const ah = +(c.factura - x.r.total).toFixed(2), isBest = best && x.t.id === best.t.id;
+                const badge = ah > 0.005 ? `<span class="tsav spos" style="margin-left:5px;font-size:11px">−${f(ah)}</span>` : ah < -0.005 ? `<span class="tsav sneg" style="margin-left:5px;font-size:11px">+${f(Math.abs(ah))}</span>` : '';
+                return `<td><strong style="color:${isBest ? NAT_ORANGE : 'inherit'}">${f(x.r.total)}</strong>${badge}</td>`;
+            }).join('');
+            const note = isPyme
+                ? `<p class="hint">* Bono Social mostrado como referencia; no incluido en el total según normativa Canarias.</p><p class="hint">Comparativa estimativa, no vinculante. Puede variar según lecturas reales del cliente.</p>`
+                : `<p class="hint">Comparativa estimativa, no vinculante. Puede variar según lecturas reales del cliente.</p>`;
+            return `<div class="pane">
+    <div class="export-bar">
+      <button class="btn-export btn-pdf" onclick="exportPDF('${seg.id}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+        Exportar PDF
+      </button>
+      <button class="btn-export btn-xls" onclick="exportExcel('${seg.id}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Exportar Excel
+      </button>
+    </div>
+    ${sc}
+    <div style="overflow-x:auto"><table class="ct"><thead><tr><th>${ths}</th></tr></thead><tbody>${trs}<tr class="tr"><td><strong>TOTAL ESTIMADO</strong></td><td><strong>${f(c.factura)}</strong></td>${totTds}</tr></tbody></table></div>
+    ${note}
+    <div class="ch-wrap"><canvas id="compChart_${seg.id}"></canvas></div>
+    <div id="legend_${seg.id}" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:11px;color:#888"></div>
+  </div>`;
+        }
+
+        function drawChart(seg) {
+            if (charts[seg.id]) { charts[seg.id].destroy(); delete charts[seg.id]; }
+            const canvas = document.getElementById('compChart_' + seg.id);
+            if (!canvas || !seg.tarifas.length) return;
+            const c = seg.cliente, results = seg.tarifas.filter(t => t.selected).map((t, i) => ({ t, r: calc(seg, t), color: COLS[i % COLS.length] }));
+            if (!results.length) return;
+            const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
+            charts[seg.id] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: ['Factura actual', ...results.map(x => x.t.nombre)],
+                    datasets: [{
+                        data: [+c.factura, ...results.map(x => +x.r.total.toFixed(2))],
+                        backgroundColor: ['#94a3b8', ...results.map(x => x.t.id === best.t.id ? NAT_ORANGE : x.color)],
+                        borderRadius: 5, borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw.toFixed(2).replace('.', ',') + ' €' } } },
+                    scales: {
+                        y: { ticks: { callback: v => v.toFixed(0) + ' €', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' }, border: { display: false } },
+                        x: { ticks: { font: { size: 11 }, maxRotation: 28 }, grid: { display: false }, border: { display: false } }
+                    }
+                }
+            });
+            const leg = document.getElementById('legend_' + seg.id);
+            if (leg) leg.innerHTML = [`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#94a3b8;display:inline-block"></span>Factura actual</span>`,
+                ...results.map(x => `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${x.t.id === best.t.id ? NAT_ORANGE : x.color};display:inline-block"></span>${x.t.nombre}</span>`)
+            ].join('');
+        }
+
+        // ── EXPORT PDF ──────────────────────────────────────
+        function exportPDF(segId) {
+            const seg = segs[segId], c = seg.cliente;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+            const isPyme = seg.taxModel !== 'res';
+            const navyR = 0, navyG = 40, navyB = 85, orR = 245, orG = 130, orB = 31;
+
+            // Header Background
+            doc.setFillColor(navyR, navyG, navyB);
+            doc.rect(0, 0, W, 35, 'F');
+            doc.setFillColor(orR, orG, orB);
+            doc.rect(0, 35, W, 2, 'F');
+
+            // Header Content
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+            doc.text('PROPUESTA COMERCIAL', 14, 18);
+            doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+            doc.text('Comparativa de Ahorro Energético — Naturgy', 14, 25);
+
+            doc.setFontSize(9);
+            doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-ES')}`, W - 14, 25, { align: 'right' });
+
+            // Client & Summary Box
+            doc.setFillColor(248, 249, 250);
+            doc.roundedRect(10, 45, W - 20, 35, 3, 3, 'F');
+            doc.setDrawColor(230, 230, 230);
+            doc.roundedRect(10, 45, W - 20, 35, 3, 3, 'S');
+
+            doc.setTextColor(120, 120, 120); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+            doc.text('DATOS DEL CLIENTE', 15, 52);
+            doc.text('RESUMEN DE LA PROPUESTA', W / 2 + 10, 52);
+
+            doc.setTextColor(26, 26, 26); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text(c.nombre || '—', 15, 59);
+            doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+            doc.text(`CUPS: ${c.cups || '—'}`, 15, 64);
+            doc.text(`Dirección: ${(c.dir || '—').substring(0, 60)}`, 15, 69);
+            doc.text(`Período: ${c.f1 || '—'} a ${c.f2 || '—'} (${c.dias} días)`, 15, 74);
+
+            // Summary Stats
+            const results = seg.tarifas.filter(t => t.selected).map(t => ({ t, r: calc(seg, t) }));
+            if (results.length === 0) { alert('Selecciona al menos una tarifa para exportar.'); return; }
+            const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
+            const totalAh = +(c.factura - best.r.total).toFixed(2);
+
+            doc.setTextColor(navyR, navyG, navyB); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+            doc.text(`${f(best.r.total)}`, W / 2 + 10, 65);
+            doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+            doc.text(`Importe con ${best.t.nombre}`, W / 2 + 10, 59);
+
+            const ahColor = totalAh >= 0 ? [6, 95, 70] : [220, 38, 38];
+            doc.setTextColor(ahColor[0], ahColor[1], ahColor[2]); doc.setFontSize(14);
+            doc.text(`${totalAh >= 0 ? '−' : '+'}${f(Math.abs(totalAh))}`, W - 15, 65, { align: 'right' });
+            doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+            doc.text('Ahorro estimado en el período', W - 15, 59, { align: 'right' });
+
+            // Table
+            const rowDefs = isPyme
+                ? [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC Red. 3%', 'igicRed'], ['IGIC 7% alquiler', 'igic7']]
+                : [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC alquiler', 'igic'], ['Bono Social', 'bonoSocial']];
+
+            const head = [['Componente', 'Factura actual', ...results.map(x => x.t.nombre.toUpperCase())]];
+            const body = rowDefs.map(([lbl, key]) =>
+                [lbl, key === 'alquiler' ? fRaw(c.alquiler) : '—', ...results.map(x => x.r[key] !== undefined ? fRaw(x.r[key]) : '—')]
+            );
+            const totalRow = ['TOTAL ESTIMADO', fRaw(c.factura), ...results.map(x => fRaw(x.r.total))];
+
+            doc.autoTable({
+                startY: 85, head, body: [...body, totalRow],
+                theme: 'striped',
+                headStyles: { fillColor: [navyR, navyG, navyB], textColor: 255, fontStyle: 'bold', fontSize: 9, halign: 'right', padding: 4 },
+                columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 45 } },
+                bodyStyles: { fontSize: 9, halign: 'right', padding: 3, textColor: [50, 50, 50] },
+                alternateRowStyles: { fillColor: [252, 252, 252] },
+                margin: { left: 10, right: 10 },
+                didParseCell: (d) => {
+                    if (d.row.index === body.length) {
+                        d.cell.styles.fillColor = [255, 245, 235];
+                        d.cell.styles.fontStyle = 'bold';
+                        d.cell.styles.textColor = [navyR, navyG, navyB];
+                        if (d.column.index > 1) {
+                            const currentT = results[d.column.index - 2];
+                            if (currentT.t.id === best.t.id) {
+                                d.cell.styles.textColor = [orR, orG, orB];
+                                d.cell.styles.fontSize = 10;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Summary Text / Disclaimer
+            const finalY = doc.lastAutoTable.finalY + 12;
+            doc.setFillColor(255, 248, 242);
+            doc.roundedRect(10, finalY, W - 20, 20, 2, 2, 'F');
+            doc.setTextColor(orR, orG, orB); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+            doc.text('NOTA IMPORTANTE:', 14, finalY + 7);
+            doc.setTextColor(100, 100, 100); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+            const noteText = isPyme
+                ? 'Esta comparativa es orientativa y no vinculante. Los ahorros se calculan sobre el consumo real aportado. El Bono Social se muestra como referencia informativa según la normativa vigente en Canarias.'
+                : 'Esta comparativa es orientativa y no vinculante. Los ahorros se calculan sobre el consumo real aportado. Precios sujetos a variaciones reguladas.';
+            doc.text(doc.splitTextToSize(noteText, W - 30), 14, finalY + 12);
+
+            // Footer
+            doc.setFillColor(navyR, navyG, navyB);
+            doc.rect(0, H - 15, W, 15, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(8);
+            doc.text('App creada por NEXUS SALES — admin@nexus-sales.eu', 14, H - 7);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Naturgy', W - 14, H - 7, { align: 'right' });
+
+            doc.save(`Propuesta_Naturgy_${c.nombre || 'cliente'}.pdf`);
+        }
+
+        // ── EXPORT EXCEL ──────────────────────────────────────
+        function exportExcel(segId) {
+            const seg = segs[segId], c = seg.cliente, isPyme = seg.taxModel !== 'res';
+            const results = seg.tarifas.map(t => ({ t, r: calc(seg, t) }));
+            const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
+            const wb = XLSX.utils.book_new();
+
+            // Sheet 1: Comparativa
+            const rowDefs = isPyme
+                ? [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC Reducido 3%', 'igicRed'], ['IGIC 7% alquiler', 'igic7'], ['Bono Social (ref.)', 'bonoSocial']]
+                : [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC alquiler', 'igic'], ['Bono Social', 'bonoSocial']];
+
+            const header = ['Componente', 'Factura actual', ...results.map(x => x.t.nombre)];
+            const rows = [
+                [`Comparativa Tarifas Naturgy — ${seg.label}`],
+                [],
+                ['Cliente:', c.nombre, 'CUPS:', c.cups],
+                ['Dirección:', c.dir],
+                ['Período:', `${c.f1} → ${c.f2}`, 'Días:', c.dias],
+                [],
+                header,
+                ...rowDefs.map(([lbl, key]) => [lbl, key === 'alquiler' ? +c.alquiler : null, ...results.map(x => x.r[key] !== undefined ? +x.r[key] : null)]),
+                ['TOTAL ESTIMADO', +c.factura, ...results.map(x => +x.r.total)],
+                [],
+                ['Mejor opción:', best.t.nombre, `Total: ${fRaw(best.r.total)} €`],
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [{ wch: 28 }, { wch: 16 }, ...results.map(() => ({ wch: 20 }))];
+            XLSX.utils.book_append_sheet(wb, ws, 'Comparativa');
+
+            // Sheet 2: Datos cliente
+            const wsC = XLSX.utils.aoa_to_sheet([
+                ['Datos del cliente'],
+                [], ['Nombre', c.nombre], ['CUPS', c.cups], ['Dirección', c.dir],
+                ['Lectura anterior', c.f1], ['Lectura actual', c.f2], ['Días', c.dias],
+                [], ['POTENCIA (kW)'],
+                ...c.kw.map((v, i) => v ? [`P${i + 1}`, v] : []).filter(x => x.length),
+                [], ['CONSUMO (kWh)'],
+                ...c.en.map((v, i) => v ? [`P${i + 1}`, v] : []).filter(x => x.length),
+                [], ['Factura actual (€)', c.factura], ['Alquiler (€)', c.alquiler],
+            ]);
+            wsC['!cols'] = [{ wch: 24 }, { wch: 30 }];
+            XLSX.utils.book_append_sheet(wb, wsC, 'Datos cliente');
+
+            XLSX.writeFile(wb, `Comparativa_Naturgy_${seg.label.replace(/\s/g, '_')}.xlsx`);
+        }
+
+        // ── EVENT HANDLERS ──────────────────────────────────
+        function clienteVacio(seg) {
+            const c = seg.cliente;
+            return !+c.factura && c.en.every(v => !+v) && c.kw.every(v => !+v);
+        }
+
+        function clearCliente(segId) {
+            if (!confirm('¿Limpiar todos los datos del cliente? Esta acción no se puede deshacer.')) return;
+            const seg = segs[segId];
+            const c = seg.cliente;
+            const keep = { bonoRate: c.bonoRate, taxImpElec: c.taxImpElec, taxIGIC: c.taxIGIC, taxIGICRed: c.taxIGICRed, taxIGIC7: c.taxIGIC7, alquiler: c.alquiler };
+            segs[segId].cliente = {
+                nombre: '', cups: '', dir: '', f1: '', f2: '', dias: 0,
+                kw: [0, 0, 0, 0, 0, 0], en: [0, 0, 0, 0, 0, 0],
+                factura: 0, ...keep
+            };
+            renderContent();
+        }
+
+        function upCf(segId, field, val) { segs[segId].cliente[field] = val === '' ? '' : isNaN(+val) ? val : +val; if (activeSubTab[segId] === 'comp') renderContent(); else refreshPreviews(segId); }
+        function upC(segId, field, idx, val) { segs[segId].cliente[field][idx] = +val; if (activeSubTab[segId] === 'comp') renderContent(); else refreshPreviews(segId); }
+        function upDate(segId, field, val) { segs[segId].cliente[field] = val; const c = segs[segId].cliente; if (c.f1 && c.f2) { const d = Math.round((new Date(c.f2) - new Date(c.f1)) / (864e5)); if (d > 0) { c.dias = d; const diasEl = document.getElementById('dias_' + segId); if (diasEl) diasEl.value = d; } } if (activeSubTab[segId] === 'comp') renderContent(); else refreshPreviews(segId); }
+        function upTf(segId, tid, field, val) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t[field] = isNaN(+val) ? val : +val; refreshTPreview(segId, tid); } }
+        function upTarr(segId, tid, field, idx, val) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t[field][idx] = +val; refreshTPreview(segId, tid); } }
+        function refreshTPreview(segId, tid) {
+            const seg = segs[segId], t = seg.tarifas.find(x => x.id === tid); if (!t) return;
+            const r = calc(seg, t), ah = +(seg.cliente.factura - r.total).toFixed(2);
+            const ep = document.getElementById('prev_' + tid), es = document.getElementById('sav_' + tid), ers = document.getElementById('rsub_' + tid);
+            if (ep) ep.textContent = f(r.total);
+            if (es) { es.className = 'tsav ' + (ah > 0.005 ? 'spos' : ah < -0.005 ? 'sneg' : 'sneu'); es.textContent = ah > 0.005 ? `−${f(ah)}` : ah < -0.005 ? `+${f(Math.abs(ah))}` : 'Igual'; }
+            if (ers) { ers.innerHTML = buildRsub(r, seg.taxModel !== 'res'); }
+            if (activeSubTab[segId] === 'comp') renderContent();
+        }
+        function refreshPreviews(segId) { segs[segId].tarifas.forEach(t => refreshTPreview(segId, t.id)); }
+        function togT(segId, tid) { const t = segs[segId].tarifas.find(x => x.id === tid); if (!t) return; t.open = !t.open; const bd = document.getElementById('body_' + tid); if (bd) { bd.className = 'tb' + (t.open ? ' on' : ''); if (t.open) bd.innerHTML = buildTBody(segs[segId], t, 0); const chev = bd.closest('.tc')?.querySelector('.chev'); if (chev) chev.className = 'chev' + (t.open ? ' r' : ''); } }
+        function renT(segId, tid, val) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t.nombre = val; if (activeSubTab[segId] === 'comp') renderContent(); } }
+        function chgTipo(segId, tid, tipo) { const t = segs[segId].tarifas.find(x => x.id === tid); if (!t) return; t.tipo = tipo; const bd = document.getElementById('body_' + tid); if (bd) bd.innerHTML = buildTBody(segs[segId], t, 0); refreshTPreview(segId, tid); }
+        function delT(segId, tid) { segs[segId].tarifas = segs[segId].tarifas.filter(x => x.id !== tid); renderContent(); }
+        function togSelect(segId, tid) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t.selected = !t.selected; refreshPreviews(segId); } }
+        function addTariff(segId) { const seg = segs[segId], newId = 'u' + (++_tariffId); seg.tarifas.push({ id: newId, nombre: 'Nueva tarifa', tipo: seg.potP === 6 ? 'hex' : 'uni', potUnit: 'dia', rPot: [0, 0, 0, 0, 0, 0], rEn: [0, 0, 0, 0, 0, 0], sva: 0, open: true, selected: true }); renderContent(); }
+
+        updateAdminBtn(); renderSegBar(); renderSubBar(); renderContent();
+    </script>
+</body>
+
+</html>
