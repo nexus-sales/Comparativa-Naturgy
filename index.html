@@ -1054,6 +1054,7 @@
 
     <script>
         let charts = {}, adminMode = false, _tariffId = 0;
+        let comercialData = { nombre: '', telefono: '', email: '' };
         const NAT_ORANGE = '#F5821F', NAT_NAVY = '#002855';
         const COLS = [NAT_NAVY, '#0F6E56', '#B45309', '#6D28D9', '#be185d', '#0e7490'];
 
@@ -1267,6 +1268,13 @@
     <div class="hr"></div>
     <div class="stitle">Otros cargos</div>
     <div class="g2" style="margin-bottom:12px"><div class="fl"><label>Factura actual cliente (€)</label><input type="number" step="0.01" value="${c.factura}" oninput="upCf('${seg.id}','factura',this.value)"/></div><div class="fl"><label>Alquiler contador (€)</label><input type="number" step="0.01" value="${c.alquiler}" oninput="upCf('${seg.id}','alquiler',this.value)"/></div></div>
+    <div class="hr"></div>
+    <div class="stitle">Datos del comercial</div>
+    <div class="g3">
+      <div class="fl"><label>Nombre comercial</label><input value="${comercialData.nombre}" oninput="comercialData.nombre=this.value" placeholder="Nombre del agente"/></div>
+      <div class="fl"><label>Teléfono</label><input value="${comercialData.telefono}" oninput="comercialData.telefono=this.value" placeholder="600 000 000"/></div>
+      <div class="fl"><label>Email</label><input value="${comercialData.email}" oninput="comercialData.email=this.value" placeholder="agente@naturgy.es"/></div>
+    </div>
     ${adminTaxBlock}
   </div>`;
         }
@@ -1417,117 +1425,247 @@
         function exportPDF(segId) {
             const seg = segs[segId], c = seg.cliente;
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
             const isPyme = seg.taxModel !== 'res';
-            const navyR = 0, navyG = 40, navyB = 85, orR = 245, orG = 130, orB = 31;
-
-            // Header Background
-            doc.setFillColor(navyR, navyG, navyB);
-            doc.rect(0, 0, W, 35, 'F');
-            doc.setFillColor(orR, orG, orB);
-            doc.rect(0, 35, W, 2, 'F');
-
-            // Header Content
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-            doc.text('PROPUESTA COMERCIAL', 14, 18);
-            doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-            doc.text('Comparativa de Ahorro Energético — Naturgy', 14, 25);
-
-            doc.setFontSize(9);
-            doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-ES')}`, W - 14, 25, { align: 'right' });
-
-            // Client & Summary Box
-            doc.setFillColor(248, 249, 250);
-            doc.roundedRect(10, 45, W - 20, 35, 3, 3, 'F');
-            doc.setDrawColor(230, 230, 230);
-            doc.roundedRect(10, 45, W - 20, 35, 3, 3, 'S');
-
-            doc.setTextColor(120, 120, 120); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-            doc.text('DATOS DEL CLIENTE', 15, 52);
-            doc.text('RESUMEN DE LA PROPUESTA', W / 2 + 10, 52);
-
-            doc.setTextColor(26, 26, 26); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-            doc.text(c.nombre || '—', 15, 59);
-            doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-            doc.text(`CUPS: ${c.cups || '—'}`, 15, 64);
-            doc.text(`Dirección: ${(c.dir || '—').substring(0, 60)}`, 15, 69);
-            doc.text(`Período: ${c.f1 || '—'} a ${c.f2 || '—'} (${c.dias} días)`, 15, 74);
-
-            // Summary Stats
             const results = seg.tarifas.filter(t => t.selected).map(t => ({ t, r: calc(seg, t) }));
-            if (results.length === 0) { alert('Selecciona al menos una tarifa para exportar.'); return; }
-            const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
-            const totalAh = +(c.factura - best.r.total).toFixed(2);
+            if (!results.length) { alert('Selecciona al menos una tarifa para exportar.'); return; }
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            results.forEach((item, idx) => {
+                if (idx > 0) doc.addPage();
+                pdfPage(doc, seg, c, item.t, item.r, isPyme);
+            });
+            doc.save(`Propuesta_Naturgy_${(c.nombre || 'cliente').replace(/\s+/g, '_')}.pdf`);
+        }
 
-            doc.setTextColor(navyR, navyG, navyB); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-            doc.text(`${f(best.r.total)}`, W / 2 + 10, 65);
-            doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-            doc.text(`Importe con ${best.t.nombre}`, W / 2 + 10, 59);
+        function pdfPage(doc, seg, c, tar, r, isPyme) {
+            const L = 10, R = 200, CW = 190;
+            const navy = [0, 40, 85], or = [245, 130, 31], wh = [255, 255, 255];
+            const gr = [245, 245, 245], bd = [190, 190, 190], altGr = [250, 250, 250];
+            const lbs = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'];
+            const rh = 6.5;
 
-            const ahColor = totalAh >= 0 ? [6, 95, 70] : [220, 38, 38];
-            doc.setTextColor(ahColor[0], ahColor[1], ahColor[2]); doc.setFontSize(14);
-            doc.text(`${totalAh >= 0 ? '−' : '+'}${f(Math.abs(totalAh))}`, W - 15, 65, { align: 'right' });
-            doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-            doc.text('Ahorro estimado en el período', W - 15, 59, { align: 'right' });
+            function fill(col) { doc.setFillColor(...col); }
+            function stroke(col) { doc.setDrawColor(...col); }
+            function color(col) { doc.setTextColor(...col); }
+            function bold(s) { doc.setFont('helvetica', 'bold'); doc.setFontSize(s || 7.5); }
+            function norm(s) { doc.setFont('helvetica', 'normal'); doc.setFontSize(s || 7); }
+            function box(x, y, w, h, fc, sc) { fill(fc || wh); stroke(sc || bd); doc.rect(x, y, w, h, 'FD'); }
+            function vl(x, y, h) { doc.line(x, y, x, y + h); }
+            function tx(t, x, y, opts) { doc.text(String(t === null || t === undefined ? '' : t), x, y, opts || {}); }
+            function fmt(v, d) { return v != null && !isNaN(+v) ? (+v).toFixed(d != null ? d : 2).replace('.', ',') : '-'; }
+            function fmtE(v) { return fmt(v) + ' €'; }
 
-            // Table
-            const rowDefs = isPyme
-                ? [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC Red. 3%', 'igicRed'], ['IGIC 7% alquiler', 'igic7']]
-                : [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC alquiler', 'igic'], ['Bono Social', 'bonoSocial']];
+            let y = 5;
 
-            const head = [['Componente', 'Factura actual', ...results.map(x => x.t.nombre.toUpperCase())]];
-            const body = rowDefs.map(([lbl, key]) =>
-                [lbl, key === 'alquiler' ? fRaw(c.alquiler) : '—', ...results.map(x => x.r[key] !== undefined ? fRaw(x.r[key]) : '—')]
-            );
-            const totalRow = ['TOTAL ESTIMADO', fRaw(c.factura), ...results.map(x => fRaw(x.r.total))];
+            // ══ HEADER TABLE ══
+            // Row 1: PRESUPUESTO | CARGOS E IMPUESTOS REDUCIDOS* | Naturgy
+            box(L, y, CW, rh); vl(L + 56, y, rh); vl(L + 138, y, rh);
+            color(navy); bold(8); tx('PRESUPUESTO', L + 2, y + 4.5);
+            color(or); bold(7.5); tx('CARGOS E IMPUESTOS  REDUCIDOS*', L + 58, y + 4.5);
+            color(navy); bold(12); tx('Naturgy', L + 148, y + 4.8);
+            color(or); bold(10); tx('✔', L + 174, y + 4.5);
+            y += rh;
 
-            doc.autoTable({
-                startY: 85, head, body: [...body, totalRow],
-                theme: 'striped',
-                headStyles: { fillColor: [navyR, navyG, navyB], textColor: 255, fontStyle: 'bold', fontSize: 9, halign: 'right', padding: 4 },
-                columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 45 } },
-                bodyStyles: { fontSize: 9, halign: 'right', padding: 3, textColor: [50, 50, 50] },
-                alternateRowStyles: { fillColor: [252, 252, 252] },
-                margin: { left: 10, right: 10 },
-                didParseCell: (d) => {
-                    if (d.row.index === body.length) {
-                        d.cell.styles.fillColor = [255, 245, 235];
-                        d.cell.styles.fontStyle = 'bold';
-                        d.cell.styles.textColor = [navyR, navyG, navyB];
-                        if (d.column.index > 1) {
-                            const currentT = results[d.column.index - 2];
-                            if (currentT.t.id === best.t.id) {
-                                d.cell.styles.textColor = [orR, orG, orB];
-                                d.cell.styles.fontSize = 10;
-                            }
-                        }
-                    }
-                }
+            // Row 2: TARIFA POR USO | CUPS
+            box(L, y, CW, rh); vl(L + 56, y, rh);
+            color([140, 140, 140]); norm(6.5); tx('TARIFA POR USO', L + 2, y + 4.5);
+            color(navy); bold(8); tx(c.cups || '—', L + 58, y + 4.5);
+            y += rh;
+
+            // Row 3: Address full width
+            box(L, y, CW, rh);
+            color(navy); bold(8); tx((c.dir || '—').substring(0, 72), L + 2, y + 4.5);
+            y += rh;
+
+            // Row 4: Lectura anterior | date | NOMBRE CLIENTE
+            box(L, y, CW, rh); vl(L + 38, y, rh); vl(L + 68, y, rh);
+            color([140, 140, 140]); norm(6.5); tx('Lectura anterior', L + 2, y + 4.5);
+            color([30, 30, 30]); norm(7.5); tx(c.f1 || '—', L + 40, y + 4.5);
+            color(navy); bold(9); tx(c.nombre || '—', L + 70, y + 4.5);
+            y += rh;
+
+            // Row 5: Lectura actual | date | FECHA OFERTA** | date
+            box(L, y, CW, rh); vl(L + 38, y, rh); vl(L + 68, y, rh); vl(L + 132, y, rh);
+            color([140, 140, 140]); norm(6.5); tx('Lectura actual', L + 2, y + 4.5);
+            color([30, 30, 30]); norm(7.5); tx(c.f2 || '—', L + 40, y + 4.5);
+            color([140, 140, 140]); norm(6.5); tx('FECHA OFERTA **', L + 70, y + 4.5);
+            color(navy); bold(8); tx(new Date().toLocaleDateString('es-ES'), L + 134, y + 4.5);
+            y += rh + 2;
+
+            // ══ POTENCIA ══
+            fill(or); stroke(or); doc.rect(L, y, CW, 6, 'F');
+            color(wh); bold(8.5); tx('POTENCIA', L + 2, y + 4.2);
+            y += 6;
+
+            // Sub-header
+            box(L, y, CW, 6, gr); vl(L + 45, y, 6); vl(L + 65, y, 6); vl(L + 110, y, 6);
+            color([80, 80, 80]); bold(6.5);
+            tx('€/Kw*día', L + 2, y + 4); tx('Días', L + 47, y + 4);
+            y += 6;
+
+            // Rate rows P1/P2/...
+            const potP = seg.potP || 2;
+            for (let i = 0; i < potP; i++) {
+                const rate = tar.rPot[i] || 0, kw = c.kw[i] || 0;
+                if (!rate && !kw) continue;
+                box(L, y, CW, rh, i % 2 ? altGr : wh); vl(L + 45, y, rh); vl(L + 65, y, rh); vl(L + 110, y, rh);
+                color([30, 30, 30]); norm(7);
+                tx(fmt(rate, 6), L + 2, y + 4.5);
+                tx(String(c.dias || 0), L + 47, y + 4.5);
+                bold(8); tx(lbs[i], L + 67, y + 4.5);
+                y += rh;
+            }
+
+            // PUNTA / VALLE coste rows
+            const dias = c.dias || 1;
+            const periods = potP === 2
+                ? [['PUNTA', 0], ['VALLE', 1]]
+                : lbs.slice(0, potP).map((lb, i) => [lb, i]);
+
+            periods.forEach(([lbl, i]) => {
+                const rate = tar.rPot[i] || 0, kw = c.kw[i] || 0;
+                if (!rate || !kw) return;
+                const cost = tar.potUnit === 'dia' ? rate * kw * dias : (rate / 365) * kw * dias;
+                const unitCost = tar.potUnit === 'dia' ? rate * kw : (rate / 365) * kw;
+                box(L, y, CW, rh, i % 2 ? altGr : wh);
+                vl(L + 22, y, rh); vl(L + 34, y, rh); vl(L + 110, y, rh); vl(L + 155, y, rh);
+                color([30, 30, 30]); bold(7.5); tx(lbl, L + 2, y + 4.5);
+                norm(7); tx(String(kw), L + 24, y + 4.5);
+                tx(fmt(unitCost, 9).replace(/,?0+$/, ''), L + 36, y + 4.5);
+                bold(7.5); tx('COSTE ' + lbl, L + 112, y + 4.5);
+                color(navy); tx(fmtE(cost), R - 2, y + 4.5, { align: 'right' });
+                y += rh;
             });
 
-            // Summary Text / Disclaimer
-            const finalY = doc.lastAutoTable.finalY + 12;
-            doc.setFillColor(255, 248, 242);
-            doc.roundedRect(10, finalY, W - 20, 20, 2, 2, 'F');
-            doc.setTextColor(orR, orG, orB); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-            doc.text('NOTA IMPORTANTE:', 14, finalY + 7);
-            doc.setTextColor(100, 100, 100); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-            const noteText = isPyme
-                ? 'Esta comparativa es orientativa y no vinculante. Los ahorros se calculan sobre el consumo real aportado. El Bono Social se muestra como referencia informativa según la normativa vigente en Canarias.'
-                : 'Esta comparativa es orientativa y no vinculante. Los ahorros se calculan sobre el consumo real aportado. Precios sujetos a variaciones reguladas.';
-            doc.text(doc.splitTextToSize(noteText, W - 30), 14, finalY + 12);
+            // COSTE POTENCIA total row
+            fill([255, 244, 230]); stroke(or); doc.rect(L, y, CW, 7, 'FD'); vl(L + 110, y, 7);
+            color(navy); bold(8.5); tx('COSTE POTENCIA', L + 112, y + 5);
+            color(or); bold(11); tx(fmtE(r.potencia), R - 2, y + 5.5, { align: 'right' });
+            y += 7 + 2;
 
-            // Footer
-            doc.setFillColor(navyR, navyG, navyB);
-            doc.rect(0, H - 15, W, 15, 'F');
-            doc.setTextColor(255, 255, 255); doc.setFontSize(8);
-            doc.text('App creada por NEXUS SALES — admin@nexus-sales.eu', 14, H - 7);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Naturgy', W - 14, H - 7, { align: 'right' });
+            // ══ CONSUMO ══
+            fill(or); stroke(or); doc.rect(L, y, CW, 6, 'F');
+            color(wh); bold(8.5); tx('CONSUMO', L + 2, y + 4.2);
+            y += 6;
 
-            doc.save(`Propuesta_Naturgy_${c.nombre || 'cliente'}.pdf`);
+            // Sub-header
+            box(L, y, CW, 6, gr); vl(L + 40, y, 6); vl(L + 58, y, 6); vl(L + 110, y, 6); vl(L + 155, y, 6);
+            color([80, 80, 80]); bold(6.5);
+            tx('kWh', L + 2, y + 4); tx('€/kWh', L + 60, y + 4);
+            y += 6;
+
+            // Energy rows
+            const nEn = { uni: 1, tri: 3, hex: 6 }[tar.tipo] || 1;
+            for (let i = 0; i < nEn; i++) {
+                const kwh = c.en[i] || 0, rate = tar.rEn[i] || 0;
+                if (!kwh && i > 0) continue;
+                box(L, y, CW, rh, i % 2 ? altGr : wh);
+                vl(L + 40, y, rh); vl(L + 58, y, rh); vl(L + 110, y, rh); vl(L + 155, y, rh);
+                color([30, 30, 30]); norm(7);
+                tx(fmt(kwh, 2), L + 2, y + 4.5);
+                bold(8); tx(lbs[i], L + 42, y + 4.5);
+                norm(7); tx(fmt(rate, 6).replace(/,?0+$/, '') + ' €', L + 60, y + 4.5);
+                if (i === 0) {
+                    bold(7.5); color(navy);
+                    tx('COSTE ENERGÍA', L + 112, y + 4.5);
+                    tx(fmtE(r.energia), R - 2, y + 4.5, { align: 'right' });
+                }
+                y += rh;
+            }
+
+            // Line items: SVA, alquiler, subtotal, impuestos, bono
+            const lineItems = isPyme ? [
+                ['SIN SVA', r.sva || 0, false],
+                ['ALQUILER', r.alquiler, false],
+                [null], // gap
+                ['SUBTOTAL', r.subtotal, true],
+                ['IMPUESTO ELEC.', r.impElec, false],
+                ['BASE IMPONIBLE', r.alquiler, false],
+                ['IGIC Reducido', r.igicRed, false],
+                ['IGIC 7% alquiler', r.igic7, false],
+                ['FINANCIACIÓN', null, false],
+                ['BONO SOCIAL', r.bonoSocial, false],
+            ] : [
+                ['SIN SVA', r.sva || 0, false],
+                ['ALQUILER', r.alquiler, false],
+                [null],
+                ['SUBTOTAL', r.subtotal, true],
+                ['IMPUESTO ELEC.', r.impElec, false],
+                ['BASE IMPONIBLE', r.alquiler, false],
+                ['IGIC', r.igic || 0, false],
+                ['FINANCIACIÓN', null, false],
+                ['BONO SOCIAL', r.bonoSocial, false],
+            ];
+
+            let ri = 0;
+            lineItems.forEach(([lbl, val, isBold]) => {
+                if (lbl === null) { y += 1.5; return; }
+                box(L, y, CW, rh, ri % 2 ? altGr : wh); vl(L + 155, y, rh);
+                if (isBold) { color(navy); bold(7.5); } else { color([50, 50, 50]); norm(7); }
+                tx(lbl, L + 2, y + 4.5);
+                if (val !== null && val !== undefined) {
+                    color(navy); bold(7.5); tx(fmtE(val), R - 2, y + 4.5, { align: 'right' });
+                }
+                ri++; y += rh;
+            });
+
+            // Compensación excedentes
+            box(L, y, CW, rh, ri % 2 ? altGr : wh);
+            vl(L + 105, y, rh); vl(L + 130, y, rh); vl(L + 155, y, rh);
+            color([50, 50, 50]); norm(6.5);
+            tx('COMPENSACIÓN DE EXCEDENTES', L + 2, y + 4.5);
+            tx('0', L + 107, y + 4.5); tx('0,07', L + 132, y + 4.5);
+            color(navy); bold(7.5); tx('0 €', R - 2, y + 4.5, { align: 'right' });
+            y += rh;
+
+            // ══ TOTAL ══
+            fill([255, 244, 230]); stroke(or); doc.rect(L, y, CW, 9, 'FD'); vl(L + 110, y, 9);
+            color(navy); bold(10); tx('TOTAL', L + 2, y + 6);
+            color(or); bold(14); tx(fmtE(r.total), R - 2, y + 6.5, { align: 'right' });
+            y += 9 + 1;
+
+            // ══ ATENDIDO POR / FACTURA CLIENTE / AHORRO ══
+            const ahorro = +(c.factura - r.total).toFixed(2);
+            const pct = c.factura > 0 ? Math.abs(Math.round((ahorro / c.factura) * 100)) : 0;
+            const ahCol = ahorro >= 0 ? [6, 95, 70] : [220, 38, 38];
+
+            box(L, y, CW, 9); vl(L + 68, y, 9); vl(L + 132, y, 9);
+            color([120, 120, 120]); norm(6); tx('ATENDIDO POR:', L + 2, y + 3.5);
+            color([20, 20, 20]); bold(7.5); tx(comercialData.nombre || '', L + 2, y + 7.5);
+            if (comercialData.telefono) { color([100, 100, 100]); norm(6); tx(comercialData.telefono, L + 36, y + 7.5); }
+
+            color([120, 120, 120]); norm(6); tx('FACTURA CLIENTE', L + 70, y + 3.5);
+            color(navy); bold(10); tx(fmtE(c.factura), L + 130, y + 8, { align: 'right' });
+
+            color([120, 120, 120]); norm(6); tx('AHORRO', L + 134, y + 3.5);
+            color(ahCol); bold(10); tx((ahorro >= 0 ? '- ' : '+ ') + fmtE(Math.abs(ahorro)), R - 2, y + 8, { align: 'right' });
+            y += 9;
+
+            // OFERTA TIEMPO LIMITADO / AHORRO ESTIMADO %
+            fill([255, 244, 230]); stroke(or); doc.rect(L, y, CW, 7, 'FD'); vl(L + 68, y, 7);
+            color(or); bold(7.5); tx('**OFERTA TIEMPO LIMITADO', L + 2, y + 4.5);
+            color([100, 100, 100]); norm(7); tx('AHORRO ESTIMADO', L + 70, y + 4.5);
+            color(ahCol); bold(9); tx((ahorro >= 0 ? '-' : '+') + pct + '%', R - 2, y + 4.5, { align: 'right' });
+            y += 7 + 3;
+
+            // Disclaimer
+            color([140, 140, 140]); norm(6);
+            const disc = 'La presente comparativa es estimativa, sirve únicamente para dar una idea a nuestro cliente sobre cómo se le facturará con NATURGY S.A. este documento no es vinculante, puede variar según lecturas reales/estimadas del cliente. Nos basamos únicamente en la información de factura aportada por el cliente.';
+            const dlines = doc.splitTextToSize(disc, CW);
+            doc.text(dlines, L, y);
+            y += dlines.length * 3.2 + 4;
+
+            // Email comercial si existe
+            if (comercialData.email) {
+                color([100, 100, 100]); norm(6.5);
+                tx(comercialData.email, L + 70, y);
+                y += 5;
+            }
+
+            // RECIBIDO block
+            box(L, y, CW, 18); vl(L + 95, y, 18);
+            color([100, 100, 100]); norm(7); tx('RECIBIDO', L + 2, y + 6);
+            doc.line(L + 5, y + 13, L + 93, y + 13);
+            color([50, 50, 50]); bold(8); tx(new Date().toLocaleDateString('es-ES'), L + 20, y + 16.5);
         }
 
         // ── EXPORT EXCEL ──────────────────────────────────────
