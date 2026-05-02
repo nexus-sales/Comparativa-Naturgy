@@ -7,7 +7,6 @@
     <title>Comparativa Tarifas Naturgy — Canarias</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* ── RESET ── */
@@ -798,6 +797,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            -webkit-backdrop-filter: blur(3px);
             backdrop-filter: blur(3px)
         }
 
@@ -937,6 +937,12 @@
             font-weight: 500;
         }
 
+        .footer-text-small {
+            margin-top: 8px;
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
         .footer-text strong {
             color: #002855;
             font-weight: 700;
@@ -1034,7 +1040,7 @@
                         </svg>
                         admin@nexus-sales.eu
                     </a>
-                    <a href="https://github.com/nexus-sales/Comparativa-Naturgy.git" target="_blank"
+                    <a href="https://github.com/nexus-sales/Comparativa-Naturgy.git" target="_blank" rel="noopener noreferrer"
                         class="footer-link">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1044,7 +1050,7 @@
                         GitHub
                     </a>
                 </div>
-                <div class="footer-text" style="margin-top: 8px; font-size: 11px; opacity: 0.8;">
+                <div class="footer-text footer-text-small">
                     App Creada por <strong>NEXUS SALES</strong> — todos los derechos reservados
                 </div>
             </div>
@@ -1174,7 +1180,6 @@
             hideModal();
             // Show success inline
             const btn = document.getElementById('adminBtn');
-            const orig = btn.textContent;
             btn.textContent = '✓ Contraseña cambiada';
             setTimeout(() => { btn.textContent = '🔓 Admin activo'; }, 2000);
         }
@@ -1204,6 +1209,7 @@
 
         function f(v, d = 2) { if (v === null || v === undefined || isNaN(+v)) return '—'; return (+v).toFixed(d).replace('.', ',') + '\u202f€'; }
         function fRaw(v, d = 2) { if (v === null || v === undefined || isNaN(+v)) return ''; return (+v).toFixed(d).replace('.', ','); }
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
         // ── BREAKDOWN VERTICAL ──
         function buildRsub(r, isPyme) {
@@ -1256,8 +1262,8 @@
         Limpiar datos
       </button>
     </div>
-    <div class="g2"><div class="fl"><label>Nombre</label><input value="${c.nombre}" oninput="upCf('${seg.id}','nombre',this.value)"/></div><div class="fl"><label>CUPS</label><input value="${c.cups}" oninput="upCf('${seg.id}','cups',this.value)"/></div></div>
-    <div class="fl" style="margin-bottom:12px"><label>Dirección</label><input value="${c.dir}" oninput="upCf('${seg.id}','dir',this.value)"/></div>
+    <div class="g2"><div class="fl"><label>Nombre</label><input value="${esc(c.nombre)}" oninput="upCf('${seg.id}','nombre',this.value)"/></div><div class="fl"><label>CUPS</label><input value="${esc(c.cups)}" oninput="upCf('${seg.id}','cups',this.value)"/></div></div>
+    <div class="fl" style="margin-bottom:12px"><label>Dirección</label><input value="${esc(c.dir)}" oninput="upCf('${seg.id}','dir',this.value)"/></div>
     <div class="g3"><div class="fl"><label>Lectura anterior</label><input type="date" value="${c.f1}" onchange="upDate('${seg.id}','f1',this.value)"/></div><div class="fl"><label>Lectura actual</label><input type="date" value="${c.f2}" onchange="upDate('${seg.id}','f2',this.value)"/></div><div class="fl"><label>Días del período</label><input type="number" id="dias_${seg.id}" value="${c.dias}" oninput="upCf('${seg.id}','dias',this.value)"/></div></div>
     <div class="hr"></div>
     <div class="stitle">Potencia contratada</div>
@@ -1271,16 +1277,16 @@
     <div class="hr"></div>
     <div class="stitle">Datos del comercial</div>
     <div class="g3">
-      <div class="fl"><label>Nombre comercial</label><input value="${comercialData.nombre}" oninput="comercialData.nombre=this.value" placeholder="Nombre del agente"/></div>
-      <div class="fl"><label>Teléfono</label><input value="${comercialData.telefono}" oninput="comercialData.telefono=this.value" placeholder="600 000 000"/></div>
-      <div class="fl"><label>Email</label><input value="${comercialData.email}" oninput="comercialData.email=this.value" placeholder="agente@naturgy.es"/></div>
+      <div class="fl"><label>Nombre comercial</label><input value="${esc(comercialData.nombre)}" oninput="comercialData.nombre=this.value" placeholder="Nombre del agente"/></div>
+      <div class="fl"><label>Teléfono</label><input value="${esc(comercialData.telefono)}" oninput="comercialData.telefono=this.value" placeholder="600 000 000"/></div>
+      <div class="fl"><label>Email</label><input value="${esc(comercialData.email)}" oninput="comercialData.email=this.value" placeholder="agente@naturgy.es"/></div>
     </div>
     ${adminTaxBlock}
   </div>`;
         }
 
         // ── TARIFF LIST ──────────────────────────────────────
-        function renderTar(seg) { return `<div class="pane">${seg.tarifas.map((t, i) => renderTCard(seg, t, i)).join('')}<button class="add-btn" onclick="addTariff('${seg.id}')">+ Añadir tarifa</button></div>`; }
+        function renderTar(seg) { return `<div class="pane">${seg.tarifas.map((t, i) => renderTCard(seg, t, i)).join('')}${adminMode ? `<button class="add-btn" onclick="addTariff('${seg.id}')">+ Añadir tarifa</button>` : ''}</div>`; }
 
         function renderTCard(seg, t, idx) {
             const r = calc(seg, t), ah = +(seg.cliente.factura - r.total).toFixed(2);
@@ -1316,7 +1322,7 @@
             return `<div>${tipoBlock}${lockBar}
     <div style="margin-bottom:16px"><div class="stitle" style="margin-top:0">Término de potencia</div>${potContent}</div>
     <div style="margin-bottom:16px"><div class="stitle" style="margin-top:0">Término de energía</div>${enContent}</div>
-    <div class="fl" style="margin-bottom:6px;max-width:220px"><label>SVA (€)</label><input type="number" step="0.01" value="${t.sva || 0}" oninput="upTf('${seg.id}','${t.id}','sva',this.value)"/></div>
+    ${adminMode ? `<div class="fl" style="margin-bottom:6px;max-width:220px"><label>SVA (€)</label><input type="number" step="0.01" value="${t.sva || 0}" oninput="upTf('${seg.id}','${t.id}','sva',this.value)"/></div>` : (t.sva ? `<div class="price-row" style="max-width:220px;margin-bottom:6px"><span class="pr-label">SVA</span><span><span class="pr-val">${(+(t.sva)).toFixed(2).replace('.', ',')}</span><span class="pr-unit">€</span></span></div>` : '')}
     <div id="rsub_${t.id}">${buildRsub(r, isPyme)}</div>
     <div class="ra">${adminMode ? `<button class="btn btn-d" onclick="delT('${seg.id}','${t.id}')">Eliminar tarifa</button>` : ''}</div>
   </div>`;
@@ -1348,15 +1354,15 @@
             const bestAh = best ? +(c.factura - best.r.total).toFixed(2) : 0;
             const isPyme = seg.taxModel !== 'res';
             const sc = `<div class="sc">
-    <div class="sm"><div class="sl">Factura actual</div><div class="sv">${f(c.factura)}</div><div class="sn">${c.nombre || 'Cliente'}</div></div>
-    ${best ? `<div class="sm sm-best"><div class="sl">Mejor opción</div><div class="sv" style="color:${NAT_ORANGE}">${f(best.r.total)}</div><div class="sn">${best.t.nombre}</div></div>` : ''}
+    <div class="sm"><div class="sl">Factura actual</div><div class="sv">${f(c.factura)}</div><div class="sn">${esc(c.nombre) || 'Cliente'}</div></div>
+    ${best ? `<div class="sm sm-best"><div class="sl">Mejor opción</div><div class="sv" style="color:${NAT_ORANGE}">${f(best.r.total)}</div><div class="sn">${esc(best.t.nombre)}</div></div>` : ''}
     ${best ? `<div class="sm ${bestAh >= 0 ? 'sm-saving' : 'sm-loss'}"><div class="sl">Ahorro máximo</div><div class="sv" style="color:${bestAh >= 0 ? '#065f46' : '#dc2626'}">${bestAh >= 0 ? '−' : '+'}${f(Math.abs(bestAh))}</div><div class="sn">vs factura actual</div></div>` : ''}
-    <div class="sm"><div class="sl">Tarifas comparadas</div><div class="sv">${seg.tarifas.length}</div></div>
+    <div class="sm"><div class="sl">Tarifas comparadas</div><div class="sv">${results.length}</div></div>
   </div>`;
             const rowDefs = isPyme
                 ? [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC Red. 3%', 'igicRed'], ['IGIC 7% alquiler', 'igic7'], ['Bono Social *', 'bonoSocial']]
                 : [['Coste potencia', 'potencia'], ['Coste energía', 'energia'], ['SVA', 'sva'], ['Alquiler', 'alquiler'], ['Subtotal', 'subtotal'], ['Imp. electricidad', 'impElec'], ['IGIC alquiler', 'igic'], ['Bono Social', 'bonoSocial']];
-            const ths = ['Componente', 'Factura actual', ...results.map(x => `<span style="font-weight:700">${x.t.nombre}</span>`)].join('</th><th>');
+            const ths = ['Componente', 'Factura actual', ...results.map(x => `<span style="font-weight:700">${esc(x.t.nombre)}</span>`)].join('</th><th>');
             const trs = rowDefs.map(([lbl, key]) => {
                 const isBono = key === 'bonoSocial' && isPyme;
                 const base = key === 'alquiler' ? f(c.alquiler) : '—';
@@ -1417,7 +1423,7 @@
             });
             const leg = document.getElementById('legend_' + seg.id);
             if (leg) leg.innerHTML = [`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#94a3b8;display:inline-block"></span>Factura actual</span>`,
-                ...results.map(x => `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${x.t.id === best.t.id ? NAT_ORANGE : x.color};display:inline-block"></span>${x.t.nombre}</span>`)
+                ...results.map(x => `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${x.t.id === best.t.id ? NAT_ORANGE : x.color};display:inline-block"></span>${esc(x.t.nombre)}</span>`)
             ].join('');
         }
 
@@ -1499,7 +1505,7 @@
             // Sub-header
             box(L, y, CW, 6, gr); vl(L + 45, y, 6); vl(L + 65, y, 6); vl(L + 110, y, 6);
             color([80, 80, 80]); bold(6.5);
-            tx('€/Kw*día', L + 2, y + 4); tx('Días', L + 47, y + 4);
+            tx(tar.potUnit === 'dia' ? '€/kW·día' : '€/kW·año', L + 2, y + 4); tx('Días', L + 47, y + 4);
             y += 6;
 
             // Rate rows P1/P2/...
@@ -1671,7 +1677,7 @@
         // ── EXPORT EXCEL ──────────────────────────────────────
         function exportExcel(segId) {
             const seg = segs[segId], c = seg.cliente, isPyme = seg.taxModel !== 'res';
-            const results = seg.tarifas.map(t => ({ t, r: calc(seg, t) }));
+            const results = seg.tarifas.filter(t => t.selected).map(t => ({ t, r: calc(seg, t) }));
             const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
             const wb = XLSX.utils.book_new();
 
@@ -1737,8 +1743,8 @@
         function upCf(segId, field, val) { segs[segId].cliente[field] = val === '' ? '' : isNaN(+val) ? val : +val; if (activeSubTab[segId] === 'comp') renderContent(); else refreshPreviews(segId); }
         function upC(segId, field, idx, val) { segs[segId].cliente[field][idx] = +val; if (activeSubTab[segId] === 'comp') renderContent(); else refreshPreviews(segId); }
         function upDate(segId, field, val) { segs[segId].cliente[field] = val; const c = segs[segId].cliente; if (c.f1 && c.f2) { const d = Math.round((new Date(c.f2) - new Date(c.f1)) / (864e5)); if (d > 0) { c.dias = d; const diasEl = document.getElementById('dias_' + segId); if (diasEl) diasEl.value = d; } } if (activeSubTab[segId] === 'comp') renderContent(); else refreshPreviews(segId); }
-        function upTf(segId, tid, field, val) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t[field] = isNaN(+val) ? val : +val; refreshTPreview(segId, tid); } }
-        function upTarr(segId, tid, field, idx, val) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t[field][idx] = +val; refreshTPreview(segId, tid); } }
+        function upTf(segId, tid, field, val) { if (!adminMode) return; const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t[field] = isNaN(+val) ? val : +val; refreshTPreview(segId, tid); } }
+        function upTarr(segId, tid, field, idx, val) { if (!adminMode) return; const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t[field][idx] = +val; refreshTPreview(segId, tid); } }
         function refreshTPreview(segId, tid) {
             const seg = segs[segId], t = seg.tarifas.find(x => x.id === tid); if (!t) return;
             const r = calc(seg, t), ah = +(seg.cliente.factura - r.total).toFixed(2);
@@ -1750,11 +1756,11 @@
         }
         function refreshPreviews(segId) { segs[segId].tarifas.forEach(t => refreshTPreview(segId, t.id)); }
         function togT(segId, tid) { const t = segs[segId].tarifas.find(x => x.id === tid); if (!t) return; t.open = !t.open; const bd = document.getElementById('body_' + tid); if (bd) { bd.className = 'tb' + (t.open ? ' on' : ''); if (t.open) bd.innerHTML = buildTBody(segs[segId], t, 0); const chev = bd.closest('.tc')?.querySelector('.chev'); if (chev) chev.className = 'chev' + (t.open ? ' r' : ''); } }
-        function renT(segId, tid, val) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t.nombre = val; if (activeSubTab[segId] === 'comp') renderContent(); } }
-        function chgTipo(segId, tid, tipo) { const t = segs[segId].tarifas.find(x => x.id === tid); if (!t) return; t.tipo = tipo; const bd = document.getElementById('body_' + tid); if (bd) bd.innerHTML = buildTBody(segs[segId], t, 0); refreshTPreview(segId, tid); }
-        function delT(segId, tid) { segs[segId].tarifas = segs[segId].tarifas.filter(x => x.id !== tid); renderContent(); }
+        function renT(segId, tid, val) { if (!adminMode) return; const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t.nombre = val; if (activeSubTab[segId] === 'comp') renderContent(); } }
+        function chgTipo(segId, tid, tipo) { if (!adminMode) return; const t = segs[segId].tarifas.find(x => x.id === tid); if (!t) return; t.tipo = tipo; const bd = document.getElementById('body_' + tid); if (bd) bd.innerHTML = buildTBody(segs[segId], t, 0); refreshTPreview(segId, tid); }
+        function delT(segId, tid) { if (!adminMode) return; segs[segId].tarifas = segs[segId].tarifas.filter(x => x.id !== tid); renderContent(); }
         function togSelect(segId, tid) { const t = segs[segId].tarifas.find(x => x.id === tid); if (t) { t.selected = !t.selected; refreshPreviews(segId); } }
-        function addTariff(segId) { const seg = segs[segId], newId = 'u' + (++_tariffId); seg.tarifas.push({ id: newId, nombre: 'Nueva tarifa', tipo: seg.potP === 6 ? 'hex' : 'uni', potUnit: 'dia', rPot: [0, 0, 0, 0, 0, 0], rEn: [0, 0, 0, 0, 0, 0], sva: 0, open: true, selected: true }); renderContent(); }
+        function addTariff(segId) { if (!adminMode) return; const seg = segs[segId], newId = 'u' + (++_tariffId); seg.tarifas.push({ id: newId, nombre: 'Nueva tarifa', tipo: seg.potP === 6 ? 'hex' : 'uni', potUnit: 'dia', rPot: [0, 0, 0, 0, 0, 0], rEn: [0, 0, 0, 0, 0, 0], sva: 0, open: true, selected: true }); renderContent(); }
 
         updateAdminBtn(); renderSegBar(); renderSubBar(); renderContent();
     </script>
