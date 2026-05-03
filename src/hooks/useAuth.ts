@@ -10,19 +10,19 @@ export function useAuth() {
   useEffect(() => {
     let cancelled = false;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return;
       setUser(session?.user ?? null);
-      if (session?.user) checkAdmin(session.user.id, () => cancelled);
-      setLoading(false);
+      if (session?.user) await checkAdmin(session.user.id, () => cancelled);
+      if (!cancelled) setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (cancelled) return;
       setUser(session?.user ?? null);
-      if (session?.user) checkAdmin(session.user.id, () => cancelled);
+      if (session?.user) await checkAdmin(session.user.id, () => cancelled);
       else setIsAdmin(false);
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     });
 
     return () => { cancelled = true; subscription.unsubscribe(); };
