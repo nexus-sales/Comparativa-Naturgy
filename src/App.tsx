@@ -793,30 +793,24 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
 
   useEffect(() => {
-    const fetchProfiles = async () => {
-      const supabase = (await import("./lib/supabase")).supabase;
-      const { data } = await supabase.from("profiles").select("*");
+    supabase.from("profiles").select("*").then(({ data }) => {
       if (data) setProfiles(data);
-    };
-    fetchProfiles();
+    });
   }, []);
 
   const toggleApprove = async (id: string, current: boolean) => {
-    const supabase = (await import("./lib/supabase")).supabase;
     await supabase.from("profiles").update({ is_approved: !current }).eq("id", id);
     setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: !current } : p));
   };
 
   const toggleAdmin = async (id: string, current: boolean) => {
     if (!confirm(`¿${current ? "Quitar" : "Dar"} permisos de administrador a este usuario?`)) return;
-    const supabase = (await import("./lib/supabase")).supabase;
     await supabase.from("profiles").update({ is_admin: !current, is_approved: true }).eq("id", id);
     setProfiles(profiles.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true } : p));
   };
 
   const deleteTariff = async (id: string) => {
     if (!confirm("¿Seguro que quieres borrar esta tarifa?")) return;
-    const supabase = (await import("./lib/supabase")).supabase;
     await supabase.from("tariffs").delete().eq("id", id);
     window.location.reload();
   };

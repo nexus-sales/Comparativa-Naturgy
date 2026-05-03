@@ -58,8 +58,25 @@ CREATE POLICY "Segments are viewable by approved users" ON segments FOR SELECT T
 USING ( (SELECT is_approved FROM profiles WHERE id = auth.uid()) = true OR (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
 
 -- Políticas para Tariffs (Solo si está aprobado)
-CREATE POLICY "Tariffs are viewable by approved users" ON tariffs FOR SELECT TO authenticated 
+CREATE POLICY "Tariffs are viewable by approved users" ON tariffs FOR SELECT TO authenticated
 USING ( (SELECT is_approved FROM profiles WHERE id = auth.uid()) = true OR (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
+
+-- Solo admins pueden crear, modificar o borrar tarifas
+CREATE POLICY "Admins can manage tariffs" ON tariffs FOR ALL TO authenticated
+USING ( (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
+
+-- Trigger para mantener updated_at al día
+CREATE OR REPLACE FUNCTION update_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tariffs_updated_at
+  BEFORE UPDATE ON tariffs
+  FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
 
 -- Trigger para crear perfil automáticamente
 CREATE OR REPLACE FUNCTION public.handle_new_user()
