@@ -190,7 +190,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [activeSeg, setActiveSeg] = useState("res");
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "comp", pyme20: "comp", pyme20one: "comp", pyme361: "comp" });
-  const [comercialData, setComercialData] = useState<ComercialData>({ nombre: "", telefono: "", email: "" });
+  const [comercialData, setComercialData] = useState<ComercialData>({ nombre: "Salvador Muñoz Portillo", telefono: "", email: "admin@nexus-sales.com" });
   const chartInstances = useRef<Record<string, Chart>>({});
 
   const segDef = SEG_DEFS.find(s => s.id === activeSeg) ?? SEG_DEFS[0];
