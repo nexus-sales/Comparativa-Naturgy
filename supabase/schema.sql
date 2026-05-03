@@ -22,14 +22,24 @@ CREATE TABLE IF NOT EXISTS tariffs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     segment_id TEXT REFERENCES segments(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    type TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('uni', 'tri', 'hex')),
     pot_unit TEXT NOT NULL,
     r_pot NUMERIC[] NOT NULL,
     r_en NUMERIC[] NOT NULL,
     sva NUMERIC DEFAULT 0,
+    requires_auth BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT chk_ren_len CHECK (
+        (type = 'uni' AND array_length(r_en, 1) = 1) OR
+        (type = 'tri' AND array_length(r_en, 1) = 3) OR
+        (type = 'hex' AND array_length(r_en, 1) = 6)
+    ),
+    CONSTRAINT chk_rpot_len CHECK (
+        (type IN ('uni', 'tri') AND array_length(r_pot, 1) = 2) OR
+        (type = 'hex' AND array_length(r_pot, 1) = 6)
+    )
 );
 
 -- Habilitar RLS
@@ -38,9 +48,9 @@ ALTER TABLE segments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tariffs ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para Profiles
-CREATE POLICY "Public profiles are viewable by everyone" ON profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users can view own profile" ON profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
-CREATE POLICY "Admins can update any profile" ON profiles FOR ALL TO authenticated 
+CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL TO authenticated
 USING ( (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
 
 -- Políticas para Segments (Solo si está aprobado)

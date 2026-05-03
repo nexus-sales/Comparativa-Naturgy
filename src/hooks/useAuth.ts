@@ -8,32 +8,34 @@ export function useAuth() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Check initial session
+    let cancelled = false;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
       setUser(session?.user ?? null);
-      if (session?.user) checkAdmin(session.user.id);
+      if (session?.user) checkAdmin(session.user.id, () => cancelled);
       setLoading(false);
     });
 
-    // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
       setUser(session?.user ?? null);
-      if (session?.user) checkAdmin(session.user.id);
+      if (session?.user) checkAdmin(session.user.id, () => cancelled);
       else setIsAdmin(false);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => { cancelled = true; subscription.unsubscribe(); };
   }, []);
 
-  async function checkAdmin(userId: string) {
+  async function checkAdmin(userId: string, isCancelled: () => boolean) {
     const { data, error } = await supabase
       .from('profiles')
       .select('is_admin')
       .eq('id', userId)
       .single();
-    
-    if (!error && data) {
+
+    if (!isCancelled() && !error && data) {
       setIsAdmin(data.is_admin);
     }
   }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { supabase } from "./lib/supabase";
 import { useAuth } from "./hooks/useAuth";
 import { useData } from "./hooks/useData";
 import type { Segment, Tariff } from "./hooks/useData";
@@ -30,7 +31,7 @@ const PERIODO_LABELS = ["P1 — Punta", "P2 — Valle", "P3", "P4", "P5", "P6"];
 
 function App() {
   const { user, loading: authLoading, isAdmin } = useAuth();
-  const { segments, tariffs, loading: dataLoading } = useData();
+  const { segments, tariffs, loading: dataLoading, error: dataError } = useData();
   const [activeTab, setActiveTab] = useState("comparator");
 
   if (authLoading) return (
@@ -51,7 +52,7 @@ function App() {
           Tu cuenta ha sido creada. Un administrador debe aprobar tu acceso para ver las tarifas.
         </p>
         <button
-          onClick={() => import("./lib/supabase").then(m => m.supabase.auth.signOut())}
+          onClick={() => supabase.auth.signOut()}
           className="mt-8 text-slate-400 hover:text-red-500 font-medium transition-colors"
         >
           Cerrar Sesión
@@ -81,7 +82,7 @@ function App() {
           <div className="flex items-center gap-4 text-sm">
             <span className="text-blue-200 hidden md:inline">{user?.email}</span>
             <button
-              onClick={() => import("./lib/supabase").then(m => m.supabase.auth.signOut())}
+              onClick={() => supabase.auth.signOut()}
               className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10"
             >
               Salir
@@ -92,6 +93,12 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {dataError && (
+          <div className="mb-4 flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">
+            <AlertTriangle size={16} className="flex-shrink-0" />
+            {dataError}
+          </div>
+        )}
         {dataLoading ? (
           <div className="flex items-center justify-center p-12">
             <div className="animate-pulse text-slate-400">Cargando tarifas...</div>
@@ -126,7 +133,6 @@ function AuthView() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError(""); setMsg("");
-    const supabase = (await import("./lib/supabase")).supabase;
     if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError("Credenciales incorrectas");
@@ -288,7 +294,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
       } as never);
     }, 0);
     return () => clearTimeout(timer);
-  });
+  }, [activeSeg, subTabs, clients, tariffMeta, segments, tariffs]);
 
   // Auth warning banner (pyme20one only)
   const AuthWarning = () => activeSeg !== "pyme20one" ? null : (

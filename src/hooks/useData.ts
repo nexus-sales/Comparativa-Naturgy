@@ -24,6 +24,7 @@ export function useData() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -31,15 +32,20 @@ export function useData() {
 
   async function fetchData() {
     setLoading(true);
+    setError(null);
     const [segRes, tarRes] = await Promise.all([
       supabase.from('segments').select('*'),
       supabase.from('tariffs').select('*').eq('is_active', true)
     ]);
 
-    if (!segRes.error) setSegments(segRes.data);
-    if (!tarRes.error) setTariffs(tarRes.data);
+    if (segRes.error || tarRes.error) {
+      setError('Error al cargar los datos. Comprueba tu conexión e inténtalo de nuevo.');
+    } else {
+      setSegments(segRes.data);
+      setTariffs(tarRes.data);
+    }
     setLoading(false);
   }
 
-  return { segments, tariffs, loading, refresh: fetchData };
+  return { segments, tariffs, loading, error, refresh: fetchData };
 }

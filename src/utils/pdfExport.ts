@@ -10,6 +10,9 @@ export interface ComercialData {
   email: string;
 }
 
+const sanitize = (s: string | null | undefined): string =>
+  String(s ?? '').trim().replace(/[\x00-\x1F\x7F]/g, '');
+
 export function exportPDF(
   segLabel: string,
   taxModel: string,
@@ -75,16 +78,16 @@ function pdfPage(
   try { doc.addImage(LOGO_B64, 'PNG', L + 130, y + 0.5, 58, 5.5); } catch { color(wh); bold(10); tx('Naturgy', L + 148, y + 4.5); }
   y += rh;
   box(L, y, CW, rh); vl(L + 56, y, rh);
-  color(navy); bold(8); tx(tar.nombre, L + 2, y + 4.5);
-  color([80, 80, 80] as any); norm(7); tx(c.cups || '—', L + 58, y + 4.5);
+  color(navy); bold(8); tx(sanitize(tar.nombre), L + 2, y + 4.5);
+  color([80, 80, 80] as any); norm(7); tx(sanitize(c.cups) || '—', L + 58, y + 4.5);
   y += rh;
   box(L, y, CW, rh);
-  color(navy); bold(8); tx((c.dir || '—').substring(0, 72), L + 2, y + 4.5);
+  color(navy); bold(8); tx((sanitize(c.dir) || '—').substring(0, 72), L + 2, y + 4.5);
   y += rh;
   box(L, y, CW, rh); vl(L + 38, y, rh); vl(L + 68, y, rh);
   color([140, 140, 140] as any); norm(6.5); tx('Lectura anterior', L + 2, y + 4.5);
-  color([30, 30, 30] as any); norm(7.5); tx(c.f1 || '—', L + 40, y + 4.5);
-  color(navy); bold(9); tx(c.nombre || '—', L + 70, y + 4.5);
+  color([30, 30, 30] as any); norm(7.5); tx(sanitize(c.f1) || '—', L + 40, y + 4.5);
+  color(navy); bold(9); tx(sanitize(c.nombre) || '—', L + 70, y + 4.5);
   y += rh;
   box(L, y, CW, rh); vl(L + 38, y, rh); vl(L + 68, y, rh); vl(L + 132, y, rh);
   color([140, 140, 140] as any); norm(6.5); tx('Lectura actual', L + 2, y + 4.5);
@@ -198,8 +201,8 @@ function pdfPage(
   const ahCol: [number, number, number] = ahorro >= 0 ? [6, 95, 70] : [220, 38, 38];
   box(L, y, CW, 9); vl(L + 68, y, 9); vl(L + 132, y, 9);
   color([120, 120, 120] as any); norm(6); tx('ATENDIDO POR:', L + 2, y + 3.5);
-  color([20, 20, 20] as any); bold(7.5); tx(comercial.nombre || '', L + 2, y + 7.5);
-  if (comercial.telefono) { color([100, 100, 100] as any); norm(6); tx(comercial.telefono, L + 36, y + 7.5); }
+  color([20, 20, 20] as any); bold(7.5); tx(sanitize(comercial.nombre) || '', L + 2, y + 7.5);
+  if (comercial.telefono) { color([100, 100, 100] as any); norm(6); tx(sanitize(comercial.telefono), L + 36, y + 7.5); }
   color([120, 120, 120] as any); norm(6); tx('FACTURA CLIENTE', L + 70, y + 3.5);
   color(navy); bold(10); tx(fmtE(c.factura), L + 130, y + 8, { align: 'right' });
   color([120, 120, 120] as any); norm(6); tx('AHORRO', L + 134, y + 3.5);
