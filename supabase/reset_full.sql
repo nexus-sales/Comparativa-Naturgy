@@ -212,10 +212,9 @@ FROM auth.users
 ON CONFLICT (id) DO NOTHING;
 
 -- ── 9. ESTABLECER ADMIN ───────────────────────────────────────
--- Ajusta tu email si es diferente
 UPDATE profiles
 SET is_admin = true, is_approved = true
-WHERE email = 'gestorcanarias@gmail.com';
+WHERE email = 'salvamunoz@avantiasl.com';
 
 -- ── 10. VERIFICACIÓN FINAL ────────────────────────────────────
 SELECT 'segmentos'  AS tabla, count(*)::text AS total FROM segments
