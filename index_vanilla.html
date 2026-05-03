@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparativa Tarifas Naturgy — Canarias</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0 }
+        body { font-size: 14px; font-family: system-ui, -apple-system, sans-serif; color: #1a1a1a; background: #edecea; min-height: 100vh; padding: 20px }
+        #app { max-width: 1060px; margin: 0 auto; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,.12) }
+        .app-header { padding: 0; display: flex; align-items: stretch; background: #002855 }
+        .app-header-brand { display: flex; align-items: center; gap: 12px; padding: 14px 24px; flex: 1 }
+        .app-header-brand h1 { font-size: 15px; font-weight: 600; color: #fff }
+        .app-header-brand .sub { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 1px }
+        .app-header-right { display: flex; align-items: center; gap: 8px; padding: 14px 18px }
+        .admin-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,.3); background: transparent; color: rgba(255,255,255,.8); font-size: 11px; font-weight: 600; cursor: pointer; transition: all .2s }
+        .admin-btn:hover { border-color: #F5821F; color: #F5821F }
+        .admin-btn.on { border-color: #F5821F; background: #F5821F; color: #fff }
+        .naturgy-stripe { height: 4px; background: linear-gradient(90deg,#F5821F 0%,#F5821F 30%,#002855 30%) }
+        .seg-bar { display: flex; border-bottom: 1px solid #e5e3de; overflow-x: auto; background: #fafaf8 }
+        .seg-btn { padding: 12px 20px; border: none; background: transparent; color: #888; font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; display: flex; align-items: center; gap: 7px; transition: color .15s }
+        .seg-btn .dot { width: 8px; height: 8px; border-radius: 50%; opacity: .4; transition: opacity .15s; flex-shrink: 0 }
+        .seg-btn.active .dot { opacity: 1 }
+        .seg-btn[data-seg="res"] .dot { background: #185FA5 }
+        .seg-btn[data-seg="pyme20"] .dot { background: #0F6E56 }
+        .seg-btn[data-seg="pyme20one"] .dot { background: #B45309 }
+        .seg-btn[data-seg="pyme361"] .dot { background: #6D28D9 }
+        .seg-btn[data-seg="res"].active { color: #185FA5; border-bottom-color: #185FA5 }
+        .seg-btn[data-seg="pyme20"].active { color: #0F6E56; border-bottom-color: #0F6E56 }
+        .seg-btn[data-seg="pyme20one"].active { color: #B45309; border-bottom-color: #B45309 }
+        .seg-btn[data-seg="pyme361"].active { color: #6D28D9; border-bottom-color: #6D28D9 }
+        .sub-bar { display: flex; padding: 0 24px; background: #fff; border-bottom: 1px solid #e5e3de }
+        .sub-btn { padding: 10px 16px; border: none; background: transparent; color: #999; font-size: 12px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s }
+        .sub-btn.active { font-weight: 600 }
+        .pane { padding: 26px }
+        .stitle { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .07em; margin: 22px 0 10px }
+        .stitle:first-child { margin-top: 0 }
+        .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px }
+        .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px }
+        .g6 { display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; margin-bottom: 12px }
+        .fl { display: flex; flex-direction: column; gap: 4px }
+        .fl label { font-size: 11px; color: #888; font-weight: 600; letter-spacing: .02em }
+        .fl input,.fl select { width: 100%; padding: 8px 10px; font-size: 13px; border: 1px solid #e0ddd8; border-radius: 8px; background: #fff; color: #1a1a1a; outline: none; transition: border-color .15s }
+        .fl input:focus,.fl select:focus { border-color: #F5821F; box-shadow: 0 0 0 3px rgba(245,130,31,.08) }
+        .hr { height: 1px; background: #f0eeea; margin: 20px 0 }
+        .tc { border: 1px solid #e5e3de; border-radius: 12px; margin-bottom: 10px; overflow: hidden }
+        .th { display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer; background: #fafaf8; transition: background .15s }
+        .th:hover { background: #f3f2ef }
+        .th-accent { width: 3px; height: 28px; border-radius: 2px; background: #F5821F; flex-shrink: 0 }
+        .ti { flex: 1; font-size: 13px; font-weight: 600; border: none; background: transparent; color: #1a1a1a; padding: 0; outline: none; min-width: 60px }
+        .tbadge { font-size: 10px; padding: 3px 9px; border-radius: 10px; white-space: nowrap; font-weight: 700 }
+        .b-blue { background: #dbeafe; color: #1e40af } .b-green { background: #d1fae5; color: #065f46 }
+        .b-amber { background: #fef3c7; color: #92400e } .b-purple { background: #ede9fe; color: #5b21b6 }
+        .tprev { font-size: 14px; font-weight: 700; white-space: nowrap; color: #002855 }
+        .tsav { font-size: 11px; padding: 2px 8px; border-radius: 8px; font-weight: 600 }
+        .spos { background: #d1fae5; color: #065f46 } .sneg { background: #fee2e2; color: #991b1b } .sneu { background: #f3f4f6; color: #6b7280 }
+        .chev { font-size: 10px; transition: transform .15s; color: #c0bdb8 }
+        .chev.r { transform: rotate(90deg) }
+        .tb { padding: 18px 18px; border-top: 1px solid #f0eeea; display: none }
+        .tb.on { display: block }
+        .price-grid { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px }
+        .price-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #fafaf8; border-radius: 7px; border: 1px solid #f0eeea }
+        .price-row .pr-label { font-size: 12px; color: #666 }
+        .price-row .pr-val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: #002855 }
+        .price-row .pr-unit { font-size: 10px; color: #aaa; margin-left: 3px }
+        .lock-bar { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #bbb; padding: 8px 12px; background: #fafaf8; border-radius: 8px; border: 1px solid #f0eeea; margin-bottom: 12px }
+        .rsub { margin-top: 16px; padding-top: 16px; border-top: 2px solid #f0eeea }
+        .rsub-title { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px }
+        .rsub-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-radius: 7px; font-size: 13px }
+        .rsub-row:nth-child(even) { background: #fafaf8 }
+        .rsub-row .rr-label { color: #555; font-weight: 500 }
+        .rsub-row .rr-val { font-weight: 700; color: #1a1a1a; font-variant-numeric: tabular-nums }
+        .rsub-sep { height: 1px; background: #e5e3de; margin: 6px 0 }
+        .rsub-total { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #002855; border-radius: 9px; margin-top: 8px }
+        .rsub-total .rt-label { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .05em }
+        .rsub-total .rt-val { font-size: 18px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums }
+        .btn { padding: 7px 15px; border-radius: 8px; border: 1px solid #ddd; background: #fff; color: #333; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s }
+        .btn:hover { background: #f5f4f0 }
+        .btn-d { color: #dc2626; border-color: #fca5a5 } .btn-d:hover { background: #fef2f2 }
+        .btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s }
+        .btn-pdf { background: #002855; color: #fff } .btn-pdf:hover { background: #003f8a }
+        .btn-xls { background: #1a7a3f; color: #fff } .btn-xls:hover { background: #14612f }
+        .export-bar { display: flex; gap: 8px; margin-bottom: 18px }
+        .add-btn { width: 100%; padding: 12px; border: 2px dashed #ddd; border-radius: 12px; background: #fff; color: #aaa; font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 6px; transition: all .15s }
+        .add-btn:hover { border-color: #F5821F; color: #F5821F; background: #fff8f3 }
+        .ra { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px }
+        .sc { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; margin-bottom: 22px }
+        .sm { background: #fafaf8; border-radius: 10px; padding: 16px 18px; border: 1px solid #eee }
+        .sm.sm-best { border-color: #F5821F; background: #fff8f3 }
+        .sm.sm-saving { border-color: #a7f3d0 } .sm.sm-loss { border-color: #fca5a5 }
+        .sm .sl { font-size: 11px; color: #aaa; margin-bottom: 5px; font-weight: 500 }
+        .sm .sv { font-size: 22px; font-weight: 700; line-height: 1.1 }
+        .sm .sn { font-size: 11px; color: #bbb; margin-top: 4px }
+        .ct { width: 100%; border-collapse: collapse; font-size: 13px }
+        .ct th { font-size: 10px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: .05em; padding: 9px 12px; text-align: right; background: #002855 }
+        .ct th:first-child { text-align: left }
+        .ct td { padding: 9px 12px; text-align: right; border-bottom: 1px solid #f0eeea }
+        .ct td:first-child { text-align: left; color: #555; font-size: 12px }
+        .ct tr:hover td { background: #fafaf8 }
+        .ct .tr td { font-weight: 700; background: #FFF4EC; border-top: 2px solid #F5821F }
+        .ct .tr td:first-child { color: #002855 }
+        .ch-wrap { position: relative; width: 100%; height: 190px; margin-top: 20px }
+        .hint { font-size: 11px; color: #bbb; margin-top: 12px; font-style: italic; line-height: 1.7 }
+        .btn-clear { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1.5px solid #fca5a5; background: #fff; color: #dc2626; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s }
+        .btn-clear:hover { background: #fef2f2 }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; color: #bbb }
+        .empty-state-icon { width: 56px; height: 56px; border-radius: 14px; background: #f5f4f0; display: flex; align-items: center; justify-content: center; margin-bottom: 16px }
+        .empty-state h3 { font-size: 15px; font-weight: 600; color: #aaa; margin-bottom: 6px }
+        .empty-state p { font-size: 13px; color: #ccc; max-width: 320px; line-height: 1.6 }
+        .auth-warning { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: #fffbeb; border: 1.5px solid #fbbf24; border-radius: 10px; margin-bottom: 18px }
+        .auth-warning-icon { width: 32px; height: 32px; border-radius: 8px; background: #fef3c7; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px }
+        .auth-warning-text strong { display: block; font-size: 13px; font-weight: 700; color: #92400e; margin-bottom: 3px }
+        .auth-warning-text span { font-size: 12px; color: #b45309; line-height: 1.6 }
+        @media(max-width:640px) { .g3 { grid-template-columns: 1fr 1fr } .g6 { grid-template-columns: 1fr 1fr } .pane { padding: 16px } .seg-btn { padding: 10px 14px; font-size: 12px } }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px) }
+        .modal-overlay.hidden { display: none }
+        .modal { background: #fff; border-radius: 16px; padding: 32px 28px; width: 100%; max-width: 380px; box-shadow: 0 8px 40px rgba(0,0,0,.2) }
+        .modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 22px }
+        .modal-icon { width: 40px; height: 40px; border-radius: 10px; background: #002855; display: flex; align-items: center; justify-content: center; flex-shrink: 0 }
+        .modal-title { font-size: 15px; font-weight: 700; color: #002855 }
+        .modal-sub { font-size: 12px; color: #aaa; margin-top: 2px }
+        .modal .fl { margin-bottom: 14px } .modal .fl label { color: #555 }
+        .modal .fl input { font-size: 14px; padding: 10px 12px; letter-spacing: .05em }
+        .modal-actions { display: flex; gap: 8px; margin-top: 6px }
+        .modal-btn { flex: 1; padding: 10px; border-radius: 9px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s }
+        .modal-btn-primary { background: #002855; color: #fff } .modal-btn-primary:hover { background: #003f8a }
+        .modal-btn-secondary { background: #f3f4f6; color: #555 } .modal-btn-secondary:hover { background: #e5e7eb }
+        .modal-error { font-size: 12px; color: #dc2626; margin-top: 8px; display: none }
+        .modal-divider { height: 1px; background: #f0eeea; margin: 16px 0 }
+        .app-footer { padding: 24px; background: #fafaf8; border-top: 1px solid #e5e3de; text-align: center }
+        .footer-content { display: flex; flex-direction: column; align-items: center; gap: 12px }
+        .footer-text { font-size: 13px; color: #666; font-weight: 500 }
+        .footer-text-small { margin-top: 8px; font-size: 11px; opacity: 0.8 }
+        .footer-text strong { color: #002855; font-weight: 700 }
+        .footer-links { display: flex; gap: 20px; justify-content: center }
+        .footer-link { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888; text-decoration: none; transition: all 0.2s; padding: 6px 12px; border-radius: 8px; background: #fff; border: 1px solid #e5e3de }
+        .footer-link:hover { color: #F5821F; border-color: #F5821F; background: #fff8f3; transform: translateY(-1px) }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="naturgy-stripe"></div>
+        <div class="app-header">
+            <div class="app-header-brand">
+                <svg height="30" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 220 54"><path fill="#E57200" fill-rule="evenodd" d="M218.697 8.68827c.309-.27302.584-.37661.788-.37661.309 0 .515.23913.515.68352 0 2.97712-14.877 20.28492-19.23 24.35502-3.563 3.3518-6.102 5.505-7.575 5.505-.48 0-.789-.2392-.789-.8201 0-2.2228 3.359-8.1073 3.359-8.1073v-.1695l-6.203 5.4711c-1.44 1.2673-3.187 1.8473-4.763 1.8473-2.881 0-5.382-2.2578-5.382-7.4558V1.74463C179.417.581864 180.204 0 181.199 0c.581 0 1.267.239135 1.952.649635 4.356 2.771845 10.01 8.004755 14.363 15.153665.686 1.1289.959 2.2577.959 3.3866 0 3.6248-2.913 7.2835-5.929 10.5684v.2053l26.153-21.27533Z" clip-rule="evenodd"></path><path fill="#ffffff" fill-rule="evenodd" d="M49.1796 35.049v3.5251c0 .4937-.2396.698-.9518.8394-1.0828.213-2.446.3437-3.7539.3437-3.3424 0-4.4378-.912-4.4378-2.4814 0-.6284.1892-1.1057.5481-1.46.5298-.5257 1.4855-.7668 2.9214-.7668h5.674Zm4.8241 8.5479c1.1924-.4773 1.6125-1.2112 1.6125-2.6508v-9.6952c0-3.8329-.6753-6.0578-2.3072-7.6078-1.7474-1.6623-4.5941-2.4165-9.1863-2.4165-2.4819 0-4.7357.1646-6.3366.4802-1.6038.3156-2.1229 1.0543-2.1229 2.5298 0 .9014.0786 2.0283.1824 2.7147.0592.3902.2746.5209.7878.4492 2.51-.3572 4.7581-.5586 6.8509-.5586 2.7012 0 4.0857.1704 4.8667.7591.6074.455.8286 1.1859.8286 2.3768v.7716c-1.9735-.2546-4.2079-.4018-5.8001-.4018-3.7519 0-6.4055.7194-8.0132 2.2297-1.2507 1.1753-1.9279 2.8938-1.9279 4.9492 0 4.594 3.292 7.5459 10.8551 7.5459 3.8548 0 7.5242-.6022 9.7102-1.4755ZM111.66 31.1754c0-1.793.26-2.6092.829-3.2182.619-.6603 1.695-.9507 3.385-.9507.643 0 1.629.0639 2.714.1481.535.0417.711-.1239.8-.5547.112-.5364.21-1.5026.21-2.3101 0-1.2818-.375-1.9982-1.34-2.4116-.819-.3505-2.369-.6516-4.31-.6516-2.535 0-4.799.6061-6.375 2.0099-1.463 1.3022-2.349 3.2569-2.349 6.7335v13.9745c0 .4676.281.6409.659.6409h5.777v-13.41Zm-45.0147-9.4638v-6.7694h-5.2131c-.9343 0-1.2244.3766-1.2244 1.1957v20.6063c0 3.0507.6927 4.8301 1.9958 6.1042 1.4534 1.4242 3.5695 2.222 6.4268 2.222 2.1676 0 4.3215-.5102 5.9787-1.2277 1.2797-.5518 1.7299-1.0843 1.7299-1.9179 0-.3214-.0737-.6806-.1921-1.0824-.1649-.5625-.4919-1.5539-.7626-2.1551-.1223-.2721-.2464-.4037-.4832-.4037-.0815 0-.194.0232-.3619.0687-1.6863.4831-3.5627.8626-4.8308.8626-1.176 0-1.9036-.2284-2.3693-.7048-.5094-.5218-.6938-1.3225-.6938-2.6208v-8.4327h5.9651c.912 0 1.4088-.2294 1.6998-.7464.2756-.4841.392-1.2218.392-2.2636 0-.7735-.0815-1.7553-.1795-2.2422-.0718-.3612-.2581-.4928-.716-.4928h-7.1614Zm34.0777.0006h-5.2078c-.9343 0-1.2273.3795-1.2273 1.1957v11.9742c0 1.5442-.3357 2.5385-1.0149 3.2065-.7141.7068-1.8095 1.1125-3.293 1.1125-1.4845 0-2.5779-.4057-3.294-1.1125-.6792-.668-1.0149-1.6623-1.0149-3.2065V21.7122h-5.2034c-.9343 0-1.2283.3795-1.2283 1.1957v12.8088c0 2.8909.8441 5.015 2.3907 6.5447 1.8522 1.8298 4.7163 2.8096 8.3499 2.8096 3.6345 0 6.4967-.9798 8.3489-2.8096 1.5485-1.5297 2.3941-3.6538 2.3941-6.5447V21.7122Zm31.681 31.8224c4.446 0 7.398-.9904 9.298-2.9451 1.738-1.7873 2.516-4.379 2.516-7.757V32.3948c0-3.5735-1.019-6.1672-2.774-7.9621-2-2.0458-5.185-3.2076-8.551-3.2076-7.26 0-11.864 4.531-11.864 11.9394 0 6.9436 3.711 11.6024 10.303 11.6024 2.776 0 4.98-1.0378 6.449-2.676v.9885c0 1.6033-.273 2.707-1.033 3.4815-.914.9275-2.72 1.34-5.293 1.34-1.704 0-3.872-.215-5.717-.4773-.611-.0852-1.007.1549-1.114.8945-.092.6487-.144 1.6091-.144 2.2026 0 1.5171.451 2.19 2.177 2.5366 1.564.3137 3.783.4773 5.747.4773Zm5.377-21.2056v.6419c0 2.248-.464 3.9433-1.506 5.0044-.81.8229-1.986 1.2993-3.502 1.2993-3.624 0-5.123-2.4437-5.123-6.1101 0-4.1641 2.107-6.0694 5.115-6.0694 1.496 0 2.774.487 3.625 1.3186.913.8898 1.391 2.2132 1.391 3.9153ZM29.0762 13.9823v27.487c0 1.0601-.2387 1.8018-.7248 2.2829-.6752.6681-1.8541.9304-3.4938.9304-.814 0-1.8376-.1026-2.5934-.3272-.6181-.1801-.9761-.4773-1.3749-1.0088-4.0304-5.3762-9.4715-12.7158-14.14903-19.0147v19.3187c0 .7019-.21345.9323-.97412.9323H0V17.0968c0-1.063.23868-1.8036.724771-2.2848.678199-.669 1.854129-.9304 3.493839-.9304.81598 0 1.83764.1036 2.5954.3262.65492.1946.98092.4822 1.37581 1.0098C11.7535 20.0004 17.2247 27.3932 22.334 34.2933V14.9059c0-.6758.2891-.9236.9654-.9236h5.7768ZM152.332 47.4774c-.699-.0997-1.015.2933-1.106.9033-.078.5266-.151 1.5316-.151 2.2006 0 1.3932.394 2.1474 2.138 2.492 1.465.2905 3.783.4628 5.701.4628 4.112 0 6.945-1.0446 8.68-2.9006 1.778-1.9005 2.486-4.6307 2.486-8.4859V21.7137h-5.323c-.766 0-1.115.4153-1.115 1.1947v11.1319c0 1.8279-.344 3.0681-1.113 3.9036-.78.8481-1.996 1.2877-3.51 1.2877-1.363 0-2.363-.3796-3.005-1.0941-.693-.7745-.97-1.855-.97-3.6964V21.7137h-5.298c-.87 0-1.139.4927-1.139 1.1511v12.1949c0 3.4012.788 5.657 2.348 7.2545 1.52 1.5577 3.778 2.4533 6.755 2.4533 2.636 0 4.765-1.094 5.932-2.3401v.5945c0 1.5403-.21 2.6963-.891 3.498-.815.9575-2.339 1.4115-5.003 1.4115-1.736 0-3.789-.2226-5.416-.454Z" clip-rule="evenodd"></path></svg>
+                <div>
+                    <h1>Comparativa Tarifas Naturgy — Canarias</h1>
+                    <div class="sub">Herramienta de comparativa comercial</div>
+                </div>
+            </div>
+            <div class="app-header-right">
+                <button class="admin-btn" id="adminBtn" onclick="toggleAdmin()">🔒 Admin</button>
+            </div>
+        </div>
+        <div class="seg-bar" id="segBar"></div>
+        <div class="sub-bar" id="subBar"></div>
+        <div id="content"></div>
+        <div class="modal-overlay hidden" id="modalOverlay" onclick="modalBgClick(event)">
+            <div class="modal" id="modalBox">
+                <div class="modal-header">
+                    <div class="modal-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F5821F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div>
+                        <div class="modal-title" id="modalTitle">Acceso de administrador</div>
+                        <div class="modal-sub" id="modalSub">Introduce tu contraseña</div>
+                    </div>
+                </div>
+                <div id="modalBody"></div>
+            </div>
+        </div>
+        <div class="app-footer">
+            <div class="footer-content">
+                <div class="footer-text">App creada por <strong>NEXUS SALES</strong></div>
+                <div class="footer-links">
+                    <a href="mailto:admin@nexus-sales.eu" class="footer-link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        admin@nexus-sales.eu
+                    </a>
+                </div>
+                <div class="footer-text footer-text-small">App Creada por <strong>NEXUS SALES</strong> — todos los derechos reservados</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+let charts={},adminMode=false,_tariffId=0;
+let comercialData={nombre:'',telefono:'',email:''};
+const NAT_ORANGE='#F5821F',NAT_NAVY='#002855';
+const COLS=[NAT_NAVY,'#0F6E56','#B45309','#6D28D9','#be185d','#0e7490'];
+
+function mkT(id,nombre,tipo,potUnit,rPot,rEn,sva){
+  return{id,nombre,tipo,potUnit,rPot:[...rPot,...Array(6).fill(0)].slice(0,6),rEn:[...rEn,...Array(6).fill(0)].slice(0,6),sva:sva||0,open:false,selected:true};
+}
+
+// ── CORRECCIÓN v2: bonoRate residencial = 0.019121 (igual que el resto de segmentos)
+// Verificado contra Excel Canarias_COMPARATIVA_RESIDENCIAL_ENERO26.xlsx
+// DATOS CLIENTE → FINANCIACION BONO SOCIAL = 0.019121
+const INIT={
+  res:{id:'res',label:'Residencial',taxModel:'res',potP:2,
+    cliente:{nombre:'',cups:'',dir:'',f1:'',f2:'',dias:30,kw:[0,0,0,0,0,0],en:[0,0,0,0,0,0],
+      factura:0,alquiler:0.86,
+      bonoRate:0.019121,  /* CORREGIDO: era 0.012742, Excel muestra 0.019121 */
+      taxImpElec:5.1127,taxIGIC:7,taxIGICRed:0,taxIGIC7:7},
+    tarifas:[
+      mkT('r1','Por Uso (imp. reducidos)','uni','anio',[34.341384,10.30104],[0.140599]),
+      mkT('r2','Por Uso Luz 2.0','uni','dia',[0.12303,0.037337],[0.1099]),
+      mkT('r3','Noche Luz 2.0','tri','dia',[0.11097,0.033677],[0.189562,0.116955,0.082281]),
+    ]},
+  pyme20:{id:'pyme20',label:'Pyme 2.0TD',taxModel:'pyme',potP:2,
+    cliente:{nombre:'',cups:'',dir:'',f1:'',f2:'',dias:30,kw:[0,0,0,0,0,0],en:[0,0,0,0,0,0],
+      factura:0,alquiler:1.68,bonoRate:0.019121,taxImpElec:5.1127,taxIGIC:0,taxIGICRed:3,taxIGIC7:7},
+    tarifas:[
+      mkT('p1','Plan Fijo Luz 24h','uni','dia',[0.122973,0.043976],[0.136171]),
+      mkT('p2','Plan Fijo Luz 24h SUPRA','uni','dia',[0.122973,0.043976],[0.149171]),
+      mkT('p3','PFL ONE 24h','uni','dia',[0.116318,0.044521],[0.115099]),
+      mkT('p4','Plan Fijo Trihorario','tri','dia',[0.120853,0.0439],[0.201461,0.132213,0.097634]),
+      mkT('p5','PFL Trihorario ONE','tri','dia',[0.116318,0.044521],[0.1705,0.116499,0.0819]),
+      mkT('p6','Plan Fijo SUPRA Trihorario','tri','dia',[0.120853,0.0439],[0.214461,0.145213,0.110634]),
+    ]},
+  pyme20one:{id:'pyme20one',label:'Pyme ONE 2.0TD',taxModel:'pyme',potP:2,
+    cliente:{nombre:'',cups:'',dir:'',f1:'',f2:'',dias:30,kw:[0,0,0,0,0,0],en:[0,0,0,0,0,0],
+      factura:0,alquiler:0.75,bonoRate:0.019121,taxImpElec:5.1127,taxIGIC:0,taxIGICRed:3,taxIGIC7:7},
+    tarifas:[
+      mkT('o1','Plan Fijo Luz 24h One','uni','dia',[0.122973,0.043976],[0.120671]),
+      mkT('o2','PFL ONE 24h','uni','dia',[0.116318,0.044521],[0.115099]),
+      mkT('o3','Plan Fijo Luz One (trihoraria)','tri','dia',[0.122973,0.043976],[0.190964,0.117811,0.082473]),
+      mkT('o4','PFL Trihorario ONE','tri','dia',[0.116318,0.044521],[0.1705,0.116499,0.0819]),
+    ]},
+  pyme361:{id:'pyme361',label:'Pyme 3.0/6.1TD',taxModel:'pyme',potP:6,
+    cliente:{nombre:'',cups:'',dir:'',f1:'',f2:'',dias:30,kw:[0,0,0,0,0,0],en:[0,0,0,0,0,0],
+      factura:0,alquiler:1.68,bonoRate:0.019121,taxImpElec:5.1127,taxIGIC:0,taxIGICRed:3,taxIGIC7:7},
+    tarifas:[
+      mkT('x1','Plan Fijo Luz BASIC 3.0','hex','dia',[0.055959,0.030187,0.013779,0.012187,0.008479,0.005817],[0.190851,0.165002,0.142965,0.130256,0.123688,0.11613]),
+      mkT('x2','Plan Fijo Luz ONE 3.0','hex','dia',[0.055959,0.030187,0.013779,0.012187,0.008479,0.005817],[0.185351,0.159502,0.137465,0.124756,0.118188,0.11063]),
+      mkT('x3','Plan Fijo Luz BASIC 6.1','hex','dia',[0.078882,0.041309,0.01797,0.01417,0.005295,0.00251],[0.166016,0.144923,0.130155,0.121017,0.114657,0.108359]),
+      mkT('x4','Plan Fijo Luz ONE 6.1','hex','dia',[0.078882,0.041309,0.01797,0.01417,0.005295,0.00251],[0.160516,0.139423,0.124655,0.115517,0.109157,0.102859]),
+    ]},
+};
+
+let segs=JSON.parse(JSON.stringify(INIT));
+let activeSeg='res';
+let activeSubTab={res:'comp',pyme20:'comp',pyme20one:'comp',pyme361:'comp'};
+
+// ── AUTH ──────────────────────────────────────────────
+const STORAGE_KEY='naturgy_admin_hash';
+const DEFAULT_HASH='220d7e6bc08476d254692e2a664a9c6d49bcd5ce68325359c6007cdff4c633d8';
+function getStoredHash(){return localStorage.getItem(STORAGE_KEY)||DEFAULT_HASH;}
+async function sha256(str){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+function showModal(t,s,b){document.getElementById('modalTitle').textContent=t;document.getElementById('modalSub').textContent=s;document.getElementById('modalBody').innerHTML=b;document.getElementById('modalOverlay').classList.remove('hidden');}
+function hideModal(){document.getElementById('modalOverlay').classList.add('hidden');document.getElementById('modalBody').innerHTML='';}
+function modalBgClick(e){if(e.target===document.getElementById('modalOverlay'))hideModal();}
+function showModalError(msg){const el=document.getElementById('modalErr');if(el){el.textContent=msg;el.style.display='block';}}
+function toggleAdmin(){
+  if(adminMode){adminMode=false;updateAdminBtn();renderContent();return;}
+  showModal('Acceso de administrador','Introduce tu contraseña de admin',`
+    <div class="fl"><label>Contraseña</label><input type="password" id="pw1" placeholder="Contraseña" onkeydown="if(event.key==='Enter')confirmLogin()"/></div>
+    <div class="modal-error" id="modalErr"></div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-secondary" onclick="hideModal()">Cancelar</button>
+      <button class="modal-btn modal-btn-primary" onclick="confirmLogin()">Entrar</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('pw1')?.focus(),50);
+}
+async function confirmLogin(){
+  const p1=document.getElementById('pw1')?.value||'';
+  const hash=await sha256(p1);
+  if(hash===getStoredHash()){hideModal();adminMode=true;updateAdminBtn();renderContent();}
+  else{showModalError('Contraseña incorrecta.');document.getElementById('pw1').value='';document.getElementById('pw1').focus();}
+}
+function changePassword(){
+  showModal('Cambiar contraseña','Introduce la contraseña actual y la nueva',`
+    <div class="fl"><label>Contraseña actual</label><input type="password" id="pwOld" placeholder="Contraseña actual" onkeydown="if(event.key==='Enter')confirmChange()"/></div>
+    <div class="modal-divider"></div>
+    <div class="fl"><label>Nueva contraseña</label><input type="password" id="pw1" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')confirmChange()"/></div>
+    <div class="fl"><label>Repite la nueva</label><input type="password" id="pw2" placeholder="Confirma la nueva" onkeydown="if(event.key==='Enter')confirmChange()"/></div>
+    <div class="modal-error" id="modalErr"></div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-secondary" onclick="hideModal()">Cancelar</button>
+      <button class="modal-btn modal-btn-primary" onclick="confirmChange()">Cambiar</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('pwOld')?.focus(),50);
+}
+async function confirmChange(){
+  const old=document.getElementById('pwOld')?.value||'',p1=document.getElementById('pw1')?.value||'',p2=document.getElementById('pw2')?.value||'';
+  const stored=getStoredHash(),hashOld=await sha256(old);
+  if(hashOld!==stored){showModalError('La contraseña actual es incorrecta.');return;}
+  if(p1.length<6){showModalError('La nueva contraseña debe tener al menos 6 caracteres.');return;}
+  if(p1!==p2){showModalError('Las nuevas contraseñas no coinciden.');return;}
+  localStorage.setItem(STORAGE_KEY,await sha256(p1));
+  hideModal();
+  const btn=document.getElementById('adminBtn');
+  btn.textContent='✓ Contraseña cambiada';
+  setTimeout(()=>{btn.innerHTML='🔓 Admin activo &nbsp;·&nbsp; <span style="font-weight:400;text-decoration:underline;cursor:pointer" onclick="event.stopPropagation();changePassword()">Cambiar contraseña</span>';},2000);
+}
+function updateAdminBtn(){
+  const b=document.getElementById('adminBtn');
+  b.className='admin-btn'+(adminMode?' on':'');
+  b.innerHTML=adminMode?'🔓 Admin activo &nbsp;·&nbsp; <span style="font-weight:400;text-decoration:underline;cursor:pointer" onclick="event.stopPropagation();changePassword()">Cambiar contraseña</span>':'🔒 Admin';
+}
+
+const LOGO_B64='data:image/png;base64,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';
+
+// ── CALCULATION ───────────────────────────────────────
+function calc(seg,t){
+  const c=seg.cliente,dias=+c.dias||1,potP=seg.potP||2;
+  let costPot=0;
+  for(let i=0;i<potP;i++){const r=+(t.rPot[i]||0),kw=+(c.kw[i]||0);if(!r||!kw)continue;costPot+=t.potUnit==='dia'?r*kw*dias:(r/365)*kw*dias;}
+  // ── ENERGÍA: tarifa uni usa SUMA de todos los periodos (P1+P2+P3), igual que el Excel
+  let costEn=0;const nEn={uni:1,tri:3,hex:6}[t.tipo]||1;
+  if(t.tipo==='uni'){costEn=(+(t.rEn[0])||0)*c.en.reduce((a,v)=>a+(+v||0),0);}
+  else{for(let i=0;i<nEn;i++)costEn+=(+(t.rEn[i]||0))*(+(c.en[i]||0));}
+  const sva=+(t.sva||0),alq=+(c.alquiler||0),subtotal=costPot+costEn+sva+alq;
+  const impElec=(subtotal-alq)*(+(c.taxImpElec||0)/100),bono=(+(c.bonoRate||0))*dias;
+  if(seg.taxModel==='res'){const igic=alq*(+(c.taxIGIC||0)/100);return{potencia:+costPot.toFixed(4),energia:+costEn.toFixed(4),sva,alquiler:alq,subtotal:+subtotal.toFixed(4),impElec:+impElec.toFixed(4),igic:+igic.toFixed(4),bonoSocial:+bono.toFixed(4),total:+(subtotal+impElec+igic+bono).toFixed(4)};}
+  const igicRed=(subtotal+impElec+bono)*(+(c.taxIGICRed||0)/100),igic7=alq*(+(c.taxIGIC7||0)/100);
+  return{potencia:+costPot.toFixed(4),energia:+costEn.toFixed(4),sva,alquiler:alq,subtotal:+subtotal.toFixed(4),impElec:+impElec.toFixed(4),igicRed:+igicRed.toFixed(4),igic7:+igic7.toFixed(4),bonoSocial:+bono.toFixed(4),total:+(subtotal+impElec+igicRed+igic7).toFixed(4)};
+}
+
+function f(v,d=2){if(v===null||v===undefined||isNaN(+v))return'—';return(+v).toFixed(d).replace('.',',')+'\u202f€';}
+function fRaw(v,d=2){if(v===null||v===undefined||isNaN(+v))return'';return(+v).toFixed(d).replace('.',',');}
+function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+function buildRsub(r,isPyme){
+  const rows=isPyme
+    ?[['Coste potencia',r.potencia],['Coste energía',r.energia],r.sva?['SVA',r.sva]:null,['Alquiler contador',r.alquiler],null,['Subtotal',r.subtotal],['Imp. electricidad',r.impElec],['IGIC Reducido 3%',r.igicRed],['IGIC 7% alquiler',r.igic7]]
+    :[['Coste potencia',r.potencia],['Coste energía',r.energia],r.sva?['SVA',r.sva]:null,['Alquiler contador',r.alquiler],null,['Subtotal',r.subtotal],['Imp. electricidad',r.impElec],['IGIC alquiler',r.igic||0],['Financiación Bono Social',r.bonoSocial]];
+  const html=rows.map(row=>{if(row===null)return'<div class="rsub-sep"></div>';const[label,val]=row;return`<div class="rsub-row"><span class="rr-label">${label}</span><span class="rr-val">${f(val)}</span></div>`;}).join('');
+  return`<div class="rsub"><div class="rsub-title">Resumen de costes</div>${html}<div class="rsub-total"><span class="rt-label">Total estimado</span><span class="rt-val">${f(r.total)}</span></div></div>`;
+}
+
+function authWarningBanner(seg){
+  if(seg.id!=='pyme20one')return'';
+  return`<div class="auth-warning"><div class="auth-warning-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="auth-warning-text"><strong>Autorización previa requerida</strong><span>Este segmento tarifario <strong>no puede ofertarse</strong> sin autorización previa de Naturgy.<br>Consulta con tu responsable antes de presentar esta comparativa al cliente.</span></div></div>`;
+}
+
+// ── NAVIGATION ────────────────────────────────────────
+function renderSegBar(){document.getElementById('segBar').innerHTML=Object.values(segs).map(s=>`<button class="seg-btn${s.id===activeSeg?' active':''}" data-seg="${s.id}" onclick="setSeg('${s.id}')"><span class="dot"></span>${s.label}</button>`).join('');}
+function renderSubBar(){
+  const col={res:'#185FA5',pyme20:'#0F6E56',pyme20one:'#B45309',pyme361:'#6D28D9'}[activeSeg];
+  document.getElementById('subBar').innerHTML=[['cli','Datos cliente'],['tar','Tarifas'],['comp','Comparativa']].map(([id,l])=>`<button class="sub-btn${activeSubTab[activeSeg]===id?' active':''}" style="${activeSubTab[activeSeg]===id?`border-bottom-color:${col};color:${col}`:''}" onclick="setSubTab('${id}')">${l}</button>`).join('');
+}
+function setSeg(id){activeSeg=id;updateAdminBtn();renderSegBar();renderSubBar();renderContent();}
+function setSubTab(id){activeSubTab[activeSeg]=id;renderSubBar();renderContent();}
+function renderContent(){
+  const seg=segs[activeSeg],sub=activeSubTab[activeSeg],el=document.getElementById('content');
+  if(sub==='cli')el.innerHTML=renderCli(seg);
+  else if(sub==='tar')el.innerHTML=renderTar(seg);
+  else el.innerHTML=renderComp(seg);
+  if(sub==='comp')drawChart(seg);
+}
+
+// ── CLIENT FORM ───────────────────────────────────────
+function renderCli(seg){
+  const c=seg.cliente,potP=seg.potP||2;
+  const lbs=['P1 — Punta','P2 — Valle','P3','P4','P5','P6'];
+  const potF=Array.from({length:potP},(_,i)=>`<div class="fl"><label>${lbs[i]} (kW)</label><input type="number" step="0.001" value="${c.kw[i]||0}" oninput="upC('${seg.id}','kw',${i},this.value)"/></div>`).join('');
+  const enF=Array.from({length:potP===6?6:3},(_,i)=>`<div class="fl"><label>${lbs[i]} (kWh)</label><input type="number" step="0.01" value="${c.en[i]||0}" oninput="upC('${seg.id}','en',${i},this.value)"/></div>`).join('');
+  const isPyme=seg.taxModel!=='res';
+  const taxInfo=isPyme?`Imp. elec. ${c.taxImpElec}% · IGIC red. ${c.taxIGICRed}% · IGIC alquiler ${c.taxIGIC7}% · Bono Social ${c.bonoRate} €/día`:`Imp. elec. ${c.taxImpElec}% · IGIC alquiler ${c.taxIGIC}% · Bono Social ${c.bonoRate} €/día`;
+  let adminTaxBlock=adminMode?`<div class="hr"></div><div class="stitle" style="display:flex;align-items:center;gap:6px">Configuración fiscal <span style="font-size:10px;font-weight:500;color:#dc2626;background:#fef2f2;padding:2px 8px;border-radius:6px;text-transform:none;letter-spacing:0">Solo admin</span></div><div style="font-size:11px;color:#aaa;margin-bottom:10px">Fijados por normativa Canarias. No modificar salvo cambio regulatorio.</div>`+(isPyme?`<div class="g3"><div class="fl"><label>Imp. electricidad (%)</label><input type="number" step="0.001" value="${c.taxImpElec}" oninput="upCf('${seg.id}','taxImpElec',this.value)"/></div><div class="fl"><label>IGIC Reducido (%)</label><input type="number" step="0.01" value="${c.taxIGICRed}" oninput="upCf('${seg.id}','taxIGICRed',this.value)"/></div><div class="fl"><label>IGIC 7% alquiler (%)</label><input type="number" step="0.01" value="${c.taxIGIC7}" oninput="upCf('${seg.id}','taxIGIC7',this.value)"/></div></div><div class="g2"><div class="fl"><label>Bono Social (€/día)</label><input type="number" step="0.000001" value="${c.bonoRate}" oninput="upCf('${seg.id}','bonoRate',this.value)"/></div></div>`:`<div class="g3"><div class="fl"><label>Imp. electricidad (%)</label><input type="number" step="0.001" value="${c.taxImpElec}" oninput="upCf('${seg.id}','taxImpElec',this.value)"/></div><div class="fl"><label>IGIC alquiler (%)</label><input type="number" step="0.01" value="${c.taxIGIC}" oninput="upCf('${seg.id}','taxIGIC',this.value)"/></div><div class="fl"><label>Bono Social (€/día)</label><input type="number" step="0.000001" value="${c.bonoRate}" oninput="upCf('${seg.id}','bonoRate',this.value)"/></div></div>`):`<div style="font-size:11px;color:#bbb;margin-top:14px;padding:9px 12px;background:#fafaf8;border-radius:8px;border:1px solid #f0eeea">🔒 Tipos aplicados (normativa Canarias): ${taxInfo}</div>`;
+  return`<div class="pane">${authWarningBanner(seg)}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="stitle" style="margin:0">Datos del cliente</div>
+      <button class="btn-clear" onclick="clearCliente('${seg.id}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Limpiar datos
+      </button>
+    </div>
+    <div class="g2"><div class="fl"><label>Nombre</label><input value="${esc(c.nombre)}" oninput="upCf('${seg.id}','nombre',this.value)"/></div><div class="fl"><label>CUPS</label><input value="${esc(c.cups)}" oninput="upCf('${seg.id}','cups',this.value)"/></div></div>
+    <div class="fl" style="margin-bottom:12px"><label>Dirección</label><input value="${esc(c.dir)}" oninput="upCf('${seg.id}','dir',this.value)"/></div>
+    <div class="g3"><div class="fl"><label>Lectura anterior</label><input type="date" value="${c.f1}" onchange="upDate('${seg.id}','f1',this.value)"/></div><div class="fl"><label>Lectura actual</label><input type="date" value="${c.f2}" onchange="upDate('${seg.id}','f2',this.value)"/></div><div class="fl"><label>Días del período</label><input type="number" id="dias_${seg.id}" value="${c.dias}" oninput="upCf('${seg.id}','dias',this.value)"/></div></div>
+    <div class="hr"></div>
+    <div class="stitle">Potencia contratada</div>
+    <div class="${potP===6?'g6':'g2'}">${potF}</div>
+    <div class="hr"></div>
+    <div class="stitle">Consumo energía</div>
+    <div class="${potP===6?'g6':'g3'}">${enF}</div>
+    <div class="hr"></div>
+    <div class="stitle">Factura actual del cliente</div>
+    <div class="g2" style="margin-bottom:12px"><div class="fl"><label>Importe total factura cliente (€)</label><input type="number" step="0.01" value="${c.factura}" oninput="upCf('${seg.id}','factura',this.value)"/></div></div>
+    <div class="hr"></div>
+    <div class="stitle">Otros cargos</div>
+    <div class="g2" style="margin-bottom:12px"><div class="fl"><label>Alquiler contador (€)</label><input type="number" step="0.01" value="${c.alquiler}" oninput="upCf('${seg.id}','alquiler',this.value)"/></div></div>
+    <div class="hr"></div>
+    <div class="stitle">Datos del comercial</div>
+    <div class="g3">
+      <div class="fl"><label>Nombre comercial</label><input value="${esc(comercialData.nombre)}" oninput="comercialData.nombre=this.value" placeholder="Nombre del agente"/></div>
+      <div class="fl"><label>Teléfono</label><input value="${esc(comercialData.telefono)}" oninput="comercialData.telefono=this.value" placeholder="600 000 000"/></div>
+      <div class="fl"><label>Email</label><input value="${esc(comercialData.email)}" oninput="comercialData.email=this.value" placeholder="agente@naturgy.es"/></div>
+    </div>
+    ${adminTaxBlock}
+  </div>`;
+}
+
+// ── TARIFF LIST ───────────────────────────────────────
+function renderTar(seg){return`<div class="pane">${authWarningBanner(seg)}${seg.tarifas.map((t,i)=>renderTCard(seg,t,i)).join('')}${adminMode?`<button class="add-btn" onclick="addTariff('${seg.id}')">+ Añadir tarifa</button>`:''}</div>`;}
+
+function renderTCard(seg,t,idx){
+  const r=calc(seg,t),ah=+(seg.cliente.factura-r.total).toFixed(2);
+  const ac=ah>0.005?'spos':ah<-0.005?'sneg':'sneu';
+  const at=ah>0.005?`−${f(ah)}`:ah<-0.005?`+${f(Math.abs(ah))}`:'Igual';
+  const tipoBadge={uni:'1 período',tri:'Trihoraria',hex:'6 períodos'}[t.tipo]||t.tipo;
+  const tipoBadgeCls={uni:'b-blue',tri:'b-amber',hex:'b-purple'}[t.tipo]||'b-blue';
+  const body=t.open?buildTBody(seg,t,idx):'';
+  return`<div class="tc"><div class="th" onclick="togT('${seg.id}','${t.id}')"><span class="th-accent" style="${t.selected?'':'background:#ccc'}"></span><input type="checkbox" ${t.selected?'checked':''} onclick="event.stopPropagation();togSelect('${seg.id}','${t.id}')" style="cursor:pointer;width:16px;height:16px"/><span class="chev${t.open?' r':''}">▶</span><input class="ti" value="${t.nombre}" onclick="event.stopPropagation()" oninput="renT('${seg.id}','${t.id}',this.value)"/><span class="tbadge ${tipoBadgeCls}">${tipoBadge}</span><span class="tprev" id="prev_${t.id}">${f(r.total)}</span><span class="tsav ${ac}" id="sav_${t.id}">${at}</span></div><div class="tb${t.open?' on':''}" id="body_${t.id}">${body}</div></div>`;
+}
+
+function buildTBody(seg,t,idx){
+  const potP=seg.potP||2,lbs=['P1','P2','P3','P4','P5','P6'],isPyme=seg.taxModel!=='res';
+  const r=calc(seg,t),nEnShow={uni:1,tri:3,hex:6}[t.tipo]||1,pUL=t.potUnit==='dia'?'€/kW·día':'€/kWaño';
+  const types=potP===6?[['uni','1 período'],['hex','6 períodos']]:[['uni','1 período'],['tri','Trihoraria']];
+  const tipoBlock=adminMode?`<div style="display:flex;gap:6px;margin-bottom:14px">${types.map(([tp,lb])=>`<button style="padding:5px 14px;border:1.5px solid ${t.tipo===tp?NAT_ORANGE:'#ddd'};border-radius:8px;font-size:11px;font-weight:600;background:${t.tipo===tp?NAT_ORANGE:'#fff'};color:${t.tipo===tp?'#fff':'#777'};cursor:pointer" onclick="chgTipo('${seg.id}','${t.id}','${tp}')">${lb}</button>`).join('')}</div>`:`<div style="margin-bottom:14px"><span class="tbadge ${{uni:'b-blue',tri:'b-amber',hex:'b-purple'}[t.tipo]||'b-blue'}">${{uni:'1 período de energía',tri:'Trihoraria — 3 períodos',hex:'Hexoraria — 6 períodos'}[t.tipo]}</span></div>`;
+  const lockBar=!adminMode?`<div class="lock-bar">🔒 Precios oficiales Naturgy — actualizables solo en modo admin</div>`:'';
+  let potContent='';
+  if(adminMode){const unitSel=`<div class="fl" style="margin-bottom:10px;max-width:220px"><label>Unidad</label><select onchange="upTf('${seg.id}','${t.id}','potUnit',this.value)"><option value="dia"${t.potUnit==='dia'?' selected':''}>€/kW·día</option><option value="anio"${t.potUnit==='anio'?' selected':''}>€/kWaño</option></select></div>`;const grid=`<div class="${potP===6?'g6':'g2'}">${lbs.slice(0,potP).map((lb,i)=>`<div class="fl"><label>${lb} (${pUL})</label><input type="number" step="0.000001" value="${t.rPot[i]||0}" oninput="upTarr('${seg.id}','${t.id}','rPot',${i},this.value)"/></div>`).join('')}</div>`;potContent=unitSel+grid;}
+  else{potContent=`<div class="price-grid">${lbs.slice(0,potP).filter((_,i)=>t.rPot[i]).map((lb,i)=>`<div class="price-row"><span class="pr-label">Potencia ${lb}</span><span><span class="pr-val">${(+t.rPot[i]).toFixed(6).replace(/0+$/,'').replace(/\.$/,'')}</span><span class="pr-unit">${pUL}</span></span></div>`).join('')}</div>`;}
+  let enContent='';
+  if(adminMode){enContent=`<div class="${nEnShow===6?'g6':nEnShow===3?'g3':'g2'}">${lbs.slice(0,nEnShow).map((lb,i)=>`<div class="fl"><label>${t.tipo==='uni'&&i===0?'Energía — todos los períodos':`Energía ${lb}`} (€/kWh)</label><input type="number" step="0.000001" value="${t.rEn[i]||0}" oninput="upTarr('${seg.id}','${t.id}','rEn',${i},this.value)"/></div>`).join('')}</div>`;}
+  else{enContent=`<div class="price-grid">${lbs.slice(0,nEnShow).map((lb,i)=>`<div class="price-row"><span class="pr-label">${t.tipo==='uni'&&i===0?'Energía (todos los períodos)':`Energía ${lb}`}</span><span><span class="pr-val">${(+t.rEn[i]).toFixed(6).replace(/0+$/,'').replace(/\.$/,'')}</span><span class="pr-unit">€/kWh</span></span></div>`).join('')}</div>`;}
+  return`<div>${tipoBlock}${lockBar}
+    <div style="margin-bottom:16px"><div class="stitle" style="margin-top:0">Término de potencia</div>${potContent}</div>
+    <div style="margin-bottom:16px"><div class="stitle" style="margin-top:0">Término de energía</div>${enContent}</div>
+    ${adminMode?`<div class="fl" style="margin-bottom:6px;max-width:220px"><label>SVA (€)</label><input type="number" step="0.01" value="${t.sva||0}" oninput="upTf('${seg.id}','${t.id}','sva',this.value)"/></div>`:(t.sva?`<div class="price-row" style="max-width:220px;margin-bottom:6px"><span class="pr-label">SVA</span><span><span class="pr-val">${(+(t.sva)).toFixed(2).replace('.',',')}</span><span class="pr-unit">€</span></span></div>`:'')}
+    <div id="rsub_${t.id}">${buildRsub(r,isPyme)}</div>
+    <div class="ra">${adminMode?`<button class="btn btn-d" onclick="delT('${seg.id}','${t.id}')">Eliminar tarifa</button>`:''}</div>
+  </div>`;
+}
+
+// ── COMPARATIVA ───────────────────────────────────────
+function clienteVacio(seg){const c=seg.cliente;return !+c.factura&&c.en.every(v=>!+v)&&c.kw.every(v=>!+v);}
+
+function renderComp(seg){
+  if(clienteVacio(seg)){return`<div class="pane">${authWarningBanner(seg)}<div class="empty-state"><div class="empty-state-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div><h3>Sin datos de cliente</h3><p>Introduce los datos del cliente en la pestaña <strong>Datos cliente</strong> para ver la comparativa de tarifas.</p></div></div>`;}
+  const c=seg.cliente,results=seg.tarifas.filter(t=>t.selected).map((t,i)=>({t,r:calc(seg,t),color:COLS[i%COLS.length]}));
+  if(results.length===0){return`<div class="pane"><div class="empty-state"><div class="empty-state-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div><h3>No hay tarifas seleccionadas</h3><p>Ve a la pestaña <strong>Tarifas</strong> y selecciona al menos una para comparar.</p></div></div>`;}
+  const best=results.reduce((a,b)=>b.r.total<a.r.total?b:a,results[0]);
+  const bestAh=best?+(c.factura-best.r.total).toFixed(2):0;
+  const isPyme=seg.taxModel!=='res';
+  const sc=`<div class="sc"><div class="sm"><div class="sl">Factura actual</div><div class="sv">${f(c.factura)}</div><div class="sn">${esc(c.nombre)||'Cliente'}</div></div>${best?`<div class="sm sm-best"><div class="sl">Mejor opción</div><div class="sv" style="color:${NAT_ORANGE}">${f(best.r.total)}</div><div class="sn">${esc(best.t.nombre)}</div></div>`:''} ${best?`<div class="sm ${bestAh>=0?'sm-saving':'sm-loss'}"><div class="sl">Ahorro máximo</div><div class="sv" style="color:${bestAh>=0?'#065f46':'#dc2626'}">${bestAh>=0?'−':'+'}${f(Math.abs(bestAh))}</div><div class="sn">vs factura actual</div></div>`:''}<div class="sm"><div class="sl">Tarifas comparadas</div><div class="sv">${results.length}</div></div></div>`;
+  const rowDefs=isPyme?[['Coste potencia','potencia'],['Coste energía','energia'],['SVA','sva'],['Alquiler','alquiler'],['Subtotal','subtotal'],['Imp. electricidad','impElec'],['IGIC Red. 3%','igicRed'],['IGIC 7% alquiler','igic7'],['Bono Social *','bonoSocial']]:[['Coste potencia','potencia'],['Coste energía','energia'],['SVA','sva'],['Alquiler','alquiler'],['Subtotal','subtotal'],['Imp. electricidad','impElec'],['IGIC alquiler','igic'],['Bono Social','bonoSocial']];
+  const ths=['Componente','Factura actual',...results.map(x=>`<span style="font-weight:700">${esc(x.t.nombre)}</span>`)].join('</th><th>');
+  const trs=rowDefs.map(([lbl,key])=>{const isBono=key==='bonoSocial'&&isPyme;const base=key==='alquiler'?f(c.alquiler):'—';return`<tr${isBono?' style="color:#ccc"':''}><td>${lbl}</td><td>${base}</td>${results.map(x=>`<td>${x.r[key]!==undefined?f(x.r[key]):'—'}</td>`).join('')}</tr>`;}).join('');
+  const totTds=results.map(x=>{const ah=+(c.factura-x.r.total).toFixed(2),isBest=best&&x.t.id===best.t.id;const badge=ah>0.005?`<span class="tsav spos" style="margin-left:5px;font-size:11px">−${f(ah)}</span>`:ah<-0.005?`<span class="tsav sneg" style="margin-left:5px;font-size:11px">+${f(Math.abs(ah))}</span>`:'';return`<td><strong style="color:${isBest?NAT_ORANGE:'inherit'}">${f(x.r.total)}</strong>${badge}</td>`;}).join('');
+  const note=isPyme?`<p class="hint">* Bono Social mostrado como referencia; no incluido en el total según normativa Canarias.</p><p class="hint">Comparativa estimativa, no vinculante. Puede variar según lecturas reales del cliente.</p>`:`<p class="hint">Comparativa estimativa, no vinculante. Puede variar según lecturas reales del cliente.</p>`;
+  return`<div class="pane">${authWarningBanner(seg)}
+    <div class="export-bar">
+      <button class="btn-export btn-pdf" onclick="exportPDF('${seg.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>Exportar PDF</button>
+      <button class="btn-export btn-xls" onclick="exportExcel('${seg.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Exportar Excel</button>
+    </div>
+    ${sc}
+    <div style="overflow-x:auto"><table class="ct"><thead><tr><th>${ths}</th></tr></thead><tbody>${trs}<tr class="tr"><td><strong>TOTAL ESTIMADO</strong></td><td><strong>${f(c.factura)}</strong></td>${totTds}</tr></tbody></table></div>
+    ${note}
+    <div class="ch-wrap"><canvas id="compChart_${seg.id}"></canvas></div>
+    <div id="legend_${seg.id}" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:11px;color:#888"></div>
+  </div>`;
+}
+
+function drawChart(seg){
+  if(charts[seg.id]){charts[seg.id].destroy();delete charts[seg.id];}
+  const canvas=document.getElementById('compChart_'+seg.id);
+  if(!canvas||!seg.tarifas.length)return;
+  const c=seg.cliente,results=seg.tarifas.filter(t=>t.selected).map((t,i)=>({t,r:calc(seg,t),color:COLS[i%COLS.length]}));
+  if(!results.length)return;
+  const best=results.reduce((a,b)=>b.r.total<a.r.total?b:a,results[0]);
+  charts[seg.id]=new Chart(canvas,{type:'bar',data:{labels:['Factura actual',...results.map(x=>x.t.nombre)],datasets:[{data:[+c.factura,...results.map(x=>+x.r.total.toFixed(2))],backgroundColor:['#94a3b8',...results.map(x=>x.t.id===best.t.id?NAT_ORANGE:x.color)],borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toFixed(2).replace('.',',')+' €'}}},scales:{y:{ticks:{callback:v=>v.toFixed(0)+' €',font:{size:11}},grid:{color:'rgba(0,0,0,.05)'},border:{display:false}},x:{ticks:{font:{size:11},maxRotation:28},grid:{display:false},border:{display:false}}}}});
+  const leg=document.getElementById('legend_'+seg.id);
+  if(leg)leg.innerHTML=[`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#94a3b8;display:inline-block"></span>Factura actual</span>`,...results.map(x=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${x.t.id===best.t.id?NAT_ORANGE:x.color};display:inline-block"></span>${esc(x.t.nombre)}</span>`)].join('');
+}
+
+// ── EXPORT PDF ────────────────────────────────────────
+function exportPDF(segId){
+  const seg=segs[segId],c=seg.cliente;
+  const{jsPDF}=window.jspdf;
+  const isPyme=seg.taxModel!=='res';
+  const results=seg.tarifas.filter(t=>t.selected).map(t=>({t,r:calc(seg,t)}));
+  if(!results.length){alert('Selecciona al menos una tarifa para exportar.');return;}
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  results.forEach((item,idx)=>{if(idx>0)doc.addPage();pdfPage(doc,seg,c,item.t,item.r,isPyme);});
+  doc.save(`Propuesta_Naturgy_${(c.nombre||'cliente').replace(/\s+/g,'_')}.pdf`);
+}
+
+function pdfPage(doc,seg,c,tar,r,isPyme){
+  const L=10,R=200,CW=190;
+  const navy=[0,40,85],or=[245,130,31],wh=[255,255,255];
+  const gr=[245,245,245],bd=[190,190,190],altGr=[250,250,250];
+  const lbs=['P1','P2','P3','P4','P5','P6'];
+  const rh=6.5;
+  function fill(col){doc.setFillColor(...col);}
+  function stroke(col){doc.setDrawColor(...col);}
+  function color(col){doc.setTextColor(...col);}
+  function bold(s){doc.setFont('helvetica','bold');doc.setFontSize(s||7.5);}
+  function norm(s){doc.setFont('helvetica','normal');doc.setFontSize(s||7);}
+  function box(x,y,w,h,fc,sc){fill(fc||wh);stroke(sc||bd);doc.rect(x,y,w,h,'FD');}
+  function vl(x,y,h){doc.line(x,y,x,y+h);}
+  function tx(t,x,y,opts){doc.text(String(t===null||t===undefined?'':t),x,y,opts||{});}
+  function fmt(v,d){return v!=null&&!isNaN(+v)?(+v).toFixed(d!=null?d:2).replace('.',','):'-';}
+  function fmtE(v){return fmt(v)+' €';}
+  let y=5;
+  // ══ HEADER ══
+  box(L,y,CW,rh);vl(L+56,y,rh);vl(L+138,y,rh);
+  color(navy);bold(8);tx('PRESUPUESTO',L+2,y+4.5);
+  color(or);bold(7.5);tx('CARGOS E IMPUESTOS  REDUCIDOS*',L+58,y+4.5);
+  try{doc.addImage(LOGO_B64,'PNG',L+136,y+0.5,48,12);}catch(e){color(navy);bold(12);tx('Naturgy',L+148,y+4.8);}
+  color(or);bold(10);tx('✔',L+186,y+4.5);
+  y+=rh;
+  box(L,y,CW,rh);vl(L+56,y,rh);
+  color([140,140,140]);norm(6.5);tx('TARIFA POR USO',L+2,y+4.5);
+  color(navy);bold(8);tx(c.cups||'—',L+58,y+4.5);
+  y+=rh;
+  box(L,y,CW,rh);
+  color(navy);bold(8);tx((c.dir||'—').substring(0,72),L+2,y+4.5);
+  y+=rh;
+  box(L,y,CW,rh);vl(L+38,y,rh);vl(L+68,y,rh);
+  color([140,140,140]);norm(6.5);tx('Lectura anterior',L+2,y+4.5);
+  color([30,30,30]);norm(7.5);tx(c.f1||'—',L+40,y+4.5);
+  color(navy);bold(9);tx(c.nombre||'—',L+70,y+4.5);
+  y+=rh;
+  box(L,y,CW,rh);vl(L+38,y,rh);vl(L+68,y,rh);vl(L+132,y,rh);
+  color([140,140,140]);norm(6.5);tx('Lectura actual',L+2,y+4.5);
+  color([30,30,30]);norm(7.5);tx(c.f2||'—',L+40,y+4.5);
+  color([140,140,140]);norm(6.5);tx('FECHA OFERTA **',L+70,y+4.5);
+  color(navy);bold(8);tx(new Date().toLocaleDateString('es-ES'),L+134,y+4.5);
+  y+=rh+2;
+  // ══ POTENCIA ══
+  fill(or);stroke(or);doc.rect(L,y,CW,6,'F');
+  color(wh);bold(8.5);tx('POTENCIA',L+2,y+4.2);
+  y+=6;
+  box(L,y,CW,6,gr);vl(L+45,y,6);vl(L+65,y,6);vl(L+110,y,6);
+  color([80,80,80]);bold(6.5);tx(tar.potUnit==='dia'?'€/kW·día':'€/kW·año',L+2,y+4);tx('Días',L+47,y+4);
+  y+=6;
+  const potP=seg.potP||2;
+  for(let i=0;i<potP;i++){
+    const rate=tar.rPot[i]||0,kw=c.kw[i]||0;
+    if(!rate&&!kw)continue;
+    box(L,y,CW,rh,i%2?altGr:wh);vl(L+45,y,rh);vl(L+65,y,rh);vl(L+110,y,rh);
+    color([30,30,30]);norm(7);tx(fmt(rate,6),L+2,y+4.5);tx(String(c.dias||0),L+47,y+4.5);
+    bold(8);tx(lbs[i],L+67,y+4.5);
+    y+=rh;
+  }
+  const dias=c.dias||1;
+  const periods=potP===2?[['PUNTA',0],['VALLE',1]]:lbs.slice(0,potP).map((lb,i)=>[lb,i]);
+  periods.forEach(([lbl,i])=>{
+    const rate=tar.rPot[i]||0,kw=c.kw[i]||0;
+    if(!rate||!kw)return;
+    const cost=tar.potUnit==='dia'?rate*kw*dias:(rate/365)*kw*dias;
+    const unitCost=tar.potUnit==='dia'?rate*kw:(rate/365)*kw;
+    box(L,y,CW,rh,i%2?altGr:wh);
+    vl(L+22,y,rh);vl(L+34,y,rh);vl(L+110,y,rh);vl(L+155,y,rh);
+    color([30,30,30]);bold(7.5);tx(lbl,L+2,y+4.5);
+    norm(7);tx(String(kw),L+24,y+4.5);
+    tx(fmt(unitCost,9).replace(/,?0+$/,''),L+36,y+4.5);
+    bold(7.5);tx('COSTE '+lbl,L+112,y+4.5);
+    color(navy);tx(fmtE(cost),R-2,y+4.5,{align:'right'});
+    y+=rh;
+  });
+  fill([255,244,230]);stroke(or);doc.rect(L,y,CW,7,'FD');vl(L+110,y,7);
+  color(navy);bold(8.5);tx('COSTE POTENCIA',L+112,y+5);
+  color(or);bold(11);tx(fmtE(r.potencia),R-2,y+5.5,{align:'right'});
+  y+=7+2;
+  // ══ CONSUMO ══
+  fill(or);stroke(or);doc.rect(L,y,CW,6,'F');
+  color(wh);bold(8.5);tx('CONSUMO',L+2,y+4.2);
+  y+=6;
+  box(L,y,CW,6,gr);vl(L+40,y,6);vl(L+58,y,6);vl(L+110,y,6);vl(L+155,y,6);
+  color([80,80,80]);bold(6.5);tx('kWh',L+2,y+4);tx('€/kWh',L+60,y+4);
+  y+=6;
+  const nEn={uni:1,tri:3,hex:6}[tar.tipo]||1;
+  // ── CORRECCIÓN v2: para tarifa 'uni', mostrar kWh TOTAL (suma P1+P2+P3)
+  // igual que hace el Excel (muestra 337.63 en el ejemplo, no solo P1=95.14)
+  for(let i=0;i<nEn;i++){
+    const kwh=tar.tipo==='uni'
+      ? c.en.reduce((a,v)=>a+(+v||0),0)   // SUMA TOTAL para tarifas unihorarias
+      : (c.en[i]||0);                       // cada periodo para tri/hex
+    const rate=tar.rEn[i]||0;
+    if(!kwh&&i>0)continue;
+    box(L,y,CW,rh,i%2?altGr:wh);
+    vl(L+40,y,rh);vl(L+58,y,rh);vl(L+110,y,rh);vl(L+155,y,rh);
+    color([30,30,30]);norm(7);
+    tx(fmt(kwh,2),L+2,y+4.5);
+    bold(8);tx(lbs[i],L+42,y+4.5);
+    norm(7);tx(fmt(rate,6).replace(/,?0+$/,'')+' €',L+60,y+4.5);
+    if(i===0){bold(7.5);color(navy);tx('COSTE ENERGÍA',L+112,y+4.5);tx(fmtE(r.energia),R-2,y+4.5,{align:'right'});}
+    y+=rh;
+  }
+  const lineItems=isPyme?[
+    ['SIN SVA',r.sva||0,false],['ALQUILER',r.alquiler,false],[null],
+    ['SUBTOTAL',r.subtotal,true],['IMPUESTO ELEC.',r.impElec,false],
+    ['BASE IMPONIBLE',r.alquiler,false],['IGIC Reducido',r.igicRed,false],
+    ['IGIC 7% alquiler',r.igic7,false],['FINANCIACIÓN',null,false],['BONO SOCIAL',r.bonoSocial,false],
+  ]:[
+    ['SIN SVA',r.sva||0,false],['ALQUILER',r.alquiler,false],[null],
+    ['SUBTOTAL',r.subtotal,true],['IMPUESTO ELEC.',r.impElec,false],
+    ['BASE IMPONIBLE',r.alquiler,false],['IGIC',r.igic||0,false],
+    ['FINANCIACIÓN',null,false],['BONO SOCIAL',r.bonoSocial,false],
+  ];
+  let ri=0;
+  lineItems.forEach(([lbl,val,isBold])=>{
+    if(lbl===null){y+=1.5;return;}
+    box(L,y,CW,rh,ri%2?altGr:wh);vl(L+155,y,rh);
+    if(isBold){color(navy);bold(7.5);}else{color([50,50,50]);norm(7);}
+    tx(lbl,L+2,y+4.5);
+    if(val!==null&&val!==undefined){color(navy);bold(7.5);tx(fmtE(val),R-2,y+4.5,{align:'right'});}
+    ri++;y+=rh;
+  });
+  // Compensación excedentes
+  box(L,y,CW,rh,ri%2?altGr:wh);vl(L+105,y,rh);vl(L+130,y,rh);vl(L+155,y,rh);
+  color([50,50,50]);norm(6.5);tx('COMPENSACIÓN DE EXCEDENTES',L+2,y+4.5);
+  tx('0',L+107,y+4.5);tx('0,07',L+132,y+4.5);
+  color(navy);bold(7.5);tx('0 €',R-2,y+4.5,{align:'right'});
+  y+=rh;
+  // ══ TOTAL ══
+  fill([255,244,230]);stroke(or);doc.rect(L,y,CW,9,'FD');vl(L+110,y,9);
+  color(navy);bold(10);tx('TOTAL',L+2,y+6);
+  color(or);bold(14);tx(fmtE(r.total),R-2,y+6.5,{align:'right'});
+  y+=9+1;
+  // ══ ATENDIDO POR / AHORRO ══
+  const ahorro=+(c.factura-r.total).toFixed(2);
+  const pct=c.factura>0?Math.abs(Math.round((ahorro/c.factura)*100)):0;
+  const ahCol=ahorro>=0?[6,95,70]:[220,38,38];
+  box(L,y,CW,9);vl(L+68,y,9);vl(L+132,y,9);
+  color([120,120,120]);norm(6);tx('ATENDIDO POR:',L+2,y+3.5);
+  color([20,20,20]);bold(7.5);tx(comercialData.nombre||'',L+2,y+7.5);
+  if(comercialData.telefono){color([100,100,100]);norm(6);tx(comercialData.telefono,L+36,y+7.5);}
+  color([120,120,120]);norm(6);tx('FACTURA CLIENTE',L+70,y+3.5);
+  color(navy);bold(10);tx(fmtE(c.factura),L+130,y+8,{align:'right'});
+  color([120,120,120]);norm(6);tx('AHORRO',L+134,y+3.5);
+  color(ahCol);bold(10);tx((ahorro>=0?'- ':'+ ')+fmtE(Math.abs(ahorro)),R-2,y+8,{align:'right'});
+  y+=9;
+  fill([255,244,230]);stroke(or);doc.rect(L,y,CW,7,'FD');vl(L+68,y,7);
+  color(or);bold(7.5);tx('**OFERTA TIEMPO LIMITADO',L+2,y+4.5);
+  color([100,100,100]);norm(7);tx('AHORRO ESTIMADO',L+70,y+4.5);
+  color(ahCol);bold(9);tx((ahorro>=0?'-':'+')+pct+'%',R-2,y+4.5,{align:'right'});
+  y+=7+3;
+  color([140,140,140]);norm(6);
+  const disc='La presente comparativa es estimativa, sirve únicamente para dar una idea a nuestro cliente sobre cómo se le facturará con NATURGY S.A. este documento no es vinculante, puede variar según lecturas reales/estimadas del cliente. Nos basamos únicamente en la información de factura aportada por el cliente.';
+  const dlines=doc.splitTextToSize(disc,CW);
+  doc.text(dlines,L,y);
+  y+=dlines.length*3.2+4;
+  if(comercialData.email){color([100,100,100]);norm(6.5);tx(comercialData.email,L+70,y);y+=5;}
+  box(L,y,CW,18);vl(L+95,y,18);
+  color([100,100,100]);norm(7);tx('RECIBIDO',L+2,y+6);
+  doc.line(L+5,y+13,L+93,y+13);
+  color([50,50,50]);bold(8);tx(new Date().toLocaleDateString('es-ES'),L+20,y+16.5);
+}
+
+// ── EXPORT EXCEL ──────────────────────────────────────
+function exportExcel(segId){
+  const seg=segs[segId],c=seg.cliente,isPyme=seg.taxModel!=='res';
+  const results=seg.tarifas.filter(t=>t.selected).map(t=>({t,r:calc(seg,t)}));
+  const best=results.reduce((a,b)=>b.r.total<a.r.total?b:a,results[0]);
+  const wb=XLSX.utils.book_new();
+  const rowDefs=isPyme?[['Coste potencia','potencia'],['Coste energía','energia'],['SVA','sva'],['Alquiler','alquiler'],['Subtotal','subtotal'],['Imp. electricidad','impElec'],['IGIC Reducido 3%','igicRed'],['IGIC 7% alquiler','igic7'],['Bono Social (ref.)','bonoSocial']]:[['Coste potencia','potencia'],['Coste energía','energia'],['SVA','sva'],['Alquiler','alquiler'],['Subtotal','subtotal'],['Imp. electricidad','impElec'],['IGIC alquiler','igic'],['Bono Social','bonoSocial']];
+  const header=['Componente','Factura actual',...results.map(x=>x.t.nombre)];
+  const rows=[
+    [`Comparativa Tarifas Naturgy — ${seg.label}`],[],
+    ['Cliente:',c.nombre,'CUPS:',c.cups],['Dirección:',c.dir],
+    ['Período:',`${c.f1} → ${c.f2}`,'Días:',c.dias],[],
+    header,
+    ...rowDefs.map(([lbl,key])=>[lbl,key==='alquiler'?+c.alquiler:null,...results.map(x=>x.r[key]!==undefined?+x.r[key]:null)]),
+    ['TOTAL ESTIMADO',+c.factura,...results.map(x=>+x.r.total)],[],
+    ['Mejor opción:',best.t.nombre,`Total: ${fRaw(best.r.total)} €`],
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:28},{wch:16},...results.map(()=>({wch:20}))];
+  XLSX.utils.book_append_sheet(wb,ws,'Comparativa');
+  const wsC=XLSX.utils.aoa_to_sheet([
+    ['Datos del cliente'],[],['Nombre',c.nombre],['CUPS',c.cups],['Dirección',c.dir],
+    ['Lectura anterior',c.f1],['Lectura actual',c.f2],['Días',c.dias],
+    [],['POTENCIA (kW)'],...c.kw.map((v,i)=>v?[`P${i+1}`,v]:[]).filter(x=>x.length),
+    [],['CONSUMO (kWh)'],...c.en.map((v,i)=>v?[`P${i+1}`,v]:[]).filter(x=>x.length),
+    [],['Factura actual (€)',c.factura],['Alquiler (€)',c.alquiler],
+  ]);
+  wsC['!cols']=[{wch:24},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,wsC,'Datos cliente');
+  XLSX.writeFile(wb,`Comparativa_Naturgy_${seg.label.replace(/\s/g,'_')}.xlsx`);
+}
+
+// ── EVENT HANDLERS ────────────────────────────────────
+function clearCliente(segId){
+  if(!confirm('¿Limpiar todos los datos del cliente? Esta acción no se puede deshacer.'))return;
+  const seg=segs[segId],c=seg.cliente;
+  const keep={bonoRate:c.bonoRate,taxImpElec:c.taxImpElec,taxIGIC:c.taxIGIC,taxIGICRed:c.taxIGICRed,taxIGIC7:c.taxIGIC7,alquiler:c.alquiler};
+  segs[segId].cliente={nombre:'',cups:'',dir:'',f1:'',f2:'',dias:0,kw:[0,0,0,0,0,0],en:[0,0,0,0,0,0],factura:0,...keep};
+  renderContent();
+}
+function upCf(segId,field,val){segs[segId].cliente[field]=val===''?'':isNaN(+val)?val:+val;if(activeSubTab[segId]==='comp')renderContent();else refreshPreviews(segId);}
+function upC(segId,field,idx,val){segs[segId].cliente[field][idx]=+val;if(activeSubTab[segId]==='comp')renderContent();else refreshPreviews(segId);}
+function upDate(segId,field,val){segs[segId].cliente[field]=val;const c=segs[segId].cliente;if(c.f1&&c.f2){const d=Math.round((new Date(c.f2)-new Date(c.f1))/(864e5));if(d>0){c.dias=d;const el=document.getElementById('dias_'+segId);if(el)el.value=d;}}if(activeSubTab[segId]==='comp')renderContent();else refreshPreviews(segId);}
+function upTf(segId,tid,field,val){if(!adminMode)return;const t=segs[segId].tarifas.find(x=>x.id===tid);if(t){t[field]=isNaN(+val)?val:+val;refreshTPreview(segId,tid);}}
+function upTarr(segId,tid,field,idx,val){if(!adminMode)return;const t=segs[segId].tarifas.find(x=>x.id===tid);if(t){t[field][idx]=+val;refreshTPreview(segId,tid);}}
+function refreshTPreview(segId,tid){
+  const seg=segs[segId],t=seg.tarifas.find(x=>x.id===tid);if(!t)return;
+  const r=calc(seg,t),ah=+(seg.cliente.factura-r.total).toFixed(2);
+  const ep=document.getElementById('prev_'+tid),es=document.getElementById('sav_'+tid),ers=document.getElementById('rsub_'+tid);
+  if(ep)ep.textContent=f(r.total);
+  if(es){es.className='tsav '+(ah>0.005?'spos':ah<-0.005?'sneg':'sneu');es.textContent=ah>0.005?`−${f(ah)}`:ah<-0.005?`+${f(Math.abs(ah))}`:'Igual';}
+  if(ers){ers.innerHTML=buildRsub(r,seg.taxModel!=='res');}
+  if(activeSubTab[segId]==='comp')renderContent();
+}
+function refreshPreviews(segId){segs[segId].tarifas.forEach(t=>refreshTPreview(segId,t.id));}
+function togT(segId,tid){const t=segs[segId].tarifas.find(x=>x.id===tid);if(!t)return;t.open=!t.open;const bd=document.getElementById('body_'+tid);if(bd){bd.className='tb'+(t.open?' on':'');if(t.open)bd.innerHTML=buildTBody(segs[segId],t,0);const chev=bd.closest('.tc')?.querySelector('.chev');if(chev)chev.className='chev'+(t.open?' r':'');}}
+function renT(segId,tid,val){if(!adminMode)return;const t=segs[segId].tarifas.find(x=>x.id===tid);if(t){t.nombre=val;if(activeSubTab[segId]==='comp')renderContent();}}
+function chgTipo(segId,tid,tipo){if(!adminMode)return;const t=segs[segId].tarifas.find(x=>x.id===tid);if(!t)return;t.tipo=tipo;const bd=document.getElementById('body_'+tid);if(bd)bd.innerHTML=buildTBody(segs[segId],t,0);refreshTPreview(segId,tid);}
+function delT(segId,tid){if(!adminMode)return;segs[segId].tarifas=segs[segId].tarifas.filter(x=>x.id!==tid);renderContent();}
+function togSelect(segId,tid){const t=segs[segId].tarifas.find(x=>x.id===tid);if(t){t.selected=!t.selected;refreshPreviews(segId);}}
+function addTariff(segId){if(!adminMode)return;const seg=segs[segId],newId='u'+(++_tariffId);seg.tarifas.push({id:newId,nombre:'Nueva tarifa',tipo:seg.potP===6?'hex':'uni',potUnit:'dia',rPot:[0,0,0,0,0,0],rEn:[0,0,0,0,0,0],sva:0,open:true,selected:true});renderContent();}
+
+updateAdminBtn();renderSegBar();renderSubBar();renderContent();
+</script>
+</body>
+</html>
