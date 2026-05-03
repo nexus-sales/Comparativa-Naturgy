@@ -52,7 +52,7 @@ export function exportExcel(
       lbl,
       key === 'alquiler' ? +c.alquiler : null,
       ...results.map(x => {
-        const val = (x.r as Record<string, number | undefined>)[key];
+        const val = (x.r as unknown as Record<string, number | undefined>)[key];
         return val !== undefined ? +val : null;
       }),
     ]),

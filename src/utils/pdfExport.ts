@@ -14,7 +14,7 @@ const sanitize = (s: string | null | undefined): string =>
   String(s ?? '').trim().replace(/[\x00-\x1F\x7F]/g, '');
 
 export function exportPDF(
-  segLabel: string,
+  _segLabel: string,
   taxModel: string,
   potP: number,
   cliente: SegCliente,
