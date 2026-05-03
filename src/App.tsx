@@ -322,33 +322,33 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Nombre</label>
-            <input className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.nombre} onChange={e => upClient(segId, "nombre", e.target.value)} />
+            <input title="Nombre del cliente" placeholder="Nombre" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.nombre} onChange={e => upClient(segId, "nombre", e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">CUPS</label>
-            <input className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono" value={c.cups} onChange={e => upClient(segId, "cups", e.target.value.toUpperCase())} />
+            <input title="CUPS" placeholder="ES00XXXX..." className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono" value={c.cups} onChange={e => upClient(segId, "cups", e.target.value.toUpperCase())} />
           </div>
         </div>
 
         {/* Dirección */}
         <div className="mb-4">
           <label className="block text-xs font-bold text-slate-500 mb-1">Dirección de suministro</label>
-          <input className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.dir} onChange={e => upClient(segId, "dir", e.target.value)} />
+          <input title="Dirección de suministro" placeholder="Calle, número, municipio" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.dir} onChange={e => upClient(segId, "dir", e.target.value)} />
         </div>
 
         {/* Fechas + Días */}
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Lectura anterior</label>
-            <input type="date" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.f1} onChange={e => upDate(segId, "f1", e.target.value)} />
+            <input type="date" title="Lectura anterior" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.f1} onChange={e => upDate(segId, "f1", e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Lectura actual</label>
-            <input type="date" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.f2} onChange={e => upDate(segId, "f2", e.target.value)} />
+            <input type="date" title="Lectura actual" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.f2} onChange={e => upDate(segId, "f2", e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Días del período</label>
-            <input type="number" className="w-full p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={c.dias} onChange={e => upClient(segId, "dias", +e.target.value || 0)} />
+            <input type="number" title="Días del período" className="w-full p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={c.dias} onChange={e => upClient(segId, "dias", +e.target.value || 0)} />
           </div>
         </div>
 
@@ -360,7 +360,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           {Array.from({ length: potP }, (_, i) => (
             <div key={i}>
               <label className="block text-xs text-slate-400 mb-1">{PERIODO_LABELS[i]}</label>
-              <input type="number" step="0.001" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={c.kw[i] || ""} onChange={e => upClientArr(segId, "kw", i, +e.target.value || 0)} />
+              <input type="number" step="0.001" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={c.kw[i] || ""} onChange={e => upClientArr(segId, "kw", i, +e.target.value || 0)} />
             </div>
           ))}
         </div>
@@ -371,7 +371,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           {Array.from({ length: enCols }, (_, i) => (
             <div key={i}>
               <label className="block text-xs text-slate-400 mb-1">{PERIODO_LABELS[i]}</label>
-              <input type="number" step="0.01" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={c.en[i] || ""} onChange={e => upClientArr(segId, "en", i, +e.target.value || 0)} />
+              <input type="number" step="0.01" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={c.en[i] || ""} onChange={e => upClientArr(segId, "en", i, +e.target.value || 0)} />
             </div>
           ))}
         </div>
@@ -420,16 +420,16 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             <p className="text-xs text-slate-400 mb-3">Fijados por normativa Canarias. No modificar salvo cambio regulatorio.</p>
             {isPyme ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div><label className="block text-xs text-slate-500 mb-1">Imp. electricidad (%)</label><input type="number" step="0.001" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxImpElec} onChange={e => upClient(segId, "taxImpElec", +e.target.value)} /></div>
-                <div><label className="block text-xs text-slate-500 mb-1">IGIC Reducido (%)</label><input type="number" step="0.01" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGICRed} onChange={e => upClient(segId, "taxIGICRed", +e.target.value)} /></div>
-                <div><label className="block text-xs text-slate-500 mb-1">IGIC 7% alquiler (%)</label><input type="number" step="0.01" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGIC7} onChange={e => upClient(segId, "taxIGIC7", +e.target.value)} /></div>
-                <div><label className="block text-xs text-slate-500 mb-1">Bono Social (€/día)</label><input type="number" step="0.000001" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.bonoRate} onChange={e => upClient(segId, "bonoRate", +e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-500 mb-1">Imp. electricidad (%)</label><input type="number" step="0.001" title="Impuesto electricidad (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxImpElec} onChange={e => upClient(segId, "taxImpElec", +e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-500 mb-1">IGIC Reducido (%)</label><input type="number" step="0.01" title="IGIC Reducido (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGICRed} onChange={e => upClient(segId, "taxIGICRed", +e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-500 mb-1">IGIC 7% alquiler (%)</label><input type="number" step="0.01" title="IGIC 7% alquiler (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGIC7} onChange={e => upClient(segId, "taxIGIC7", +e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-500 mb-1">Bono Social (€/día)</label><input type="number" step="0.000001" title="Bono Social (€/día)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.bonoRate} onChange={e => upClient(segId, "bonoRate", +e.target.value)} /></div>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                <div><label className="block text-xs text-slate-500 mb-1">Imp. electricidad (%)</label><input type="number" step="0.001" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxImpElec} onChange={e => upClient(segId, "taxImpElec", +e.target.value)} /></div>
-                <div><label className="block text-xs text-slate-500 mb-1">IGIC alquiler (%)</label><input type="number" step="0.01" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGIC} onChange={e => upClient(segId, "taxIGIC", +e.target.value)} /></div>
-                <div><label className="block text-xs text-slate-500 mb-1">Bono Social (€/día)</label><input type="number" step="0.000001" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.bonoRate} onChange={e => upClient(segId, "bonoRate", +e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-500 mb-1">Imp. electricidad (%)</label><input type="number" step="0.001" title="Impuesto electricidad (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxImpElec} onChange={e => upClient(segId, "taxImpElec", +e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-500 mb-1">IGIC alquiler (%)</label><input type="number" step="0.01" title="IGIC alquiler (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGIC} onChange={e => upClient(segId, "taxIGIC", +e.target.value)} /></div>
+                <div><label className="block text-xs text-slate-500 mb-1">Bono Social (€/día)</label><input type="number" step="0.000001" title="Bono Social (€/día)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.bonoRate} onChange={e => upClient(segId, "bonoRate", +e.target.value)} /></div>
               </div>
             )}
           </>
@@ -480,6 +480,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                 <input
                   type="checkbox"
                   checked={t.selected}
+                  aria-label={`Seleccionar ${t.nombre}`}
                   onClick={e => { e.stopPropagation(); toggleSelected(t.id); }}
                   onChange={() => {}}
                   className="w-4 h-4 rounded cursor-pointer flex-shrink-0"
