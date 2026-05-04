@@ -63,8 +63,13 @@ function pdfPage(
   const vl = (x: number, y: number, h: number) => doc.line(x, y, x, y + h);
   const tx = (t: string | number | null | undefined, x: number, y: number, opts?: object) =>
     doc.text(String(t === null || t === undefined ? '' : t), x, y, opts as any || {});
-  const fmt = (v: number | null | undefined, d?: number) =>
-    v != null && !isNaN(+v) ? (+v).toFixed(d != null ? d : 2).replace('.', ',') : '-';
+  const fmt = (v: number | null | undefined, d?: number) => {
+    if (v == null || isNaN(+v)) return '-';
+    const val = (+v).toFixed(d != null ? d : 2).replace('.', ',');
+    const parts = val.split(',');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return parts.join(',');
+  };
   const fmtE = (v: number | null | undefined) => fmt(v) + ' €';
 
   let y = 5;
@@ -75,7 +80,7 @@ function pdfPage(
   vl(L + 56, y, rh); vl(L + 128, y, rh);
   color(navy); bold(8); tx('PRESUPUESTO', L + 2, y + 4.5);
   color(or); bold(7.5); tx('CARGOS E IMPUESTOS  REDUCIDOS*', L + 58, y + 4.5);
-  try { doc.addImage(LOGO_B64, 'PNG', L + 130, y + 0.5, 58, 5.5); } catch { color(wh); bold(10); tx('Naturgy', L + 148, y + 4.5); }
+  try { doc.addImage(LOGO_B64, 'PNG', L + 140, y + 1, 40, 4); } catch { color(wh); bold(10); tx('Naturgy', L + 148, y + 4.5); }
   y += rh;
   box(L, y, CW, rh); vl(L + 56, y, rh);
   color(navy); bold(8); tx(sanitize(tar.nombre), L + 2, y + 4.5);
@@ -206,12 +211,24 @@ function pdfPage(
   color([120, 120, 120] as any); norm(6); tx('FACTURA CLIENTE', L + 70, y + 3.5);
   color(navy); bold(10); tx(fmtE(c.factura), L + 130, y + 8, { align: 'right' });
   color([120, 120, 120] as any); norm(6); tx('AHORRO', L + 134, y + 3.5);
-  color(ahCol); bold(10); tx((ahorro >= 0 ? '- ' : '+ ') + fmtE(Math.abs(ahorro)), R - 2, y + 8, { align: 'right' });
+  if (ahorro > 0.001) {
+    color(ahCol); bold(10); tx('- ' + fmtE(Math.abs(ahorro)), R - 2, y + 8, { align: 'right' });
+  } else if (ahorro < -0.001) {
+    color(ahCol); bold(10); tx('+ ' + fmtE(Math.abs(ahorro)), R - 2, y + 8, { align: 'right' });
+  } else {
+    color([150, 150, 150] as any); bold(10); tx('SIN DIF.', R - 2, y + 8, { align: 'right' });
+  }
   y += 9;
   fill([255, 244, 230] as any); stroke(or); doc.rect(L, y, CW, 7, 'FD'); vl(L + 68, y, 7);
-  color(or); bold(7.5); tx('**OFERTA TIEMPO LIMITADO', L + 2, y + 4.5);
+  color(or); bold(7.5); tx(ahorro < -0.01 ? 'NATURGY PUEDE MEJORAR SU FACTURA' : '**OFERTA TIEMPO LIMITADO', L + 2, y + 4.5);
   color([100, 100, 100] as any); norm(7); tx('AHORRO ESTIMADO', L + 70, y + 4.5);
-  color(ahCol); bold(9); tx((ahorro >= 0 ? '-' : '+') + pct + '%', R - 2, y + 4.5, { align: 'right' });
+  if (ahorro > 0.001) {
+    color(ahCol); bold(9); tx('-' + pct + '%', R - 2, y + 4.5, { align: 'right' });
+  } else if (ahorro < -0.001) {
+    color(ahCol); bold(9); tx('+' + pct + '%', R - 2, y + 4.5, { align: 'right' });
+  } else {
+    color([150, 150, 150] as any); bold(9); tx('0%', R - 2, y + 4.5, { align: 'right' });
+  }
   y += 7 + 3;
 
   color([140, 140, 140] as any); norm(6);
