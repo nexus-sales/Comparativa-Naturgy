@@ -114,7 +114,7 @@ function pdfPage(
     const rate = tar.rPot[i] || 0, kw = c.kw[i] || 0;
     if (!rate && !kw) continue;
     box(L, y, CW, rh, i % 2 ? altGr : wh); vl(L + 45, y, rh); vl(L + 65, y, rh); vl(L + 110, y, rh);
-    color([30, 30, 30] as any); norm(7); tx(fmt(rate, 6), L + 2, y + 4.5); tx(String(c.dias || 0), L + 47, y + 4.5);
+    color([30, 30, 30] as any); norm(7); tx(fmt(rate, 6), L + 2, y + 4.5); tx(fmt(c.dias || 0, 0), L + 47, y + 4.5);
     bold(8); tx(lbs[i], L + 67, y + 4.5);
     y += rh;
   }
@@ -129,7 +129,7 @@ function pdfPage(
     box(L, y, CW, rh, i % 2 ? altGr : wh);
     vl(L + 22, y, rh); vl(L + 34, y, rh); vl(L + 110, y, rh); vl(L + 155, y, rh);
     color([30, 30, 30] as any); bold(7.5); tx(lbl, L + 2, y + 4.5);
-    norm(7); tx(String(kw), L + 28, y + 4.5, { align: 'center' });
+    norm(7); tx(fmt(kw, 3).replace(/,000$/, ''), L + 28, y + 4.5, { align: 'center' });
     tx(fmt(unitCost, 9).replace(/,?0+$/, ''), L + 36, y + 4.5);
     bold(7.5); tx('COSTE ' + lbl, L + 112, y + 4.5);
     color(navy); tx(fmtE(cost), R - 2, y + 4.5, { align: 'right' });
