@@ -120,10 +120,10 @@ export const SEG_COLORS: Record<string, string> = {
 };
 
 export const SEG_DEFAULTS: Record<string, Partial<SegCliente>> = {
-  res:       { alquiler: 0.86, bonoRate: 0.019121, taxImpElec: 5.1127, taxIGIC: 7, taxIGICRed: 0, taxIGIC7: 0 },
-  pyme20:    { alquiler: 1.68, bonoRate: 0.019121, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
-  pyme20one: { alquiler: 0.75, bonoRate: 0.019121, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
-  pyme361:   { alquiler: 1.68, bonoRate: 0.019121, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  res:       { alquiler: 0.86, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 7, taxIGICRed: 0, taxIGIC7: 0 },
+  pyme20:    { alquiler: 1.68, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  pyme20one: { alquiler: 0.75, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  pyme361:   { alquiler: 1.68, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
 };
 
 export function makeDefaultClient(segId: string): SegCliente {
