@@ -181,6 +181,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
   const [activeSeg, setActiveSeg] = useState("res");
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "comp", pyme20: "comp", pyme20one: "comp", pyme361: "comp" });
   const [comercialData, setComercialData] = useState<ComercialData>({ nombre: "Salvador Muñoz Portillo", telefono: "", email: "admin@nexus-sales.com" });
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const chartInstances = useRef<Record<string, Chart>>({});
 
   const segDef = SEG_DEFS.find(s => s.id === activeSeg) ?? SEG_DEFS[0];
@@ -344,10 +345,20 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Días del período</label>
-            <input type="text" title="Días del período" className="w-full p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={fmtRaw(c.dias, 0)} onChange={e => {
-              const raw = e.target.value.replace(/\./g, '').replace(',', '.');
-              upClient(segId, "dias", +raw || 0);
-            }} />
+            <input type="text" title="Días del período" className="w-full p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-sm font-bold text-orange-700" 
+              value={inputValues[`${segId}-dias`] ?? fmtRaw(c.dias, 0)} 
+              onChange={e => {
+                const val = e.target.value;
+                setInputValues(prev => ({ ...prev, [`${segId}-dias`]: val }));
+                const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+                upClient(segId, "dias", num);
+              }}
+              onBlur={() => setInputValues(prev => {
+                const next = { ...prev };
+                delete next[`${segId}-dias`];
+                return next;
+              })}
+            />
           </div>
         </div>
 
@@ -359,10 +370,20 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           {Array.from({ length: potP }, (_, i) => (
             <div key={i}>
               <label className="block text-xs text-slate-400 mb-1">{PERIODO_LABELS[i]}</label>
-              <input type="text" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={fmtRaw(c.kw[i] || 0, 3)} onChange={e => {
-                const raw = e.target.value.replace(/\./g, '').replace(',', '.');
-                upClientArr(segId, "kw", i, +raw || 0);
-              }} />
+              <input type="text" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" 
+                value={inputValues[`${segId}-kw-${i}`] ?? fmtRaw(c.kw[i] || 0, 3)} 
+                onChange={e => {
+                  const val = e.target.value;
+                  setInputValues(prev => ({ ...prev, [`${segId}-kw-${i}`]: val }));
+                  const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+                  upClientArr(segId, "kw", i, num);
+                }}
+                onBlur={() => setInputValues(prev => {
+                  const next = { ...prev };
+                  delete next[`${segId}-kw-${i}`];
+                  return next;
+                })}
+              />
             </div>
           ))}
         </div>
@@ -373,10 +394,20 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           {Array.from({ length: enCols }, (_, i) => (
             <div key={i}>
               <label className="block text-xs text-slate-400 mb-1">{PERIODO_LABELS[i]}</label>
-              <input type="text" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={fmtRaw(c.en[i] || 0, 2)} onChange={e => {
-                const raw = e.target.value.replace(/\./g, '').replace(',', '.');
-                upClientArr(segId, "en", i, +raw || 0);
-              }} />
+              <input type="text" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" 
+                value={inputValues[`${segId}-en-${i}`] ?? fmtRaw(c.en[i] || 0, 2)} 
+                onChange={e => {
+                  const val = e.target.value;
+                  setInputValues(prev => ({ ...prev, [`${segId}-en-${i}`]: val }));
+                  const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+                  upClientArr(segId, "en", i, num);
+                }}
+                onBlur={() => setInputValues(prev => {
+                  const next = { ...prev };
+                  delete next[`${segId}-en-${i}`];
+                  return next;
+                })}
+              />
             </div>
           ))}
         </div>
@@ -387,18 +418,38 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         <div className="grid grid-cols-2 gap-4 mb-2">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Alquiler contador (€)</label>
-            <input type="text" placeholder="0,00" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={fmtRaw(c.alquiler || 0, 2)} onChange={e => {
-              const raw = e.target.value.replace(/\./g, '').replace(',', '.');
-              upClient(segId, "alquiler", +raw || 0);
-            }} />
+            <input type="text" placeholder="0,00" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" 
+              value={inputValues[`${segId}-alquiler`] ?? fmtRaw(c.alquiler || 0, 2)} 
+              onChange={e => {
+                const val = e.target.value;
+                setInputValues(prev => ({ ...prev, [`${segId}-alquiler`]: val }));
+                const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+                upClient(segId, "alquiler", num);
+              }}
+              onBlur={() => setInputValues(prev => {
+                const next = { ...prev };
+                delete next[`${segId}-alquiler`];
+                return next;
+              })}
+            />
           </div>
         </div>
         <div className="mb-4">
           <label htmlFor={`factura-${segId}`} className="block text-xs font-bold text-slate-500 mb-1">Importe factura actual (€)</label>
-          <input id={`factura-${segId}`} type="text" placeholder="0,00" className="w-full p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={fmtRaw(c.factura || 0, 2)} onChange={e => {
-            const raw = e.target.value.replace(/\./g, '').replace(',', '.');
-            upClient(segId, "factura", +raw || 0);
-          }} />
+          <input id={`factura-${segId}`} type="text" placeholder="0,00" className="w-full p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-sm font-bold text-blue-700" 
+            value={inputValues[`${segId}-factura`] ?? fmtRaw(c.factura || 0, 2)} 
+            onChange={e => {
+              const val = e.target.value;
+              setInputValues(prev => ({ ...prev, [`${segId}-factura`]: val }));
+              const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+              upClient(segId, "factura", num);
+            }}
+            onBlur={() => setInputValues(prev => {
+              const next = { ...prev };
+              delete next[`${segId}-factura`];
+              return next;
+            })}
+          />
         </div>
 
         <div className="border-t border-slate-100 my-4"></div>
