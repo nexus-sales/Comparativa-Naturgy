@@ -9,7 +9,7 @@ import { exportPDF } from "./utils/pdfExport";
 import type { ComercialData } from "./utils/pdfExport";
 import { exportExcel } from "./utils/excelExport";
 import {
-  LogIn, Shield, Users, Database, UserPlus, Clock,
+  LogIn, Shield, Users,
   Plus, Trash2, X, AlertTriangle, Pencil
 } from "lucide-react";
 import {
@@ -33,34 +33,21 @@ function App() {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const { segments, tariffs, loading: dataLoading, error: dataError } = useData();
   const [activeTab, setActiveTab] = useState("comparator");
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin && activeTab === "admin") setActiveTab("comparator");
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (user) setShowAdminLogin(false);
+  }, [user]);
 
   if (authLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
     </div>
   );
-  if (!user) return <AuthView />;
-
-  if (!isAdmin && segments.length === 0 && !dataLoading) return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
-        <div className="bg-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Clock className="text-blue-600" size={32} />
-        </div>
-        <h1 className="text-2xl font-bold text-[#002855]">Acceso Pendiente</h1>
-        <p className="text-slate-500 mt-4 leading-relaxed">
-          Tu cuenta ha sido creada. Un administrador debe aprobar tu acceso para ver las tarifas.
-        </p>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="mt-8 text-slate-400 hover:text-red-500 font-medium transition-colors"
-        >
-          Cerrar Sesión
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <header className="bg-[#002855] text-white shadow-lg">
@@ -80,13 +67,26 @@ function App() {
             {isAdmin && <TabButton active={activeTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-blue-200 hidden md:inline">{user?.email}</span>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10"
-            >
-              Salir
-            </button>
+            {user ? (
+              <>
+                <span className="text-blue-200 hidden md:inline">{user.email}</span>
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10"
+                >
+                  Salir
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAdminLogin(true)}
+                className="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 opacity-40 hover:opacity-100"
+                title="Acceso administrador"
+              >
+                <Shield size={14} />
+                <span className="hidden sm:inline text-xs">Admin</span>
+              </button>
+            )}
           </div>
         </div>
         <div className="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-blue-800"></div>
@@ -108,6 +108,7 @@ function App() {
           : <AdminView segments={segments} tariffs={tariffs} />
         }
       </main>
+      {showAdminLogin && <AdminLoginModal onClose={() => setShowAdminLogin(false)} />}
     </div>
   );
 }
@@ -120,60 +121,49 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   );
 }
 
-// ── AUTH VIEW ─────────────────────────────────────────────────────────────────
+// ── ADMIN LOGIN MODAL ─────────────────────────────────────────────────────────
 
-function AuthView() {
-  const [isLogin, setIsLogin] = useState(true);
+function AdminLoginModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [msg, setMsg] = useState("");
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); setError(""); setMsg("");
-    if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError("Credenciales incorrectas");
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) setError("Error al crear cuenta: " + error.message);
-      else setMsg("¡Cuenta creada! Espera a la aprobación del administrador.");
-    }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError("Credenciales incorrectas");
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 border border-slate-100">
-        <div className="text-center mb-10">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 border border-slate-100 relative">
+        <button type="button" onClick={onClose} title="Cerrar" aria-label="Cerrar" className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
+          <X size={20} />
+        </button>
+        <div className="text-center mb-8">
           <div className="bg-orange-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Database className="text-orange-600" size={32} />
+            <Shield className="text-orange-600" size={32} />
           </div>
-          <h1 className="text-3xl font-extrabold text-[#002855]">{isLogin ? "Bienvenido" : "Nuevo Registro"}</h1>
-          <p className="text-slate-500 mt-2 font-medium">{isLogin ? "Accede al portal de comparativas" : "Únete al equipo comercial"}</p>
+          <h1 className="text-2xl font-extrabold text-[#002855]">Acceso Administrador</h1>
+          <p className="text-slate-500 mt-2">Solo para gestión de tarifas y usuarios</p>
         </div>
-        <form onSubmit={handleAuth} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
-            <input id="email" type="email" required placeholder="tu@email.com" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+            <input type="email" required placeholder="admin@email.com" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">Contraseña</label>
-            <input id="password" type="password" required placeholder="••••••••" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)} />
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Contraseña</label>
+            <input type="password" required placeholder="••••••••" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
           {error && <div className="bg-red-50 border border-red-100 p-4 rounded-xl"><p className="text-red-600 text-sm font-medium text-center">{error}</p></div>}
-          {msg && <p className="text-green-600 text-sm font-medium text-center bg-green-50 p-3 rounded-lg">{msg}</p>}
-          <button disabled={loading} className="w-full bg-[#002855] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-lg flex items-center justify-center gap-2">
-            {loading ? "Procesando..." : isLogin ? <><LogIn size={20} /> Entrar</> : <><UserPlus size={20} /> Registrarme</>}
+          <button type="submit" disabled={loading} className="w-full bg-[#002855] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-lg flex items-center justify-center gap-2">
+            {loading ? "Verificando..." : <><LogIn size={20} /> Entrar como Admin</>}
           </button>
         </form>
-        <div className="mt-8 text-center">
-          <button onClick={() => { setIsLogin(!isLogin); setError(""); setMsg(""); }} className="text-orange-600 font-bold hover:underline">
-            {isLogin ? "¿No tienes cuenta? Regístrate aquí" : "¿Ya tienes cuenta? Inicia sesión"}
-          </button>
-        </div>
       </div>
     </div>
   );

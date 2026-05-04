@@ -72,20 +72,12 @@ CREATE POLICY "Users can update own profile"  ON profiles FOR UPDATE TO authenti
 CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL    TO authenticated
     USING ((SELECT is_admin FROM profiles WHERE id = auth.uid()) = true);
 
--- segments: lectura para usuarios aprobados y admins
-CREATE POLICY "Segments viewable by approved" ON segments FOR SELECT TO authenticated
-    USING (
-        (SELECT is_approved FROM profiles WHERE id = auth.uid()) = true OR
-        (SELECT is_admin    FROM profiles WHERE id = auth.uid()) = true
-    );
+-- segments: lectura pública (sin autenticación requerida)
+CREATE POLICY "Anyone can read segments" ON segments FOR SELECT TO anon, authenticated USING (true);
 
--- tariffs: lectura para aprobados; escritura solo admins
-CREATE POLICY "Tariffs viewable by approved"  ON tariffs FOR SELECT TO authenticated
-    USING (
-        (SELECT is_approved FROM profiles WHERE id = auth.uid()) = true OR
-        (SELECT is_admin    FROM profiles WHERE id = auth.uid()) = true
-    );
-CREATE POLICY "Admins can manage tariffs"     ON tariffs FOR ALL    TO authenticated
+-- tariffs: lectura pública; escritura solo admins
+CREATE POLICY "Anyone can read tariffs"  ON tariffs FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Admins can manage tariffs" ON tariffs FOR ALL    TO authenticated
     USING ((SELECT is_admin FROM profiles WHERE id = auth.uid()) = true);
 
 -- ── 5. FUNCIONES Y TRIGGERS ───────────────────────────────────
