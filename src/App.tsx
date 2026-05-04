@@ -350,8 +350,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
               onChange={e => {
                 const val = e.target.value;
                 setInputValues(prev => ({ ...prev, [`${segId}-dias`]: val }));
-                const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
-                upClient(segId, "dias", num);
+                const clean = val.replace(/\./g, '').replace(',', '.');
+                const num = parseFloat(clean);
+                if (!isNaN(num)) upClient(segId, "dias", num);
               }}
               onBlur={() => setInputValues(prev => {
                 const next = { ...prev };
@@ -375,8 +376,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                 onChange={e => {
                   const val = e.target.value;
                   setInputValues(prev => ({ ...prev, [`${segId}-kw-${i}`]: val }));
-                  const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
-                  upClientArr(segId, "kw", i, num);
+                  const clean = val.replace(/\./g, '').replace(',', '.');
+                  const num = parseFloat(clean);
+                  if (!isNaN(num)) upClientArr(segId, "kw", i, num);
                 }}
                 onBlur={() => setInputValues(prev => {
                   const next = { ...prev };
@@ -399,8 +401,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                 onChange={e => {
                   const val = e.target.value;
                   setInputValues(prev => ({ ...prev, [`${segId}-en-${i}`]: val }));
-                  const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
-                  upClientArr(segId, "en", i, num);
+                  const clean = val.replace(/\./g, '').replace(',', '.');
+                  const num = parseFloat(clean);
+                  if (!isNaN(num)) upClientArr(segId, "en", i, num);
                 }}
                 onBlur={() => setInputValues(prev => {
                   const next = { ...prev };
@@ -423,8 +426,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
               onChange={e => {
                 const val = e.target.value;
                 setInputValues(prev => ({ ...prev, [`${segId}-alquiler`]: val }));
-                const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
-                upClient(segId, "alquiler", num);
+                const clean = val.replace(/\./g, '').replace(',', '.');
+                const num = parseFloat(clean);
+                if (!isNaN(num)) upClient(segId, "alquiler", num);
               }}
               onBlur={() => setInputValues(prev => {
                 const next = { ...prev };
@@ -441,8 +445,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             onChange={e => {
               const val = e.target.value;
               setInputValues(prev => ({ ...prev, [`${segId}-factura`]: val }));
-              const num = parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
-              upClient(segId, "factura", num);
+              const clean = val.replace(/\./g, '').replace(',', '.');
+              const num = parseFloat(clean);
+              if (!isNaN(num)) upClient(segId, "factura", num);
             }}
             onBlur={() => setInputValues(prev => {
               const next = { ...prev };
