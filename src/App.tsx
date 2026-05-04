@@ -3,7 +3,7 @@ import { supabase } from "./lib/supabase";
 import { useAuth } from "./hooks/useAuth";
 import { useData } from "./hooks/useData";
 import type { Segment, Tariff } from "./hooks/useData";
-import { calc, fmtEur, makeDefaultClient, CHART_COLS } from "./utils/calculations";
+import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS } from "./utils/calculations";
 import type { SegCliente, TarifaLocal } from "./utils/calculations";
 import { exportPDF } from "./utils/pdfExport";
 import type { ComercialData } from "./utils/pdfExport";
@@ -344,7 +344,10 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Días del período</label>
-            <input type="number" title="Días del período" className="w-full p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={c.dias} onChange={e => upClient(segId, "dias", +e.target.value || 0)} />
+            <input type="text" title="Días del período" className="w-full p-2.5 bg-orange-50 border border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={fmtRaw(c.dias, 0)} onChange={e => {
+              const raw = e.target.value.replace(/\./g, '').replace(',', '.');
+              upClient(segId, "dias", +raw || 0);
+            }} />
           </div>
         </div>
 
@@ -356,7 +359,10 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           {Array.from({ length: potP }, (_, i) => (
             <div key={i}>
               <label className="block text-xs text-slate-400 mb-1">{PERIODO_LABELS[i]}</label>
-              <input type="number" step="0.001" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={c.kw[i] || ""} onChange={e => upClientArr(segId, "kw", i, +e.target.value || 0)} />
+              <input type="text" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={fmtRaw(c.kw[i] || 0, 3)} onChange={e => {
+                const raw = e.target.value.replace(/\./g, '').replace(',', '.');
+                upClientArr(segId, "kw", i, +raw || 0);
+              }} />
             </div>
           ))}
         </div>
@@ -367,7 +373,10 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           {Array.from({ length: enCols }, (_, i) => (
             <div key={i}>
               <label className="block text-xs text-slate-400 mb-1">{PERIODO_LABELS[i]}</label>
-              <input type="number" step="0.01" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={c.en[i] || ""} onChange={e => upClientArr(segId, "en", i, +e.target.value || 0)} />
+              <input type="text" title={PERIODO_LABELS[i]} placeholder="0" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold" value={fmtRaw(c.en[i] || 0, 2)} onChange={e => {
+                const raw = e.target.value.replace(/\./g, '').replace(',', '.');
+                upClientArr(segId, "en", i, +raw || 0);
+              }} />
             </div>
           ))}
         </div>
@@ -378,12 +387,18 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         <div className="grid grid-cols-2 gap-4 mb-2">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Alquiler contador (€)</label>
-            <input type="number" step="0.01" placeholder="0,00" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.alquiler || ""} onChange={e => upClient(segId, "alquiler", +e.target.value || 0)} />
+            <input type="text" placeholder="0,00" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={fmtRaw(c.alquiler || 0, 2)} onChange={e => {
+              const raw = e.target.value.replace(/\./g, '').replace(',', '.');
+              upClient(segId, "alquiler", +raw || 0);
+            }} />
           </div>
         </div>
         <div className="mb-4">
           <label htmlFor={`factura-${segId}`} className="block text-xs font-bold text-slate-500 mb-1">Importe factura actual (€)</label>
-          <input id={`factura-${segId}`} type="number" step="0.01" placeholder="0,00" className="w-full p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={c.factura || ""} onChange={e => upClient(segId, "factura", +e.target.value || 0)} />
+          <input id={`factura-${segId}`} type="text" placeholder="0,00" className="w-full p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={fmtRaw(c.factura || 0, 2)} onChange={e => {
+            const raw = e.target.value.replace(/\./g, '').replace(',', '.');
+            upClient(segId, "factura", +raw || 0);
+          }} />
         </div>
 
         <div className="border-t border-slate-100 my-4"></div>
@@ -403,6 +418,10 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             <label className="block text-xs font-bold text-slate-500 mb-1">Email</label>
             <input type="email" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="agente@naturgy.es" value={comercialData.email} onChange={e => setComercialData(p => ({ ...p, email: e.target.value }))} />
           </div>
+        </div>
+
+        <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+          <p className="text-[10px] text-slate-400 font-medium">Creado para Cris Energy. @ todos los derechos reservados</p>
         </div>
 
         {/* Admin fiscal config */}
@@ -721,6 +740,10 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
               </span>
             ))}
           </div>
+
+          <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+            <p className="text-[10px] text-slate-400 font-medium">Creado para Cris Energy. @ todos los derechos reservados</p>
+          </div>
         </div>
       </div>
     );
@@ -872,6 +895,10 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
           ))}
         </div>
       )}
+
+      <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+        <p className="text-[10px] text-slate-400 font-medium font-sans">Creado para Cris Energy. @ todos los derechos reservados</p>
+      </div>
     </div>
   );
 }

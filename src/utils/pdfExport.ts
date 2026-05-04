@@ -136,6 +136,10 @@ function pdfPage(
     y += rh;
   });
 
+  color([140, 140, 140] as any); norm(6);
+  tx('Creado para Cris Energy. @ todos los derechos reservados', L, y + 5);
+  y += 6;
+
   fill([255, 244, 230] as any); stroke(or); doc.rect(L, y, CW, 7, 'FD'); vl(L + 110, y, 7);
   color(navy); bold(8.5); tx('COSTE POTENCIA', L + 112, y + 5);
   color(or); bold(11); tx(fmtE(r.potencia), R - 2, y + 5.5, { align: 'right' });
@@ -237,6 +241,11 @@ function pdfPage(
   doc.text(dlines, L, y);
   y += dlines.length * 3.2 + 4;
   if (comercial.email) { color([100, 100, 100] as any); norm(6.5); tx(comercial.email, L + 70, y); y += 5; }
+
+  color([140, 140, 140] as any); norm(6);
+  tx('Creado para Cris Energy. @ todos los derechos reservados', L, y);
+  y += 5;
+
   box(L, y, CW, 18); vl(L + 95, y, 18);
   color([100, 100, 100] as any); norm(7); tx('RECIBIDO', L + 2, y + 6);
   doc.line(L + 5, y + 13, L + 93, y + 13);

@@ -106,7 +106,10 @@ export function fmtEur(v: number | null | undefined, d = 2): string {
 
 export function fmtRaw(v: number | null | undefined, d = 2): string {
   if (v === null || v === undefined || isNaN(Number(v))) return '';
-  return (+v).toFixed(d).replace('.', ',');
+  const val = (+v).toFixed(d).replace('.', ',');
+  const parts = val.split(',');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return parts.join(',');
 }
 
 export const SEG_COLORS: Record<string, string> = {
