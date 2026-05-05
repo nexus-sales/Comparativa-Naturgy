@@ -48,22 +48,14 @@ export function useAuth() {
   }, []);
 
   async function checkAdmin(userId: string, isCancelled: () => boolean) {
-    console.log('--- checkAdmin DEBUG ---');
-    console.log('UserID:', userId);
     const { data, error } = await supabase
       .from('profiles')
       .select('is_admin')
       .eq('id', userId)
       .single();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
-    }
-    console.log('Profile data:', data);
-
     if (!isCancelled() && !error && data) {
       setIsAdmin(data.is_admin);
-      console.log('setIsAdmin called with:', data.is_admin);
     }
   }
 
