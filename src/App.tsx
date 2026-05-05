@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./hooks/useAuth";
 import { useData } from "./hooks/useData";
@@ -35,17 +35,8 @@ function App() {
   const [activeTab, setActiveTab] = useState("comparator");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
 
-  useEffect(() => {
-    if (!isAdmin && activeTab === "admin") {
-      setActiveTab("comparator");
-    }
-  }, [isAdmin, activeTab]);
-
-  useEffect(() => {
-    if (user && showAdminLogin) {
-      setShowAdminLogin(false);
-    }
-  }, [user, showAdminLogin]);
+  const effectiveTab = (!isAdmin && activeTab === "admin") ? "comparator" : activeTab;
+  const effectiveShowAdminLogin = !user && showAdminLogin;
 
   if (authLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -67,8 +58,8 @@ function App() {
             </div>
           </div>
           <nav className="flex items-center gap-2 bg-blue-900/50 p-1 rounded-xl">
-            <TabButton active={activeTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />} label="Comercial" />
-            {isAdmin && <TabButton active={activeTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
+            <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />} label="Comercial" />
+            {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
           <div className="flex items-center gap-4 text-sm">
             {user ? (
@@ -110,12 +101,12 @@ function App() {
           <div className="flex items-center justify-center p-12">
             <div className="animate-pulse text-slate-400">Cargando tarifas...</div>
           </div>
-        ) : activeTab === "comparator"
+        ) : effectiveTab === "comparator"
           ? <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} />
           : <AdminView segments={segments} tariffs={tariffs} />
         }
       </main>
-      {showAdminLogin && <AdminLoginModal onClose={() => setShowAdminLogin(false)} />}
+      {effectiveShowAdminLogin && <AdminLoginModal onClose={() => setShowAdminLogin(false)} />}
     </div>
   );
 }
@@ -194,12 +185,12 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
   const segDef = SEG_DEFS.find(s => s.id === activeSeg) ?? SEG_DEFS[0];
   const segColor = segDef.color;
 
-  const getSegMeta = (segId: string) => {
+  const getSegMeta = useCallback((segId: string) => {
     const seg = segments.find(s => s.id === segId);
     return { taxModel: seg?.tax_model ?? (segId === "res" ? "res" : "pyme"), potP: seg?.pot_p ?? 2 };
-  };
+  }, [segments]);
 
-  const getSegTariffs = (segId: string): TarifaLocal[] =>
+  const getSegTariffs = useCallback((segId: string): TarifaLocal[] =>
     tariffs
       .filter(t => t.segment_id === segId)
       .map(t => ({
@@ -213,7 +204,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         open: tariffMeta[t.id]?.open ?? false,
         selected: tariffMeta[t.id]?.selected ?? true,
         requires_auth: t.requires_auth,
-      }));
+      })), [tariffs, tariffMeta]);
 
   const upClient = (segId: string, field: keyof SegCliente, val: unknown) =>
     setClients(prev => ({ ...prev, [segId]: { ...prev[segId], [field]: val } }));
