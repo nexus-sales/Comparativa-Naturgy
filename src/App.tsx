@@ -282,8 +282,11 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
       const canvas = document.getElementById(`compChart_${segId}`) as HTMLCanvasElement | null;
       if (!canvas) return;
       if (chartInstances.current[segId]) { chartInstances.current[segId].destroy(); delete chartInstances.current[segId]; }
-      const { taxModel, potP } = getSegMeta(segId);
+      
       const c = clients[segId];
+      if (!c) return;
+
+      const { taxModel, potP } = getSegMeta(segId);
       const segTariffs = getSegTariffs(segId);
       const selected = segTariffs.filter(t => t.selected);
       if (!selected.length) return;
@@ -330,6 +333,8 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
   // ── CLIENT PANE ──────────────────────────────────────────────────────────────
   const ClientPane = ({ segId }: { segId: string }) => {
     const c = clients[segId];
+    if (!c) return null;
+
     const { taxModel, potP } = getSegMeta(segId);
     const isPyme = taxModel !== "res";
     const enCols = potP === 6 ? 6 : 3;
@@ -702,8 +707,10 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
 
   // ── COMP PANE ────────────────────────────────────────────────────────────────
   const CompPane = ({ segId }: { segId: string }) => {
-    const { taxModel, potP } = getSegMeta(segId);
     const c = clients[segId];
+    if (!c) return null;
+
+    const { taxModel, potP } = getSegMeta(segId);
     const segTariffs = getSegTariffs(segId);
     const isPyme = taxModel !== "res";
 

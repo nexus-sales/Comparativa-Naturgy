@@ -1,0 +1,54 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import type { User } from '@supabase/supabase-js';
+
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (cancelled) return;
+      setUser(session?.user ?? null);
+      if (session?.user) await checkAdmin(session.user.id, () => cancelled);
+      if (!cancelled) setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (cancelled) return;
+      setUser(session?.user ?? null);
+      if (session?.user) {
+          console.log('Cambio de estado de auth para:', session.user.email);
+          await checkAdmin(session.user.id, () => cancelled);
+      } else {
+          setIsAdmin(false);
+      }
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => { cancelled = true; subscription.unsubscribe(); };
+  }, []);
+
+  async function checkAdmin(userId: string, isCancelled: () => boolean) {
+    console.log('Verificando admin para:', userId);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+        console.error('Error verificando admin:', error);
+    }
+
+    if (!isCancelled() && !error && data) {
+      console.log('Datos de perfil recibidos:', data);
+      setIsAdmin(data.is_admin);
+    }
+  }
+
+  return { user, loading, isAdmin };
+}

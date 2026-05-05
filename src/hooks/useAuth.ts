@@ -48,14 +48,24 @@ export function useAuth() {
   }, []);
 
   async function checkAdmin(userId: string, isCancelled: () => boolean) {
+    console.log('--- BUSCANDO PERFIL EN DB ---');
+    
+    // Usamos .select() sin filtros primero para ver si el RLS nos deja ver ALGO
     const { data, error } = await supabase
       .from('profiles')
-      .select('is_admin')
+      .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (!isCancelled() && !error && data) {
-      setIsAdmin(data.is_admin);
+    if (error) {
+      console.error('ERROR RLS / DB:', error.message);
+    }
+    
+    console.log('¿Perfil encontrado?:', data ? 'SÍ' : 'NO');
+    if (data) console.log('Admin Status en DB:', data.is_admin);
+
+    if (!isCancelled()) {
+      setIsAdmin(data?.is_admin ?? false);
     }
   }
 
