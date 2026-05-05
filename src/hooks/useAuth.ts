@@ -10,33 +10,60 @@ export function useAuth() {
   useEffect(() => {
     let cancelled = false;
 
+    // 1. Obtener sesión inicial
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return;
-      setUser(session?.user ?? null);
-      if (session?.user) await checkAdmin(session.user.id, () => cancelled);
-      if (!cancelled) setLoading(false);
+      if (session?.user) {
+        setUser(session.user);
+        await checkAdmin(session.user.id, () => cancelled);
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
+      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // 2. Escuchar cambios (Login/Logout/Token Refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
-      setUser(session?.user ?? null);
-      if (session?.user) await checkAdmin(session.user.id, () => cancelled);
-      else setIsAdmin(false);
-      if (!cancelled) setLoading(false);
+      
+      console.log('Auth Event:', event);
+      
+      if (session?.user) {
+        setUser(session.user);
+        await checkAdmin(session.user.id, () => cancelled);
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
+      
+      // Solo marcamos como no cargando si no es el evento inicial (que ya maneja getSession)
+      // o si explícitamente es un logout
+      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        setLoading(false);
+      }
     });
 
     return () => { cancelled = true; subscription.unsubscribe(); };
   }, []);
 
   async function checkAdmin(userId: string, isCancelled: () => boolean) {
+    console.log('--- checkAdmin DEBUG ---');
+    console.log('UserID:', userId);
     const { data, error } = await supabase
       .from('profiles')
       .select('is_admin')
       .eq('id', userId)
       .single();
 
+    if (error) {
+      console.error('Error fetching profile:', error);
+    }
+    console.log('Profile data:', data);
+
     if (!isCancelled() && !error && data) {
       setIsAdmin(data.is_admin);
+      console.log('setIsAdmin called with:', data.is_admin);
     }
   }
 
