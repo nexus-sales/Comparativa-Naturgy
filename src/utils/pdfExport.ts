@@ -72,7 +72,7 @@ function pdfPage(
   };
   const fmtE = (v: number | null | undefined) => fmt(v) + ' €';
 
-  let y = 5;
+  let y = 15;
 
   // HEADER
   fill(wh); stroke(bd); doc.rect(L, y, 128, rh, 'FD');
@@ -80,7 +80,7 @@ function pdfPage(
   vl(L + 56, y, rh); vl(L + 128, y, rh);
   color(navy); bold(8); tx('PRESUPUESTO', L + 2, y + 4.5);
   color(or); bold(7.5); tx('CARGOS E IMPUESTOS  REDUCIDOS*', L + 58, y + 4.5);
-  try { doc.addImage(LOGO_B64, 'PNG', L + 140, y + 1, 40, 4); } catch { color(wh); bold(10); tx('Naturgy', L + 148, y + 4.5); }
+  try { doc.addImage(LOGO_B64, 'PNG', L + 148, y + 0.5, 30, 6); } catch { color(wh); bold(10); tx('Naturgy', L + 148, y + 4.5); }
   y += rh;
   box(L, y, CW, rh); vl(L + 56, y, rh);
   color(navy); bold(8); tx(sanitize(tar.nombre), L + 2, y + 4.5);
@@ -245,6 +245,8 @@ function pdfPage(
   color([140, 140, 140] as any); norm(6);
   tx('Creado para Cris Energy. @ todos los derechos reservados', L, y);
   y += 5;
+
+  y = Math.max(y, 260); // Empujar el cuadro de firma hacia abajo si hay espacio
 
   box(L, y, CW, 18); vl(L + 95, y, 18);
   color([100, 100, 100] as any); norm(7); tx('RECIBIDO', L + 2, y + 6);
