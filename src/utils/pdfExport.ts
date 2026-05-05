@@ -193,9 +193,9 @@ function pdfPage(
 
   // Compensación excedentes
   box(L, y, CW, rh, ri % 2 ? altGr : wh); vl(L + 105, y, rh); vl(L + 130, y, rh); vl(L + 155, y, rh);
-  color([50, 50, 50] as any); norm(6.5); tx('COMPENSACIÓN DE EXCEDENTES', L + 2, y + 4.5);
-  tx('0', L + 107, y + 4.5); tx('0,07', L + 132, y + 4.5);
-  color(navy); bold(7.5); tx('0 €', R - 2, y + 4.5, { align: 'right' });
+  color([10, 100, 10] as any); bold(6.5); tx('COMPENSACIÓN DE EXCEDENTES', L + 2, y + 4.5);
+  norm(7); tx(fmt(c.enExc || 0, 0), L + 107, y + 4.5); tx(fmt(c.excedenteRate || 0, 3).replace(/,?0+$/, ''), L + 132, y + 4.5);
+  color(navy); bold(7.5); tx(fmtE(r.excedentes || 0), R - 2, y + 4.5, { align: 'right' });
   y += rh;
 
   // TOTAL

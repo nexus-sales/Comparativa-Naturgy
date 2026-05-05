@@ -71,7 +71,10 @@ function App() {
               <>
                 <span className="text-blue-200 hidden md:inline">{user.email}</span>
                 <button
-                  onClick={() => supabase.auth.signOut()}
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.reload(); // Forzamos limpieza total
+                  }}
                   className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10"
                 >
                   Salir
@@ -232,9 +235,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
 
   const clearClient = (segId: string) => {
     if (!confirm("¿Limpiar todos los datos del cliente? Esta acción no se puede deshacer.")) return;
-    const keep = (({ bonoRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7, alquiler }) =>
-      ({ bonoRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7, alquiler }))(clients[segId]);
-    setClients(prev => ({ ...prev, [segId]: { ...makeDefaultClient(segId), ...keep, nombre: "", cups: "", dir: "", f1: "", f2: "", dias: 0, kw: [0,0,0,0,0,0], en: [0,0,0,0,0,0], factura: 0 } }));
+    const keep = (({ bonoRate, excedenteRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7, alquiler }) =>
+      ({ bonoRate, excedenteRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7, alquiler }))(clients[segId]);
+    setClients(prev => ({ ...prev, [segId]: { ...makeDefaultClient(segId), ...keep, nombre: "", cups: "", dir: "", f1: "", f2: "", dias: 0, kw: [0,0,0,0,0,0], en: [0,0,0,0,0,0], enExc: 0, factura: 0 } }));
   };
 
   const toggleSelected = (id: string) =>
@@ -437,6 +440,24 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
               })}
             />
           </div>
+          <div>
+            <label className="block text-xs font-bold text-green-600 mb-1">Excedentes kWh (placas)</label>
+            <input type="text" placeholder="0" className="w-full p-2.5 bg-green-50 border border-green-200 rounded-lg text-sm font-bold text-green-700" 
+              value={inputValues[`${segId}-enExc`] ?? fmtRaw(c.enExc || 0, 0)} 
+              onChange={e => {
+                const val = e.target.value;
+                setInputValues(prev => ({ ...prev, [`${segId}-enExc`]: val }));
+                const clean = val.replace(/\./g, '').replace(',', '.');
+                const num = parseFloat(clean);
+                if (!isNaN(num)) upClient(segId, "enExc", num);
+              }}
+              onBlur={() => setInputValues(prev => {
+                const next = { ...prev };
+                delete next[`${segId}-enExc`];
+                return next;
+              })}
+            />
+          </div>
         </div>
         <div className="mb-4">
           <label htmlFor={`factura-${segId}`} className="block text-xs font-bold text-slate-500 mb-1">Importe factura actual (€)</label>
@@ -490,17 +511,19 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             </p>
             <p className="text-xs text-slate-400 mb-3">Fijados por normativa Canarias. No modificar salvo cambio regulatorio.</p>
             {isPyme ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div><label className="block text-xs text-slate-500 mb-1">Imp. electricidad (%)</label><input type="number" step="0.001" title="Impuesto electricidad (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxImpElec} onChange={e => upClient(segId, "taxImpElec", +e.target.value)} /></div>
                 <div><label className="block text-xs text-slate-500 mb-1">IGIC Reducido (%)</label><input type="number" step="0.01" title="IGIC Reducido (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGICRed} onChange={e => upClient(segId, "taxIGICRed", +e.target.value)} /></div>
                 <div><label className="block text-xs text-slate-500 mb-1">IGIC 7% alquiler (%)</label><input type="number" step="0.01" title="IGIC 7% alquiler (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGIC7} onChange={e => upClient(segId, "taxIGIC7", +e.target.value)} /></div>
                 <div><label className="block text-xs text-slate-500 mb-1">Bono Social (€/día)</label><input type="number" step="0.000001" title="Bono Social (€/día)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.bonoRate} onChange={e => upClient(segId, "bonoRate", +e.target.value)} /></div>
+                <div><label className="block text-xs text-green-600 mb-1 font-bold">Pago Excedente (€)</label><input type="number" step="0.001" title="Pago Excedente (€)" className="w-full p-2 bg-green-50 border border-green-200 rounded-lg text-sm" value={c.excedenteRate} onChange={e => upClient(segId, "excedenteRate", +e.target.value)} /></div>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div><label className="block text-xs text-slate-500 mb-1">Imp. electricidad (%)</label><input type="number" step="0.001" title="Impuesto electricidad (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxImpElec} onChange={e => upClient(segId, "taxImpElec", +e.target.value)} /></div>
                 <div><label className="block text-xs text-slate-500 mb-1">IGIC alquiler (%)</label><input type="number" step="0.01" title="IGIC alquiler (%)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.taxIGIC} onChange={e => upClient(segId, "taxIGIC", +e.target.value)} /></div>
                 <div><label className="block text-xs text-slate-500 mb-1">Bono Social (€/día)</label><input type="number" step="0.000001" title="Bono Social (€/día)" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.bonoRate} onChange={e => upClient(segId, "bonoRate", +e.target.value)} /></div>
+                <div><label className="block text-xs text-green-600 mb-1 font-bold">Pago Excedente (€)</label><input type="number" step="0.001" title="Pago Excedente (€)" className="w-full p-2 bg-green-50 border border-green-200 rounded-lg text-sm" value={c.excedenteRate} onChange={e => upClient(segId, "excedenteRate", +e.target.value)} /></div>
               </div>
             )}
           </>

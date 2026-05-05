@@ -9,6 +9,8 @@ export interface SegCliente {
   en: number[];
   factura: number;
   alquiler: number;
+  enExc?: number; // kWh excedentes
+  excedenteRate: number; // Precio excedente Admin
   bonoRate: number;
   taxImpElec: number;
   taxIGIC: number;
@@ -32,6 +34,7 @@ export interface TarifaLocal {
 export interface CalcResult {
   potencia: number;
   energia: number;
+  excedentes?: number; // Valor negativo (ej: -5.40)
   sva: number;
   alquiler: number;
   subtotal: number;
@@ -63,8 +66,10 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
 
   const sva = +(t.sva || 0);
   const alq = +(c.alquiler || 0);
-  const subtotal = costPot + costEn + sva + alq;
-  const impElec = (subtotal - alq) * (+(c.taxImpElec || 0) / 100);
+  const costExc = (+(c.enExc || 0)) * (+(c.excedenteRate || 0));
+  
+  const subtotal = costPot + costEn + sva + alq - costExc;
+  const impElec = (subtotal + costExc - alq) * (+(c.taxImpElec || 0) / 100);
   const bono = (+(c.bonoRate || 0)) * dias;
 
   if (taxModel === 'res') {
@@ -72,6 +77,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
     return {
       potencia: +costPot.toFixed(4),
       energia: +costEn.toFixed(4),
+      excedentes: -costExc,
       sva, alquiler: alq,
       subtotal: +subtotal.toFixed(4),
       impElec: +impElec.toFixed(4),
@@ -86,6 +92,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   return {
     potencia: +costPot.toFixed(4),
     energia: +costEn.toFixed(4),
+    excedentes: -costExc,
     sva, alquiler: alq,
     subtotal: +subtotal.toFixed(4),
     impElec: +impElec.toFixed(4),
@@ -123,10 +130,10 @@ export const SEG_COLORS: Record<string, string> = {
 };
 
 export const SEG_DEFAULTS: Record<string, Partial<SegCliente>> = {
-  res:       { alquiler: 0.86, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 7, taxIGICRed: 0, taxIGIC7: 0 },
-  pyme20:    { alquiler: 1.68, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
-  pyme20one: { alquiler: 0.75, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
-  pyme361:   { alquiler: 1.68, bonoRate: 0.012742, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  res:       { alquiler: 0.86, bonoRate: 0.012742, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 7, taxIGICRed: 0, taxIGIC7: 0 },
+  pyme20:    { alquiler: 1.68, bonoRate: 0.012742, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  pyme20one: { alquiler: 0.75, bonoRate: 0.012742, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  pyme361:   { alquiler: 1.68, bonoRate: 0.012742, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
 };
 
 export function makeDefaultClient(segId: string): SegCliente {
@@ -136,6 +143,8 @@ export function makeDefaultClient(segId: string): SegCliente {
     dias: 30, kw: [0, 0, 0, 0, 0, 0], en: [0, 0, 0, 0, 0, 0],
     factura: 0,
     alquiler: d.alquiler ?? 0.86,
+    enExc: 0,
+    excedenteRate: d.excedenteRate ?? 0.06,
     bonoRate: d.bonoRate ?? 0.019121,
     taxImpElec: d.taxImpElec ?? 5.1127,
     taxIGIC: d.taxIGIC ?? 7,
