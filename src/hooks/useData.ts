@@ -18,6 +18,12 @@ export interface Segment {
   label: string;
   tax_model: string;
   pot_p: number;
+  bono_rate: number;
+  excedente_rate: number;
+  tax_imp_elec: number;
+  tax_igic: number;
+  tax_igic_red: number;
+  tax_igic_7: number;
 }
 
 export function useData() {

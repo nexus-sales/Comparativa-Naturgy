@@ -170,11 +170,27 @@ function AdminLoginModal({ onClose }: { onClose: () => void }) {
 // ── COMPARATOR VIEW ───────────────────────────────────────────────────────────
 
 function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; tariffs: Tariff[]; isAdmin: boolean }) {
-  const [clients, setClients] = useState<Record<string, SegCliente>>(() => {
-    const init: Record<string, SegCliente> = {};
-    SEG_DEFS.forEach(s => { init[s.id] = makeDefaultClient(s.id); });
-    return init;
-  });
+  const [clients, setClients] = useState<Record<string, SegCliente>>({});
+  const hasInitializedClients = useRef(false);
+
+  useEffect(() => {
+    if (segments.length > 0 && !hasInitializedClients.current) {
+      const init: Record<string, SegCliente> = {};
+      segments.forEach(s => {
+        init[s.id] = {
+          ...makeDefaultClient(s.id),
+          bonoRate: s.bono_rate,
+          excedenteRate: s.excedente_rate,
+          taxImpElec: s.tax_imp_elec,
+          taxIGIC: s.tax_igic,
+          taxIGICRed: s.tax_igic_red,
+          taxIGIC7: s.tax_igic_7
+        };
+      });
+      setClients(init);
+      hasInitializedClients.current = true;
+    }
+  }, [segments]);
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [activeSeg, setActiveSeg] = useState("res");
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "comp", pyme20: "comp", pyme20one: "comp", pyme361: "comp" });
@@ -208,6 +224,21 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
 
   const upClient = (segId: string, field: keyof SegCliente, val: unknown) =>
     setClients(prev => ({ ...prev, [segId]: { ...prev[segId], [field]: val } }));
+
+  const saveConfig = async (segId: string) => {
+    const c = clients[segId];
+    const { error } = await supabase.from("segments").update({
+      bono_rate: c.bonoRate,
+      excedente_rate: c.excedenteRate,
+      tax_imp_elec: c.taxImpElec,
+      tax_igic: c.taxIGIC,
+      tax_igic_red: c.taxIGICRed,
+      tax_igic_7: c.taxIGIC7
+    }).eq("id", segId);
+
+    if (error) alert("Error al guardar: " + error.message);
+    else alert("Configuración guardada correctamente");
+  };
 
   const upClientArr = (segId: string, field: "kw" | "en", idx: number, val: number) =>
     setClients(prev => {
@@ -521,6 +552,14 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                 <div><label className="block text-xs text-green-600 mb-1 font-bold">Pago Excedente (€)</label><input type="number" step="0.001" title="Pago Excedente (€)" className="w-full p-2 bg-green-50 border border-green-200 rounded-lg text-sm" value={c.excedenteRate} onChange={e => upClient(segId, "excedenteRate", +e.target.value)} /></div>
               </div>
             )}
+            <div className="mt-4 flex justify-end">
+              <button 
+                onClick={() => saveConfig(segId)} 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2"
+              >
+                <Shield size={14} /> Guardar configuración para comerciales
+              </button>
+            </div>
           </>
         ) : (
           <div className="text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mt-2">
