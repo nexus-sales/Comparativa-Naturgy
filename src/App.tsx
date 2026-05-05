@@ -36,12 +36,16 @@ function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin && activeTab === "admin") setActiveTab("comparator");
-  }, [isAdmin]);
+    if (!isAdmin && activeTab === "admin") {
+      setActiveTab("comparator");
+    }
+  }, [isAdmin, activeTab]);
 
   useEffect(() => {
-    if (user) setShowAdminLogin(false);
-  }, [user]);
+    if (user && showAdminLogin) {
+      setShowAdminLogin(false);
+    }
+  }, [user, showAdminLogin]);
 
   if (authLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -288,7 +292,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
       } as never);
     }, 0);
     return () => clearTimeout(timer);
-  }, [activeSeg, subTabs, clients, tariffMeta, segments, tariffs]);
+  }, [activeSeg, subTabs, clients, tariffMeta, segments, tariffs, getSegMeta, getSegTariffs]);
 
   // Auth warning banner (pyme20one only)
   const AuthWarning = () => activeSeg !== "pyme20one" ? null : (
