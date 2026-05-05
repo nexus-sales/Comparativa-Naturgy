@@ -1,6 +1,6 @@
 -- 1. Añadir columnas de configuración a la tabla de segmentos
 ALTER TABLE segments 
-ADD COLUMN IF NOT EXISTS bono_rate NUMERIC DEFAULT 0.012742,
+ADD COLUMN IF NOT EXISTS bono_rate NUMERIC DEFAULT 0.019121,
 ADD COLUMN IF NOT EXISTS excedente_rate NUMERIC DEFAULT 0.06,
 ADD COLUMN IF NOT EXISTS tax_imp_elec NUMERIC DEFAULT 5.1127,
 ADD COLUMN IF NOT EXISTS tax_igic NUMERIC DEFAULT 7,
@@ -23,7 +23,7 @@ USING (
 
 -- 3. Actualizar los valores actuales con los valores por defecto del código
 UPDATE segments SET 
-  bono_rate = 0.012742,
+  bono_rate = 0.019121,
   excedente_rate = 0.06,
   tax_imp_elec = 5.1127,
   tax_igic = CASE WHEN id = 'res' THEN 7 ELSE 0 END,
