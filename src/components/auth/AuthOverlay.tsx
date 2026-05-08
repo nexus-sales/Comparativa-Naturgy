@@ -118,7 +118,7 @@ export const AuthStatus = () => {
 
       <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
         <button 
-          variant="link" 
+          type="button"
           onClick={() => setIsSignUp(!isSignUp)}
           style={{ background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer', textDecoration: 'underline' }}
         >

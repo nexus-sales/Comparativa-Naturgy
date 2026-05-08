@@ -174,6 +174,7 @@ function AdminLoginModal({ onClose }: { onClose: () => void }) {
 // ── COMPARATOR VIEW ───────────────────────────────────────────────────────────
 
 function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; tariffs: Tariff[]; isAdmin: boolean }) {
+  const { user } = useAuth();
   const [clients, setClients] = useState<Record<string, SegCliente>>({});
   const hasInitializedClients = useRef(false);
 
@@ -750,10 +751,11 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
       
       // Guardar en el historial (RGPD)
       try {
+        const currentUser = user;
         await supabase.from('client_comparisons').insert({
-          user_id: user?.id,
+          user_id: currentUser?.id,
           client_name: c.nombre || 'Sin nombre',
-          client_email: c.email || null,
+          client_email: (c as any).email || null,
           client_address: c.dir || null,
           calculation_data: {
             best_tariff: best.t.nombre,
@@ -765,7 +767,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         });
         
         await supabase.from('user_activity').insert({
-          user_id: user?.id,
+          user_id: currentUser?.id,
           action: 'PDF_EXPORTED',
           details: { client: c.nombre, segment: segDef.label }
         });
