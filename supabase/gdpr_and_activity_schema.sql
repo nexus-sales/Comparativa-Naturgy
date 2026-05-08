@@ -106,3 +106,16 @@ BEGIN
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. Limpieza y Re-aplicación de políticas en Tariffs para evitar errores de duplicado
+DROP POLICY IF EXISTS "Admins can manage tariffs" ON tariffs;
+DROP POLICY IF EXISTS "Admins manage tariffs" ON tariffs;
+
+CREATE POLICY "Admins can manage tariffs" ON tariffs 
+FOR ALL TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM profiles 
+        WHERE id = auth.uid() AND is_admin = true
+    )
+);

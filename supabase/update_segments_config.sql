@@ -9,6 +9,7 @@ ADD COLUMN IF NOT EXISTS tax_igic_7 NUMERIC DEFAULT 7;
 
 -- 2. Habilitar permisos de actualización para administradores
 -- Asumiendo que existe una política de lectura, añadimos la de actualización
+DROP POLICY IF EXISTS "Admins can update segments" ON segments;
 CREATE POLICY "Admins can update segments" 
 ON segments 
 FOR UPDATE 

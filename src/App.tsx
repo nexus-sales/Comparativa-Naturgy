@@ -745,6 +745,35 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
     const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
     const bestAh = +(c.factura - best.r.total).toFixed(2);
 
+    const handleExportPDF = async () => {
+      exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
+      
+      // Guardar en el historial (RGPD)
+      try {
+        await supabase.from('client_comparisons').insert({
+          user_id: user?.id,
+          client_name: c.nombre || 'Sin nombre',
+          client_email: c.email || null,
+          client_address: c.dir || null,
+          calculation_data: {
+            best_tariff: best.t.nombre,
+            total_cost: best.r.total,
+            saving: bestAh,
+            current_invoice: c.factura,
+            segment: segDef.label
+          }
+        });
+        
+        await supabase.from('user_activity').insert({
+          user_id: user?.id,
+          action: 'PDF_EXPORTED',
+          details: { client: c.nombre, segment: segDef.label }
+        });
+      } catch (err) {
+        console.error("Error al guardar en el historial:", err);
+      }
+    };
+
     const rowDefs: [string, string][] = isPyme ? [
       ["Coste potencia", "potencia"], ["Coste energía", "energia"], ["SVA", "sva"],
       ["Alquiler", "alquiler"], ["Subtotal", "subtotal"], ["Imp. electricidad", "impElec"],
@@ -762,7 +791,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         {/* Export buttons */}
         <div className="flex gap-3">
           <button
-            onClick={() => exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData)}
+            onClick={handleExportPDF}
             className="flex items-center gap-2 px-4 py-2 bg-[#002855] hover:bg-blue-900 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
