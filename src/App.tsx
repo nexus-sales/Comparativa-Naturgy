@@ -962,14 +962,23 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
 
 function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff[] }) {
   const [profiles, setProfiles] = useState<{ id: string; email: string; is_admin: boolean; is_approved: boolean }[]>([]);
-  const [view, setView] = useState<"tariffs" | "users">("tariffs");
+  const [history, setHistory] = useState<any[]>([]);
+  const [view, setView] = useState<"tariffs" | "users" | "history">("tariffs");
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
 
   useEffect(() => {
-    supabase.from("profiles").select("*").then(({ data }) => {
+    supabase.from("profiles").select("*").order("email").then(({ data }) => {
       if (data) setProfiles(data);
     });
+    
+    supabase.from("client_comparisons")
+      .select("*, profiles!client_comparisons_user_id_fkey(email)")
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .then(({ data }) => {
+        if (data) setHistory(data);
+      });
   }, []);
 
   const toggleApprove = async (id: string, current: boolean) => {
@@ -997,10 +1006,11 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
         <h2 className="text-xl font-bold flex items-center gap-2 text-[#002855]"><Shield className="text-orange-500" size={22} /> Panel de Control</h2>
         <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
           <button onClick={() => setView("tariffs")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "tariffs" ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
+          <button onClick={() => setView("history")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "history" ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
           <button onClick={() => setView("users")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "users" ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
         </div>
       </div>
-      {view === "tariffs" ? (
+      {view === "tariffs" && (
         <div className="space-y-3">
           <div className="flex justify-end mb-2">
             <button onClick={() => setShowTariffForm(true)} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2"><Plus size={16} /> Nueva Tarifa</button>
@@ -1027,7 +1037,43 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
             <TariffForm segments={segments} tariff={editingTariff ?? undefined} onClose={closeForm} />
           )}
         </div>
-      ) : (
+      )}
+
+      {view === "history" && (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 font-bold">Fecha</th>
+                  <th className="px-4 py-3 font-bold">Comercial</th>
+                  <th className="px-4 py-3 font-bold">Cliente</th>
+                  <th className="px-4 py-3 font-bold">Segmento</th>
+                  <th className="px-4 py-3 font-bold">Ahorro</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {history.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{new Date(item.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 font-medium">{item.profiles?.email?.split('@')[0] || 'Desconocido'}</td>
+                    <td className="px-4 py-3">{item.client_name}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium whitespace-nowrap">{item.calculation_data?.segment}</span>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-green-600 whitespace-nowrap">{item.calculation_data?.saving} €</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!history.length && (
+            <div className="p-8 text-center text-slate-400 italic">No hay registros aún.</div>
+          )}
+        </div>
+      )}
+
+      {view === "users" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {profiles.map(p => (
             <div key={p.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
