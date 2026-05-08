@@ -57,7 +57,7 @@ function App() {
               <p className="text-xs text-blue-200">Herramienta comercial — Canarias</p>
             </div>
           </div>
-          <nav className="flex items-center gap-2 bg-blue-900/50 p-1 rounded-xl">
+          <nav className="flex items-center gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto max-w-full">
             <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />} label="Comercial" />
             {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
@@ -368,7 +368,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         </div>
 
         {/* Fechas + Días */}
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Lectura anterior</label>
             <input type="date" title="Lectura anterior" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" value={c.f1} onChange={e => upDate(segId, "f1", e.target.value)} />
@@ -603,7 +603,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               {/* Card header */}
               <div
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none"
+                className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none"
                 onClick={() => toggleOpen(t.id)}
               >
                 <span
@@ -620,17 +620,23 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                   style={{ accentColor: segColor }}
                 />
                 <span className={`text-slate-400 text-xs transition-transform ${t.open ? "rotate-90" : ""}`}>▶</span>
-                <span className="font-semibold text-slate-800 flex-1 text-sm">{t.nombre}</span>
-                {t.requires_auth && (
-                  <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Auth. requerida</span>
-                )}
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tipoCls}`}>{tipoBadge}</span>
-                <span className="font-black text-[#002855] text-base ml-2">{fmtEur(r.total)}</span>
-                {c.factura > 0 && (
-                  <span className={`text-xs font-bold ml-1 ${ah > 0.005 ? "text-green-600" : ah < -0.005 ? "text-red-500" : "text-slate-400"}`}>
-                    {ah > 0.005 ? `−${fmtEur(ah)}` : ah < -0.005 ? `+${fmtEur(Math.abs(ah))}` : "Igual"}
-                  </span>
-                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="font-semibold text-slate-800 text-sm truncate">{t.nombre}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tipoCls}`}>{tipoBadge}</span>
+                    {t.requires_auth && (
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Auth. requerida</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="font-black text-[#002855] text-base">{fmtEur(r.total)}</span>
+                  {c.factura > 0 && (
+                    <div className={`text-[10px] sm:text-xs font-bold ${ah > 0.005 ? "text-green-600" : ah < -0.005 ? "text-red-500" : "text-slate-400"}`}>
+                      {ah > 0.005 ? `−${fmtEur(ah)}` : ah < -0.005 ? `+${fmtEur(Math.abs(ah))}` : "Igual"}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Card body */}
@@ -768,7 +774,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Factura actual</p>
             <p className="text-2xl font-black text-slate-700 mt-1">{fmtEur(c.factura)}</p>
@@ -875,30 +881,30 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
   return (
     <div>
       {/* Segment tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto mb-0">
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto mb-2 scrollbar-hide">
         {SEG_DEFS.map(seg => (
           <button
             key={seg.id}
             onClick={() => setActiveSeg(seg.id)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all flex-1 sm:flex-none justify-center"
             style={activeSeg === seg.id
               ? { backgroundColor: seg.color, color: "#fff" }
               : { color: "#64748b" }
             }
           >
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeSeg === seg.id ? "rgba(255,255,255,0.6)" : seg.color }}></span>
+            <span className="w-2 h-2 rounded-full hidden sm:inline-block" style={{ backgroundColor: activeSeg === seg.id ? "rgba(255,255,255,0.6)" : seg.color }}></span>
             {seg.label}
           </button>
         ))}
       </div>
 
       {/* Sub-tab bar */}
-      <div className="flex border-b border-slate-200 mb-5">
+      <div className="flex border-b border-slate-200 mb-5 overflow-x-auto scrollbar-hide">
         {[["cli", "Datos cliente"], ["tar", "Tarifas"], ["comp", "Comparativa"]].map(([id, label]) => (
           <button
             key={id}
             onClick={() => setSubTab(id)}
-            className="px-6 py-3 text-sm font-semibold transition-all relative"
+            className="px-4 sm:px-6 py-3 text-sm font-semibold transition-all relative flex-1 whitespace-nowrap"
             style={sub === id
               ? { color: segColor, borderBottom: `2px solid ${segColor}`, marginBottom: "-1px" }
               : { color: "#94a3b8" }
