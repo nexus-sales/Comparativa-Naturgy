@@ -15,6 +15,7 @@ import {
 import {
   Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip
 } from "chart.js";
+import { AuthStatus } from "./components/auth/AuthOverlay";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
 
@@ -43,6 +44,9 @@ function App() {
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
     </div>
   );
+
+  if (!user) return <AuthStatus />;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <header className="bg-[#002855] text-white shadow-lg">

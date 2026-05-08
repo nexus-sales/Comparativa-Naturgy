@@ -236,6 +236,11 @@ function pdfPage(
   y += 7 + 3;
 
   color([140, 140, 140] as any); norm(6);
+  const gdpr = 'En cumplimiento del RGPD (Reglamento UE 2016/679) y la LOPDGDD 3/2018, le informamos que sus datos son tratados con la máxima confidencialidad y únicamente para la elaboración de esta comparativa eléctrica profesional.';
+  const glines = doc.splitTextToSize(gdpr, CW);
+  doc.text(glines, L, y);
+  y += glines.length * 3;
+
   const disc = 'La presente comparativa es estimativa, sirve únicamente para dar una idea a nuestro cliente sobre cómo se le facturará con NATURGY S.A. este documento no es vinculante, puede variar según lecturas reales/estimadas del cliente. Nos basamos únicamente en la información de factura aportada por el cliente.';
   const dlines = doc.splitTextToSize(disc, CW);
   doc.text(dlines, L, y);
