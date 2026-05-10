@@ -10,10 +10,18 @@ export function useAuth() {
   useEffect(() => {
     let cancelled = false;
 
-    // 1. Obtener sesión inicial
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (cancelled) return;
+    const fetchSession = async () => {
       try {
+        // Añadimos un timeout de 3 segundos por si el storage o la red se quedan colgados en móviles/PWA
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout obteniendo sesión')), 3000)
+        );
+        const sessionPromise = supabase.auth.getSession();
+        
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        
+        if (cancelled) return;
+        
         if (session?.user) {
           setUser(session.user);
           await checkAdmin(session.user.id, () => cancelled);
@@ -24,12 +32,11 @@ export function useAuth() {
       } catch (err) {
         console.error('Error during initial auth setup:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    }).catch(error => {
-      console.error('Error in getSession:', error);
-      if (!cancelled) setLoading(false);
-    });
+    };
+
+    fetchSession();
 
     // 2. Escuchar cambios (Login/Logout/Token Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -48,11 +55,8 @@ export function useAuth() {
       } catch (err) {
         console.error('Error handling auth state change:', err);
       } finally {
-        // Solo marcamos como no cargando si no es el evento inicial (que ya maneja getSession)
-        // o si explícitamente es un logout
-        if (event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'SIGNED_IN') {
-          setLoading(false);
-        }
+        // En móviles a veces el evento inicial no dispara correctamente la carga o se pierde
+        if (!cancelled) setLoading(false);
       }
     });
 
@@ -63,12 +67,18 @@ export function useAuth() {
     console.log('--- BUSCANDO PERFIL EN DB ---');
     
     try {
-      // Usamos .select() sin filtros primero para ver si el RLS nos deja ver ALGO
-      const { data, error } = await supabase
+      // Usamos un timeout para evitar que la app se quede en loading si la red está caída en la PWA
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout de red')), 4000)
+      );
+      
+      const adminPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
+      const { data, error } = await Promise.race([adminPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('ERROR RLS / DB:', error.message);

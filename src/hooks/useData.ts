@@ -40,10 +40,16 @@ export function useData() {
     setLoading(true);
     setError(null);
     try {
-      const [segRes, tarRes] = await Promise.all([
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout de red')), 8000)
+      );
+
+      const dbPromise = Promise.all([
         supabase.from('segments').select('*'),
         supabase.from('tariffs').select('*').eq('is_active', true)
       ]);
+
+      const [segRes, tarRes] = await Promise.race([dbPromise, timeoutPromise]) as any;
 
       if (segRes.error || tarRes.error) {
         setError('Error al cargar los datos. Comprueba tu conexión e inténtalo de nuevo.');
