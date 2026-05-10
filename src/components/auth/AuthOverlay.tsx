@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { HelpCircle, X } from 'lucide-react';
 
 export const AuthStatus = () => {
   const [loading, setLoading] = useState(false);
@@ -9,6 +10,7 @@ export const AuthStatus = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +71,14 @@ export const AuthStatus = () => {
   };
 
   return (
-    <div className="auth-container" style={{ maxWidth: '450px', margin: '40px auto', padding: '30px', border: '1px solid #ddd', borderRadius: '12px', background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+    <div className="auth-container" style={{ maxWidth: '450px', margin: '40px auto', padding: '30px', border: '1px solid #ddd', borderRadius: '12px', background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', position: 'relative' }}>
+      <button 
+        onClick={() => setShowHelp(true)}
+        style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', cursor: 'pointer', color: '#002855' }}
+        title="Ayuda sobre el registro"
+      >
+        <HelpCircle size={24} />
+      </button>
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
         <svg height="45" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 220 54" style={{ marginBottom: '15px' }}>
           <path fill="#E57200" fillRule="evenodd" d="M218.697 8.68827c.309-.27302.584-.37661.788-.37661.309 0 .515.23913.515.68352 0 2.97712-14.877 20.28492-19.23 24.35502-3.563 3.3518-6.102 5.505-7.575 5.505-.48 0-.789-.2392-.789-.8201 0-2.2228 3.359-8.1073 3.359-8.1073v-.1695l-6.203 5.4711c-1.44 1.2673-3.187 1.8473-4.763 1.8473-2.881 0-5.382-2.2578-5.382-7.4558V1.74463C179.417.581864 180.204 0 181.199 0c.581 0 1.267.239135 1.952.649635 4.356 2.771845 10.01 8.004755 14.363 15.153665.686 1.1289.959 2.2577.959 3.3866 0 3.6248-2.913 7.2835-5.929 10.5684v.2053l26.153-21.27533Z" clipRule="evenodd"/>
@@ -149,6 +158,34 @@ export const AuthStatus = () => {
         Los cálculos son consultivos y basados en tarifas oficiales.
         <div style={{ marginTop: '8px', fontWeight: 'bold', color: '#666' }}>App de Cris Energy - Distribuidor Oficial</div>
       </div>
+
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '30px', maxWidth: '400px', width: '100%', position: 'relative', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <button 
+              onClick={() => setShowHelp(false)}
+              style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ color: '#002855', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <HelpCircle size={24} /> Ayuda y Privacidad
+            </h3>
+            <p style={{ fontSize: '14px', color: '#444', lineHeight: '1.5', marginTop: '15px' }}>
+              <strong>Protección de datos:</strong> Sus datos están protegidos y encriptados de acuerdo con el Reglamento General de Protección de Datos (RGPD). No compartimos su información con terceros sin su consentimiento explícito.
+            </p>
+            <p style={{ fontSize: '14px', color: '#444', lineHeight: '1.5', marginTop: '10px' }}>
+              <strong>Validación de email:</strong> Al registrar una nueva cuenta, es obligatorio validar su dirección de correo electrónico. Recibirá un enlace en su bandeja de entrada que deberá pulsar para activar su cuenta y poder acceder a la plataforma.
+            </p>
+            <button 
+              onClick={() => setShowHelp(false)}
+              style={{ width: '100%', padding: '12px', background: '#002855', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginTop: '20px' }}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

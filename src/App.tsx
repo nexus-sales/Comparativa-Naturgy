@@ -10,7 +10,7 @@ import type { ComercialData } from "./utils/pdfExport";
 import { exportExcel } from "./utils/excelExport";
 import {
   LogIn, Shield, Users,
-  Plus, Trash2, X, AlertTriangle, Pencil
+  Plus, Trash2, X, AlertTriangle, Pencil, HelpCircle
 } from "lucide-react";
 import {
   Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip
@@ -35,6 +35,7 @@ function App() {
   const { segments, tariffs, loading: dataLoading, error: dataError } = useData();
   const [activeTab, setActiveTab] = useState("comparator");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showAppHelp, setShowAppHelp] = useState(false);
 
   const effectiveTab = (!isAdmin && activeTab === "admin") ? "comparator" : activeTab;
   const effectiveShowAdminLogin = !user && showAdminLogin;
@@ -69,6 +70,14 @@ function App() {
             {user ? (
               <>
                 <span className="text-blue-200 hidden md:inline">{user.email}</span>
+                <button
+                  onClick={() => setShowAppHelp(true)}
+                  className="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2"
+                  title="Ayuda de la aplicación"
+                >
+                  <HelpCircle size={16} />
+                  <span className="hidden sm:inline text-xs">Ayuda</span>
+                </button>
                 <button
                   onClick={async () => {
                     await supabase.auth.signOut();
@@ -111,6 +120,7 @@ function App() {
         }
       </main>
       {effectiveShowAdminLogin && <AdminLoginModal onClose={() => setShowAdminLogin(false)} />}
+      {showAppHelp && <AppHelpModal onClose={() => setShowAppHelp(false)} />}
     </div>
   );
 }
@@ -166,6 +176,65 @@ function AdminLoginModal({ onClose }: { onClose: () => void }) {
             {loading ? "Verificando..." : <><LogIn size={20} /> Entrar como Admin</>}
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ── APP HELP MODAL ────────────────────────────────────────────────────────────
+
+function AppHelpModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl p-8 border border-slate-100 relative max-h-[90vh] overflow-y-auto">
+        <button type="button" onClick={onClose} title="Cerrar" aria-label="Cerrar" className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
+          <X size={20} />
+        </button>
+        <div className="text-center mb-6">
+          <div className="bg-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <HelpCircle className="text-blue-600" size={32} />
+          </div>
+          <h2 className="text-2xl font-extrabold text-[#002855]">Cómo funciona la App</h2>
+          <p className="text-slate-500 mt-2">Guía rápida de uso del comparador Naturgy</p>
+        </div>
+        
+        <div className="space-y-4 text-sm text-slate-600">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <span className="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
+              Selecciona el Segmento
+            </h3>
+            <p>Elige el tipo de cliente en las pestañas (Residencial, Pyme 2.0TD, etc.). Cada segmento tiene sus propias tarifas y configuración fiscal predefinida.</p>
+          </div>
+          
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <span className="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
+              Introduce los Datos del Cliente
+            </h3>
+            <p>Rellena la información básica, fechas, potencias contratadas, consumos y el importe de la factura actual. Esta información es crucial para el cálculo.</p>
+          </div>
+
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <span className="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
+              Selecciona las Tarifas
+            </h3>
+            <p>Abre la sección "Tarifas" y marca aquellas que desees comparar con la factura actual. Verás un desglose detallado del coste estimado para cada tarifa.</p>
+          </div>
+
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <span className="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">4</span>
+              Genera la Comparativa
+            </h3>
+            <p>En la pestaña "Comparativa" verás un gráfico con los resultados. Puedes exportar esta información a PDF o Excel para entregársela al cliente.</p>
+          </div>
+        </div>
+
+        <button onClick={onClose} className="w-full mt-8 bg-[#002855] text-white py-3 rounded-xl font-bold text-base hover:bg-blue-800 transition-colors shadow-lg">
+          Entendido
+        </button>
       </div>
     </div>
   );
