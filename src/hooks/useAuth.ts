@@ -13,14 +13,22 @@ export function useAuth() {
     // 1. Obtener sesión inicial
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return;
-      if (session?.user) {
-        setUser(session.user);
-        await checkAdmin(session.user.id, () => cancelled);
-      } else {
-        setUser(null);
-        setIsAdmin(false);
+      try {
+        if (session?.user) {
+          setUser(session.user);
+          await checkAdmin(session.user.id, () => cancelled);
+        } else {
+          setUser(null);
+          setIsAdmin(false);
+        }
+      } catch (err) {
+        console.error('Error during initial auth setup:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
+    }).catch(error => {
+      console.error('Error in getSession:', error);
+      if (!cancelled) setLoading(false);
     });
 
     // 2. Escuchar cambios (Login/Logout/Token Refresh)
@@ -29,18 +37,22 @@ export function useAuth() {
       
       console.log('Auth Event:', event);
       
-      if (session?.user) {
-        setUser(session.user);
-        await checkAdmin(session.user.id, () => cancelled);
-      } else {
-        setUser(null);
-        setIsAdmin(false);
-      }
-      
-      // Solo marcamos como no cargando si no es el evento inicial (que ya maneja getSession)
-      // o si explícitamente es un logout
-      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        setLoading(false);
+      try {
+        if (session?.user) {
+          setUser(session.user);
+          await checkAdmin(session.user.id, () => cancelled);
+        } else {
+          setUser(null);
+          setIsAdmin(false);
+        }
+      } catch (err) {
+        console.error('Error handling auth state change:', err);
+      } finally {
+        // Solo marcamos como no cargando si no es el evento inicial (que ya maneja getSession)
+        // o si explícitamente es un logout
+        if (event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'SIGNED_IN') {
+          setLoading(false);
+        }
       }
     });
 
@@ -50,22 +62,29 @@ export function useAuth() {
   async function checkAdmin(userId: string, isCancelled: () => boolean) {
     console.log('--- BUSCANDO PERFIL EN DB ---');
     
-    // Usamos .select() sin filtros primero para ver si el RLS nos deja ver ALGO
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      // Usamos .select() sin filtros primero para ver si el RLS nos deja ver ALGO
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error) {
-      console.error('ERROR RLS / DB:', error.message);
-    }
-    
-    console.log('¿Perfil encontrado?:', data ? 'SÍ' : 'NO');
-    if (data) console.log('Admin Status en DB:', data.is_admin);
+      if (error) {
+        console.error('ERROR RLS / DB:', error.message);
+      }
+      
+      console.log('¿Perfil encontrado?:', data ? 'SÍ' : 'NO');
+      if (data) console.log('Admin Status en DB:', data.is_admin);
 
-    if (!isCancelled()) {
-      setIsAdmin(data?.is_admin ?? false);
+      if (!isCancelled()) {
+        setIsAdmin(data?.is_admin ?? false);
+      }
+    } catch (err) {
+      console.error('EXCEPTION in checkAdmin:', err);
+      if (!isCancelled()) {
+        setIsAdmin(false);
+      }
     }
   }
 

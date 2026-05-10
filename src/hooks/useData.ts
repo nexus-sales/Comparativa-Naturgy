@@ -39,18 +39,24 @@ export function useData() {
   async function fetchData() {
     setLoading(true);
     setError(null);
-    const [segRes, tarRes] = await Promise.all([
-      supabase.from('segments').select('*'),
-      supabase.from('tariffs').select('*').eq('is_active', true)
-    ]);
+    try {
+      const [segRes, tarRes] = await Promise.all([
+        supabase.from('segments').select('*'),
+        supabase.from('tariffs').select('*').eq('is_active', true)
+      ]);
 
-    if (segRes.error || tarRes.error) {
-      setError('Error al cargar los datos. Comprueba tu conexión e inténtalo de nuevo.');
-    } else {
-      setSegments(segRes.data);
-      setTariffs(tarRes.data);
+      if (segRes.error || tarRes.error) {
+        setError('Error al cargar los datos. Comprueba tu conexión e inténtalo de nuevo.');
+      } else {
+        setSegments(segRes.data);
+        setTariffs(tarRes.data);
+      }
+    } catch (err) {
+      console.error('Exception fetching data:', err);
+      setError('Error de conexión al cargar los datos.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return { segments, tariffs, loading, error, refresh: fetchData };
