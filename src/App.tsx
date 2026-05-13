@@ -1299,7 +1299,20 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
                           const taxModel = cd.tax_model || "Canarias";
                           const potP = cd.pot_prices || [];
                           const c = cd.client_data || {};
-                          const segTariffs = cd.available_tariffs || [];
+                          
+                          // IMPORTANTE: Aseguramos que la tarifa que se guardó como "ganadora" 
+                          // esté marcada como 'selected' para que el PDF no de error.
+                          const segTariffs = (cd.available_tariffs || []).map((t: any) => ({
+                            ...t,
+                            selected: t.name === cd.best_tariff
+                          }));
+
+                          // Si la lista está vacía o ninguna coincide, forzamos la selección de la primera
+                          // para evitar que el motor de PDF se detenga.
+                          if (segTariffs.length > 0 && !segTariffs.some((t: any) => t.selected)) {
+                            segTariffs[0].selected = true;
+                          }
+
                           const comercial = {
                             nombre: item.profiles?.full_name || "Comercial Naturgy",
                             telefono: item.profiles?.phone || "",
