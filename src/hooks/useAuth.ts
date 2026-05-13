@@ -2,101 +2,81 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
+function fallbackProfile(user: User) {
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    full_name: '',
+    phone: '',
+    is_admin: false,
+    is_approved: false,
+  };
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    const fetchSession = async () => {
+    async function checkAdminStatus(userId: string) {
       try {
-        // Añadimos un timeout de 3 segundos por si el storage o la red se quedan colgados en móviles/PWA
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout obteniendo sesión')), 3000)
-        );
-        const sessionPromise = supabase.auth.getSession();
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
         
-        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
-        
+        if (!cancelled && data) {
+          setProfile(data);
+          setIsAdmin(data.is_admin ?? false);
+        } else if (!cancelled) {
+          // Si no hay perfil, al menos intentamos ver si es el admin principal por email
+          // Esto se refuerza en App.tsx con OWNER_ADMIN_EMAILS
+          setProfile(fallbackProfile({ id: userId, email: user?.email } as any));
+        }
+      } catch (err) {
+        console.error("Error checking profile:", err);
+      }
+    }
+
+    async function init() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
         
         if (session?.user) {
           setUser(session.user);
-          await checkAdmin(session.user.id, () => cancelled);
-        } else {
-          setUser(null);
-          setIsAdmin(false);
+          await checkAdminStatus(session.user.id);
         }
       } catch (err) {
-        console.error('Error during initial auth setup:', err);
+        console.error("Auth init error:", err);
       } finally {
         if (!cancelled) setLoading(false);
       }
-    };
+    }
 
-    fetchSession();
+    init();
 
-    // 2. Escuchar cambios (Login/Logout/Token Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
       
-      console.log('Auth Event:', event);
-      
-      try {
-        if (session?.user) {
-          setUser(session.user);
-          await checkAdmin(session.user.id, () => cancelled);
-        } else {
-          setUser(null);
-          setIsAdmin(false);
-        }
-      } catch (err) {
-        console.error('Error handling auth state change:', err);
-      } finally {
-        // En móviles a veces el evento inicial no dispara correctamente la carga o se pierde
-        if (!cancelled) setLoading(false);
+      if (session?.user) {
+        setUser(session.user);
+        await checkAdminStatus(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setIsAdmin(false);
       }
+      setLoading(false);
     });
 
     return () => { cancelled = true; subscription.unsubscribe(); };
   }, []);
 
-  async function checkAdmin(userId: string, isCancelled: () => boolean) {
-    console.log('--- BUSCANDO PERFIL EN DB ---');
-    
-    try {
-      // Usamos un timeout para evitar que la app se quede en loading si la red está caída en la PWA
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout de red')), 4000)
-      );
-      
-      const adminPromise = supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      const { data, error } = await Promise.race([adminPromise, timeoutPromise]) as any;
-
-      if (error) {
-        console.error('ERROR RLS / DB:', error.message);
-      }
-      
-      console.log('¿Perfil encontrado?:', data ? 'SÍ' : 'NO');
-      if (data) console.log('Admin Status en DB:', data.is_admin);
-
-      if (!isCancelled()) {
-        setIsAdmin(data?.is_admin ?? false);
-      }
-    } catch (err) {
-      console.error('EXCEPTION in checkAdmin:', err);
-      if (!isCancelled()) {
-        setIsAdmin(false);
-      }
-    }
-  }
-
-  return { user, loading, isAdmin };
+  return { user, loading, isAdmin, profile };
 }

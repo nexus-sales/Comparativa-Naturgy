@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
     is_admin BOOLEAN DEFAULT FALSE,
     email TEXT,
+    full_name TEXT,
+    phone TEXT,
     is_approved BOOLEAN DEFAULT FALSE -- Campo para que el admin apruebe el acceso
 );
 
@@ -47,23 +49,35 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE segments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tariffs ENABLE ROW LEVEL SECURITY;
 
+-- Funciones helper con SECURITY DEFINER para evitar recursión en RLS
+-- (bypasean RLS al consultar profiles, rompiendo el bucle infinito)
+CREATE OR REPLACE FUNCTION public.is_user_admin()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), false);
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_user_approved()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT COALESCE((SELECT is_approved FROM public.profiles WHERE id = auth.uid()), false);
+$$;
+
 -- Políticas para Profiles
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Admins can manage all profiles" ON profiles FOR ALL TO authenticated
-USING ( (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
+USING ( public.is_user_admin() );
 
 -- Políticas para Segments (Solo si está aprobado)
-CREATE POLICY "Segments are viewable by approved users" ON segments FOR SELECT TO authenticated 
-USING ( (SELECT is_approved FROM profiles WHERE id = auth.uid()) = true OR (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
+CREATE POLICY "Segments are viewable by approved users" ON segments FOR SELECT TO authenticated
+USING ( public.is_user_admin() OR public.is_user_approved() );
 
 -- Políticas para Tariffs (Solo si está aprobado)
 CREATE POLICY "Tariffs are viewable by approved users" ON tariffs FOR SELECT TO authenticated
-USING ( (SELECT is_approved FROM profiles WHERE id = auth.uid()) = true OR (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
+USING ( public.is_user_admin() OR public.is_user_approved() );
 
 -- Solo admins pueden crear, modificar o borrar tarifas
 CREATE POLICY "Admins can manage tariffs" ON tariffs FOR ALL TO authenticated
-USING ( (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true );
+USING ( public.is_user_admin() );
 
 -- Trigger para mantener updated_at al día
 CREATE OR REPLACE FUNCTION update_timestamp()

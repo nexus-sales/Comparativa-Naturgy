@@ -8,10 +8,7 @@ import type { SegCliente, TarifaLocal } from "./utils/calculations";
 import { exportPDF } from "./utils/pdfExport";
 import type { ComercialData } from "./utils/pdfExport";
 import { exportExcel } from "./utils/excelExport";
-import {
-  LogIn, Shield, Users,
-  Plus, Trash2, X, AlertTriangle, Pencil, HelpCircle
-} from "lucide-react";
+import { LogIn, Shield, Users, Plus, Trash2, X, AlertTriangle, Pencil, HelpCircle, Eye, EyeOff } from "lucide-react";
 import {
   Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip
 } from "chart.js";
@@ -30,23 +27,94 @@ const PERIODO_LABELS = ["P1 — Punta", "P2 — Valle", "P3", "P4", "P5", "P6"];
 
 // ── APP SHELL ─────────────────────────────────────────────────────────────────
 
+async function signOutAndReset() {
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    console.error('Error signing out:', err);
+  } finally {
+    try {
+      localStorage.removeItem('naturgy_data_v1');
+    } catch {
+      // Ignorar si el navegador bloquea localStorage
+    }
+    window.location.assign('/');
+  }
+}
+
+const OWNER_ADMIN_EMAILS = new Set(["salvamunoz@avantiasl.com"]);
+
 function App() {
-  const { user, loading: authLoading, isAdmin } = useAuth();
-  const { segments, tariffs, loading: dataLoading, error: dataError } = useData();
-  const [activeTab, setActiveTab] = useState("comparator");
+  const { user, loading: authLoading, isAdmin: authIsAdmin, profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile">("comparator");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showAppHelp, setShowAppHelp] = useState(false);
 
+  const isOwnerAdmin = !!user?.email && OWNER_ADMIN_EMAILS.has(user.email.toLowerCase());
+  const isAdmin = authIsAdmin || isOwnerAdmin;
+  const canLoadData = !!user && !authLoading && (isAdmin || profile?.is_approved === true);
+  const { segments, tariffs, loading: dataLoading, error: dataError, refresh: refreshData } = useData(canLoadData, user?.id ?? 'anonymous');
   const effectiveTab = (!isAdmin && activeTab === "admin") ? "comparator" : activeTab;
   const effectiveShowAdminLogin = !user && showAdminLogin;
 
-  if (authLoading) return (
+  useEffect(() => {
+    if (user && !isAdmin && (!profile || !profile.full_name) && activeTab === "comparator") {
+      setActiveTab("profile");
+    }
+  }, [user, profile, activeTab, isAdmin]);
+
+  const [authTimeout, setAuthTimeout] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (authLoading) setAuthTimeout(true);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [authLoading]);
+
+  if (authLoading && !authTimeout) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
     </div>
   );
 
   if (!user) return <AuthStatus />;
+
+  if (!isAdmin && profile?.is_approved === false) return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <header className="bg-[#002855] text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">Comparativa Tarifas Naturgy</h1>
+            <p className="text-xs text-blue-200">Herramienta comercial — Canarias</p>
+          </div>
+          <button
+            onClick={signOutAndReset}
+            className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10"
+          >
+            Salir
+          </button>
+        </div>
+        <div className="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-blue-800"></div>
+      </header>
+      <main className="max-w-2xl mx-auto px-4 py-12">
+        <div className="bg-white border border-amber-200 rounded-2xl p-8 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="bg-amber-100 p-2 rounded-lg text-amber-700">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-[#002855]">Cuenta pendiente de aprobacion</h2>
+              <p className="text-slate-600 mt-2">
+                Tu usuario ya ha iniciado sesion, pero todavia no tiene permiso para ver las tarifas.
+                Cuando un administrador apruebe la cuenta, la app cargara los segmentos y tarifas automaticamente al entrar.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -64,6 +132,7 @@ function App() {
           </div>
           <nav className="flex items-center gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto max-w-full">
             <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />} label="Comercial" />
+            <TabButton active={effectiveTab === "profile"} onClick={() => setActiveTab("profile")} icon={<Pencil size={16} />} label="Usuario" />
             {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
           <div className="flex items-center gap-4 text-sm">
@@ -79,10 +148,7 @@ function App() {
                   <span className="hidden sm:inline text-xs">Ayuda</span>
                 </button>
                 <button
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    window.location.reload(); // Forzamos limpieza total
-                  }}
+                  onClick={signOutAndReset}
                   className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10"
                 >
                   Salir
@@ -105,19 +171,35 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {dataError && (
-          <div className="mb-4 flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">
-            <AlertTriangle size={16} className="flex-shrink-0" />
-            {dataError}
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-800 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="bg-red-100 p-2 rounded-lg text-red-600">
+                <AlertTriangle size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg">Error de conexión</h3>
+                <p className="text-sm opacity-90">{dataError}</p>
+              </div>
+              <button 
+                onClick={refreshData} 
+                className="bg-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm border border-red-200 hover:bg-red-100 transition-colors"
+              >
+                Reintentar
+              </button>
+            </div>
           </div>
         )}
         {dataLoading ? (
           <div className="flex items-center justify-center p-12">
             <div className="animate-pulse text-slate-400">Cargando tarifas...</div>
           </div>
-        ) : effectiveTab === "comparator"
-          ? <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} />
-          : <AdminView segments={segments} tariffs={tariffs} />
-        }
+        ) : (
+          <>
+            {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} />}
+            {effectiveTab === "profile" && <UserProfilePane user={user} profile={profile} isAdmin={isAdmin} />}
+            {effectiveTab === "admin" && <AdminView segments={segments} tariffs={tariffs} />}
+          </>
+        )}
       </main>
       {effectiveShowAdminLogin && <AdminLoginModal onClose={() => setShowAdminLogin(false)} />}
       {showAppHelp && <AppHelpModal onClose={() => setShowAppHelp(false)} />}
@@ -140,6 +222,8 @@ function AdminLoginModal({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,7 +253,24 @@ function AdminLoginModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Contraseña</label>
-            <input type="password" required placeholder="••••••••" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)} />
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"} 
+                required 
+                placeholder="••••••••" 
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all pr-12" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
           {error && <div className="bg-red-50 border border-red-100 p-4 rounded-xl"><p className="text-red-600 text-sm font-medium text-center">{error}</p></div>}
           <button type="submit" disabled={loading} className="w-full bg-[#002855] text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors shadow-lg flex items-center justify-center gap-2">
@@ -242,8 +343,7 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
 
 // ── COMPARATOR VIEW ───────────────────────────────────────────────────────────
 
-function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; tariffs: Tariff[]; isAdmin: boolean }) {
-  const { user } = useAuth();
+function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segments: Segment[]; tariffs: Tariff[]; isAdmin: boolean; profile: any; user: any }) {
   const [clients, setClients] = useState<Record<string, SegCliente>>({});
   const hasInitializedClients = useRef(false);
 
@@ -268,9 +368,29 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [activeSeg, setActiveSeg] = useState("res");
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "comp", pyme20: "comp", pyme20one: "comp", pyme361: "comp" });
-  const [comercialData, setComercialData] = useState<ComercialData>({ nombre: "Salvador Muñoz Portillo", telefono: "", email: "admin@nexus-sales.com" });
+  const [comercialData, setComercialData] = useState<ComercialData>({ 
+    nombre: profile?.full_name || "Comercial", 
+    telefono: profile?.phone || "", 
+    email: profile?.email || user?.email || "" 
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setComercialData({
+        nombre: profile.full_name || "Comercial",
+        telefono: profile.phone || "",
+        email: profile.email || user?.email || ""
+      });
+    }
+  }, [profile, user]);
+
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
   const chartInstances = useRef<Record<string, Chart>>({});
+
+  const handleComercialChange = (field: keyof ComercialData, value: string) => {
+    setComercialData(prev => ({ ...prev, [field]: value }));
+  };
 
   const segDef = SEG_DEFS.find(s => s.id === activeSeg) ?? SEG_DEFS[0];
   const segColor = segDef.color;
@@ -590,15 +710,15 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Nombre comercial</label>
-            <input className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="Nombre del agente" value={comercialData.nombre} onChange={e => setComercialData(p => ({ ...p, nombre: e.target.value }))} />
+            <input className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="Nombre del agente" value={comercialData.nombre} onChange={e => handleComercialChange("nombre", e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Teléfono</label>
-            <input className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="600 000 000" value={comercialData.telefono} onChange={e => setComercialData(p => ({ ...p, telefono: e.target.value }))} />
+            <input className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="600 000 000" value={comercialData.telefono} onChange={e => handleComercialChange("telefono", e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Email</label>
-            <input type="email" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="agente@naturgy.es" value={comercialData.email} onChange={e => setComercialData(p => ({ ...p, email: e.target.value }))} />
+            <input type="email" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm" placeholder="agente@naturgy.es" value={comercialData.email} onChange={e => handleComercialChange("email", e.target.value)} />
           </div>
         </div>
 
@@ -681,8 +801,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                 onClick={() => toggleOpen(t.id)}
               >
                 <span
-                  className="w-1.5 h-8 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: t.selected ? segColor : "#cbd5e1" }}
+                  className={`w-1.5 h-8 rounded-full flex-shrink-0 ${t.selected ? (activeSeg === 'res' ? 'bg-orange-500' : (activeSeg === 'pyme361' ? 'bg-purple-600' : 'bg-blue-600')) : 'bg-slate-300'}`}
                 ></span>
                 <input
                   type="checkbox"
@@ -690,8 +809,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                   aria-label={`Seleccionar ${t.nombre}`}
                   onClick={e => { e.stopPropagation(); toggleSelected(t.id); }}
                   onChange={() => {}}
-                  className="w-4 h-4 rounded cursor-pointer flex-shrink-0"
-                  style={{ accentColor: segColor }}
+                  className="w-4 h-4 rounded cursor-pointer flex-shrink-0 appearance-none border-2 border-slate-300 checked:bg-orange-500 checked:border-orange-500 transition-all"
                 />
                 <span className={`text-slate-400 text-xs transition-transform ${t.open ? "rotate-90" : ""}`}>▶</span>
                 <div className="flex-1 min-w-0">
@@ -773,7 +891,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                     )}
                     <div className="flex justify-between items-center mt-3 pt-3 border-t-2 border-slate-200">
                       <span className="font-bold text-slate-700 text-sm">Total estimado</span>
-                      <span className="font-black text-lg" style={{ color: segColor }}>{fmtEur(r.total)}</span>
+                      <span className={`font-black text-lg ${activeSeg === 'res' ? 'text-orange-500' : (activeSeg === 'pyme361' ? 'text-purple-600' : 'text-blue-600')}`}>{fmtEur(r.total)}</span>
                     </div>
                   </div>
                 </div>
@@ -815,11 +933,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
     const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
     const bestAh = +(c.factura - best.r.total).toFixed(2);
 
-    const handleExportPDF = async () => {
-      exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
-      
-      // Guardar en el historial (RGPD)
+    const saveToHistory = async (action: string) => {
       try {
+        setIsSaving(true);
         const currentUser = user;
         await supabase.from('client_comparisons').insert({
           user_id: currentUser?.id,
@@ -837,12 +953,27 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         
         await supabase.from('user_activity').insert({
           user_id: currentUser?.id,
-          action: 'PDF_EXPORTED',
+          action: action,
           details: { client: c.nombre, segment: segDef.label }
         });
+
+        if (action === 'COMPARISON_SAVED') {
+          alert("Comparativa guardada correctamente en el historial.");
+        }
       } catch (err) {
         console.error("Error al guardar en el historial:", err);
+      } finally {
+        setIsSaving(false);
       }
+    };
+
+    const handleExportPDF = async () => {
+      exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
+      await saveToHistory('PDF_EXPORTED');
+    };
+
+    const handleSaveOnly = async () => {
+      await saveToHistory('COMPARISON_SAVED');
     };
 
     const rowDefs: [string, string][] = isPyme ? [
@@ -860,7 +991,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         <AuthWarning />
 
         {/* Export buttons */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={handleExportPDF}
             className="flex items-center gap-2 px-4 py-2 bg-[#002855] hover:bg-blue-900 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
@@ -875,6 +1006,14 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             Exportar Excel
           </button>
+          <button
+            onClick={handleSaveOnly}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            {isSaving ? "Guardando..." : "Guardar Comparativa"}
+          </button>
         </div>
 
         {/* Summary cards */}
@@ -884,9 +1023,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             <p className="text-2xl font-black text-slate-700 mt-1">{fmtEur(c.factura)}</p>
             <p className="text-xs text-slate-400 mt-0.5 truncate">{c.nombre || "Cliente"}</p>
           </div>
-          <div className="bg-white rounded-2xl border-2 p-4 shadow-sm" style={{ borderColor: segColor }}>
+          <div className={`bg-white rounded-2xl border-2 p-4 shadow-sm ${activeSeg === 'res' ? 'border-orange-500' : (activeSeg === 'pyme361' ? 'border-purple-500' : 'border-blue-500')}`}>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mejor opción</p>
-            <p className="text-2xl font-black mt-1" style={{ color: "#F5821F" }}>{fmtEur(best.r.total)}</p>
+            <p className="text-2xl font-black mt-1 text-orange-500">{fmtEur(best.r.total)}</p>
             <p className="text-xs text-slate-400 mt-0.5 truncate">{best.t.nombre}</p>
           </div>
           <div className={`rounded-2xl border p-4 shadow-sm ${bestAh >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
@@ -912,7 +1051,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                   <th className="text-left p-3 font-bold text-slate-600">Componente</th>
                   <th className="text-right p-3 font-bold text-slate-600">Factura actual</th>
                   {results.map(x => (
-                    <th key={x.t.id} className="text-right p-3 font-bold" style={{ color: x.t.id === best.t.id ? "#F5821F" : "#002855" }}>{x.t.nombre}</th>
+                    <th key={x.t.id} className={`text-right p-3 font-bold ${x.t.id === best.t.id ? "text-orange-500" : "text-[#002855]"}`}>{x.t.nombre}</th>
                   ))}
                 </tr>
               </thead>
@@ -938,7 +1077,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
                     const ah = +(c.factura - x.r.total).toFixed(2);
                     return (
                       <td key={x.t.id} className="text-right p-3">
-                        <span className="font-black" style={{ color: x.t.id === best.t.id ? "#F5821F" : "#002855" }}>{fmtEur(x.r.total)}</span>
+                        <span className={`font-black ${x.t.id === best.t.id ? "text-orange-500" : "text-[#002855]"}`}>{fmtEur(x.r.total)}</span>
                         {ah > 0.005 && <span className="ml-1 text-green-600 font-bold">−{fmtEur(ah)}</span>}
                         {ah < -0.005 && <span className="ml-1 text-red-500 font-bold">+{fmtEur(Math.abs(ah))}</span>}
                       </td>
@@ -956,7 +1095,7 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
         {/* Chart */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Comparativa visual</p>
-          <div className="relative" style={{ height: "260px" }}>
+          <div className="relative h-[260px]">
             <canvas id={`compChart_${segId}`}></canvas>
           </div>
           <div className="flex flex-wrap gap-3 mt-3">
@@ -965,7 +1104,10 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
             </span>
             {results.map(x => (
               <span key={x.t.id} className="flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: x.t.id === best.t.id ? "#F5821F" : x.color }}></span>
+                <span 
+                  className={`w-2.5 h-2.5 rounded-sm inline-block ${x.t.id === best.t.id ? "bg-orange-500" : ""}`}
+                  style={x.t.id === best.t.id ? {} : { backgroundColor: x.color }}
+                ></span>
                 {x.t.nombre}
               </span>
             ))}
@@ -990,13 +1132,9 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
           <button
             key={seg.id}
             onClick={() => setActiveSeg(seg.id)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all flex-1 sm:flex-none justify-center"
-            style={activeSeg === seg.id
-              ? { backgroundColor: seg.color, color: "#fff" }
-              : { color: "#64748b" }
-            }
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all flex-1 sm:flex-none justify-center ${activeSeg === seg.id ? (seg.id === 'res' ? 'bg-orange-500 text-white' : (seg.id === 'pyme361' ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white')) : 'text-slate-500'}`}
           >
-            <span className="w-2 h-2 rounded-full hidden sm:inline-block" style={{ backgroundColor: activeSeg === seg.id ? "rgba(255,255,255,0.6)" : seg.color }}></span>
+            <span className={`w-2 h-2 rounded-full hidden sm:inline-block ${activeSeg === seg.id ? 'bg-white/60' : (seg.id === 'res' ? 'bg-orange-500' : (seg.id === 'pyme361' ? 'bg-purple-600' : 'bg-blue-600'))}`}></span>
             {seg.label}
           </button>
         ))}
@@ -1004,25 +1142,151 @@ function ComparatorView({ segments, tariffs, isAdmin }: { segments: Segment[]; t
 
       {/* Sub-tab bar */}
       <div className="flex border-b border-slate-200 mb-5 overflow-x-auto scrollbar-hide">
-        {[["cli", "Datos cliente"], ["tar", "Tarifas"], ["comp", "Comparativa"]].map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setSubTab(id)}
-            className="px-4 sm:px-6 py-3 text-sm font-semibold transition-all relative flex-1 whitespace-nowrap"
-            style={sub === id
-              ? { color: segColor, borderBottom: `2px solid ${segColor}`, marginBottom: "-1px" }
-              : { color: "#94a3b8" }
-            }
-          >
-            {label}
-          </button>
-        ))}
+        {[["cli", "Datos cliente"], ["tar", "Tarifas"], ["comp", "Comparativa"]].map(([id, label]) => {
+          const isActive = sub === id;
+          const activeColorCls = activeSeg === 'res' ? 'text-orange-500 border-orange-500' : (activeSeg === 'pyme361' ? 'text-purple-600 border-purple-600' : 'text-blue-600 border-blue-600');
+          return (
+            <button
+              key={id}
+              onClick={() => setSubTab(id)}
+              className={`px-4 sm:px-6 py-3 text-sm font-semibold transition-all relative flex-1 whitespace-nowrap mb-[-1px] ${isActive ? `${activeColorCls} border-b-2` : 'text-slate-400'}`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Active pane — llamados como funciones para evitar remount al escribir */}
       {sub === "cli" && ClientPane({ segId: activeSeg })}
       {sub === "tar" && TariffPane({ segId: activeSeg })}
       {sub === "comp" && CompPane({ segId: activeSeg })}
+    </div>
+  );
+}
+
+// ── USER PROFILE PANE ────────────────────────────────────────────────────────
+function UserProfilePane({ user, profile, isAdmin }: { user: any; profile: any; isAdmin: boolean }) {
+  const [formData, setFormData] = useState({
+    full_name: profile?.full_name || "",
+    phone: profile?.phone || "",
+    email: profile?.email || user?.email || ""
+  });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setFormData({
+      full_name: profile?.full_name || "",
+      phone: profile?.phone || "",
+      email: profile?.email || user?.email || ""
+    });
+  }, [profile, user]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id) {
+      setMessage("Error: no hay sesion activa.");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const payload = {
+        id: user.id,
+        full_name: formData.full_name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim() || user.email,
+        is_admin: isAdmin, // Mantener el rol actual
+        is_approved: profile?.is_approved ?? false // Mantener el estado de aprobación
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(payload);
+
+      if (error) throw error;
+      
+      // Forzamos un refresco manual de la página para asegurar que todo el App se entere del cambio
+      // aunque useAuth tenga realtime, a veces el estado local de App.tsx necesita este empujón
+      window.location.reload();
+    } catch (err: any) {
+      console.error(err);
+      setMessage("Error al guardar: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
+      <div className="flex items-center gap-4 mb-8">
+        <div className="bg-blue-100 p-3 rounded-2xl text-blue-600">
+          <Users size={32} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-extrabold text-[#002855]">Mi Perfil</h2>
+          <p className="text-slate-500">Configura tus datos para que aparezcan en las comparativas</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="col-span-1">
+            <label className="block text-sm font-bold text-slate-700 mb-2">Nombre Completo</label>
+            <input 
+              type="text" 
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+              placeholder="Ej: Juan Pérez"
+              value={formData.full_name}
+              onChange={e => setFormData({...formData, full_name: e.target.value})}
+              required
+            />
+          </div>
+          <div className="col-span-1">
+            <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono de contacto</label>
+            <input 
+              type="tel" 
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+              placeholder="600 000 000"
+              value={formData.phone}
+              onChange={e => setFormData({...formData, phone: e.target.value})}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-sm font-bold text-slate-700 mb-2">Email Profesional</label>
+            <input 
+              type="email" 
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+              placeholder="tu@email.com"
+              value={formData.email}
+              onChange={e => setFormData({...formData, email: e.target.value})}
+              required
+            />
+          </div>
+        </div>
+
+        {message && (
+          <div className={`p-4 rounded-xl text-sm font-medium ${message.includes('Error') ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'}`}>
+            {message}
+          </div>
+        )}
+
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="text-xs text-slate-400">
+            Rol actual: <span className="font-bold text-blue-600">{isAdmin ? "Administrador" : "Comercial"}</span>
+            {!isAdmin && !profile?.is_approved && <span className="ml-2 text-red-500 font-bold">(Acceso limitado)</span>}
+          </div>
+          <button 
+            type="submit" 
+            disabled={saving}
+            className="bg-[#002855] text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-800 transition-all shadow-lg flex items-center gap-2"
+          >
+            {saving ? "Guardando..." : "Guardar Cambios"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -1035,6 +1299,7 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
   const [view, setView] = useState<"tariffs" | "users" | "history">("tariffs");
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
+  const [filterSegment, setFilterSegment] = useState<string>("all");
 
   useEffect(() => {
     supabase.from("profiles").select("*").order("email").then(({ data }) => {
@@ -1081,11 +1346,38 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
       </div>
       {view === "tariffs" && (
         <div className="space-y-3">
-          <div className="flex justify-end mb-2">
-            <button onClick={() => setShowTariffForm(true)} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2"><Plus size={16} /> Nueva Tarifa</button>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-4">
+            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto w-full sm:w-auto scrollbar-hide">
+              <button 
+                onClick={() => setFilterSegment("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === "all" ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                Todas
+              </button>
+              {segments.map(seg => (
+                <button
+                  key={seg.id}
+                  onClick={() => setFilterSegment(seg.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === seg.id ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }}></span>
+                  {seg.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowTariffForm(true)} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center gap-2">
+              <Plus size={16} /> Nueva Tarifa
+            </button>
           </div>
-          {tariffs.map(t => (
-            <div key={t.id} className="p-4 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-sm">
+          {tariffs
+            .filter(t => filterSegment === "all" || t.segment_id === filterSegment)
+            .sort((a, b) => {
+              const segA = segments.findIndex(s => s.id === a.segment_id);
+              const segB = segments.findIndex(s => s.id === b.segment_id);
+              return segA - segB;
+            })
+            .map(t => (
+            <div key={t.id} className="p-4 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-sm hover:border-blue-200 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xs">{t.type.toUpperCase()}</div>
                 <div>
@@ -1195,15 +1487,16 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   });
 
   const save = async () => {
-    if (!form.name.trim()) { alert("El nombre de la tarifa es obligatorio."); return; }
-    const supabase = (await import("./lib/supabase")).supabase;
+    const r_pot = form.r_pot.map(v => parseFloat(v as string) || 0);
+    const r_en = form.r_en.map(v => parseFloat(v as string) || 0);
+
     const payload = {
       segment_id: form.segment_id,
       name: form.name.trim(),
       type: form.type,
       pot_unit: form.pot_unit,
-      r_pot: form.r_pot.map(v => parseFloat(v as string) || 0),
-      r_en:  form.r_en.map(v => parseFloat(v as string) || 0),
+      r_pot: form.type === "hex" ? r_pot.slice(0, 6) : r_pot.slice(0, 2),
+      r_en:  form.type === "hex" ? r_en.slice(0, 6) : (form.type === "tri" ? r_en.slice(0, 3) : r_en.slice(0, 1)),
       sva: parseFloat(form.sva) || 0,
       requires_auth: form.requires_auth,
     };
