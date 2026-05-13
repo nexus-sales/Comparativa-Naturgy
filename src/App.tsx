@@ -1302,15 +1302,27 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
                           
                           // IMPORTANTE: Aseguramos que la tarifa que se guardó como "ganadora" 
                           // esté marcada como 'selected' para que el PDF no de error.
-                          const segTariffs = (cd.available_tariffs || []).map((t: any) => ({
-                            ...t,
-                            selected: t.name === cd.best_tariff
-                          }));
+                          // Usamos una lógica más robusta para comparar nombres (recortando espacios)
+                          const segTariffs = (cd.available_tariffs || []).map((t: any) => {
+                            const isBest = String(t.name).trim() === String(cd.best_tariff).trim();
+                            return { ...t, selected: isBest };
+                          });
 
-                          // Si la lista está vacía o ninguna coincide, forzamos la selección de la primera
-                          // para evitar que el motor de PDF se detenga.
+                          // Log de depuración para ver qué estamos enviando
+                          console.log("Regenerando PDF con:", {
+                            tarifaGanadora: cd.best_tariff,
+                            tarifasMapeadas: segTariffs.map((t: any) => ({ name: t.name, selected: t.selected }))
+                          });
+
+                          // Si la lista está vacía o ninguna coincide tras el mapeo, forzamos la selección de la primera
+                          // o de una que tenga datos de ahorro positivos.
                           if (segTariffs.length > 0 && !segTariffs.some((t: any) => t.selected)) {
+                            console.warn("No se encontró coincidencia exacta para la mejor tarifa, seleccionando la primera disponible.");
                             segTariffs[0].selected = true;
+                          }
+
+                          if (segTariffs.length === 0) {
+                            return alert("Error: No hay tarifas guardadas en esta comparativa.");
                           }
 
                           const comercial = {
