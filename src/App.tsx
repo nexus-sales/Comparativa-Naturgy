@@ -393,7 +393,6 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
   };
 
   const segDef = SEG_DEFS.find(s => s.id === activeSeg) ?? SEG_DEFS[0];
-  const segColor = segDef.color;
 
   const getSegMeta = useCallback((segId: string) => {
     const seg = segments.find(s => s.id === segId);
@@ -1360,7 +1359,7 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
                   onClick={() => setFilterSegment(seg.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === seg.id ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
                 >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }}></span>
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: (seg as any).color }}></span>
                   {seg.label}
                 </button>
               ))}
