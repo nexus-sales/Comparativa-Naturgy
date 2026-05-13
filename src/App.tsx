@@ -1204,15 +1204,16 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
     const fetchHistory = async () => {
       setLoading(true);
       
-      // Intentamos primero la consulta directa sin la relación para descartar problemas de FK
+      // Intentamos primero con la relación de profiles
+      // Nota: Eliminamos el 'hint' explícito !client_comparisons_user_id_fkey si falla
       const { data, error } = await supabase.from("client_comparisons")
-        .select("*, profiles!client_comparisons_user_id_fkey(email)")
+        .select("*, profiles(email)")
         .order("created_at", { ascending: false })
         .limit(100);
       
       if (error) {
-        console.error("Error cargando historial:", error);
-        // Si falla la relación, intentamos carga simple
+        console.error("Error cargando historial (Join fallido):", error);
+        // Fallback: Carga simple sin join
         const { data: simpleData } = await supabase.from("client_comparisons")
           .select("*")
           .order("created_at", { ascending: false });
@@ -1445,14 +1446,19 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
     });
     
     const fetchAdminHistory = async () => {
+      // Intentamos primero con el join de profiles (usando la relación que esperamos)
+      // Nota: Eliminamos el 'hint' explícito !client_comparisons_user_id_fkey si falla
       const { data, error } = await supabase.from("client_comparisons")
-        .select("*, profiles!client_comparisons_user_id_fkey(email)")
+        .select("*, profiles(email)")
         .order("created_at", { ascending: false })
         .limit(100);
       
       if (error) {
-        console.error("Admin History Error:", error);
-        const { data: sData } = await supabase.from("client_comparisons").select("*").order("created_at", { ascending: false });
+        console.error("Admin History Error (Join failed):", error);
+        // Fallback: Consultar solo comparativas sin el join si este falla
+        const { data: sData } = await supabase.from("client_comparisons")
+          .select("*")
+          .order("created_at", { ascending: false });
         if (sData) setHistory(sData);
       } else if (data) {
         setHistory(data);
