@@ -950,18 +950,22 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
           throw new Error("No hay sesión de usuario activa");
         }
         
-        // Primero intentamos guardar la comparativa
+        // Primero intentamos guardar la comparativa con todos los datos necesarios para regenerar el PDF
         const { error: compError, data: compData } = await supabase.from('client_comparisons').insert({
           user_id: currentUser.id,
           client_name: c.nombre || 'Sin nombre',
           client_email: (c as any).email || null,
-          client_address: c.dir || null,
+          client_address: (c as any).direccion || (c as any).dir || null,
           calculation_data: {
             best_tariff: best.t.nombre,
             total_cost: best.r.total,
             saving: bestAh,
             current_invoice: c.factura,
-            segment: segDef.label
+            segment: segDef.label,
+            tax_model: taxModel,
+            pot_prices: potP,
+            client_data: c,
+            available_tariffs: segTariffs.map(t => ({ ...t, selected: results.some(r => r.t.id === t.id) }))
           }
         }).select();
 
@@ -1289,55 +1293,61 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => {
-                          const cd = item.calculation_data;
-                          if (!cd) return alert("No hay datos de cálculo disponibles.");
-                          
-                          // Mapear de vuelta a los tipos que espera exportPDF
-                          const segLabel = cd.segment || "Residencial";
-                          const taxModel = cd.tax_model || "Canarias";
-                          const potP = cd.pot_prices || [];
-                          const c = cd.client_data || {};
-                          
-                          // IMPORTANTE: Aseguramos que la tarifa que se guardó como "ganadora" 
-                          // esté marcada como 'selected' para que el PDF no de error.
-                          // Usamos una lógica más robusta para comparar nombres (recortando espacios)
-                          const segTariffs = (cd.available_tariffs || []).map((t: any) => {
-                            const isBest = String(t.name).trim() === String(cd.best_tariff).trim();
-                            return { ...t, selected: isBest };
-                          });
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => {
+                            const cd = item.calculation_data;
+                            if (!cd) return alert("No hay datos de cálculo disponibles.");
+                            
+                            const segLabel = cd.segment || "Residencial";
+                            const taxModel = cd.tax_model || "Canarias";
+                            const potP = cd.pot_prices || [];
+                            const c = cd.client_data || {};
+                            
+                            const segTariffs = (cd.available_tariffs || []).map((t: any) => {
+                              const isBest = String(t.name).trim() === String(cd.best_tariff).trim();
+                              return { ...t, selected: isBest };
+                            });
 
-                          // Log de depuración para ver qué estamos enviando
-                          console.log("Regenerando PDF con:", {
-                            tarifaGanadora: cd.best_tariff,
-                            tarifasMapeadas: segTariffs.map((t: any) => ({ name: t.name, selected: t.selected }))
-                          });
+                            if (segTariffs.length > 0 && !segTariffs.some((t: any) => t.selected)) {
+                              segTariffs[0].selected = true;
+                            }
 
-                          // Si la lista está vacía o ninguna coincide tras el mapeo, forzamos la selección de la primera
-                          // o de una que tenga datos de ahorro positivos.
-                          if (segTariffs.length > 0 && !segTariffs.some((t: any) => t.selected)) {
-                            console.warn("No se encontró coincidencia exacta para la mejor tarifa, seleccionando la primera disponible.");
-                            segTariffs[0].selected = true;
-                          }
+                            if (segTariffs.length === 0) {
+                              return alert("Error: No hay tarifas guardadas en esta comparativa.");
+                            }
 
-                          if (segTariffs.length === 0) {
-                            return alert("Error: No hay tarifas guardadas en esta comparativa.");
-                          }
+                            const comercial = {
+                              nombre: item.profiles?.full_name || "Comercial Naturgy",
+                              telefono: item.profiles?.phone || "",
+                              email: item.profiles?.email || ""
+                            };
 
-                          const comercial = {
-                            nombre: item.profiles?.full_name || "Comercial Naturgy",
-                            telefono: item.profiles?.phone || "",
-                            email: item.profiles?.email || ""
-                          };
-
-                          exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
-                        }}
-                        className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"
-                        title="Re-generar PDF"
-                      >
-                        <FileText size={20} />
-                      </button>
+                            exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
+                          }}
+                          className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"
+                          title="Re-generar PDF"
+                        >
+                          <FileText size={18} />
+                        </button>
+                        
+                        <button
+                          onClick={async () => {
+                            if (!confirm("¿Seguro que quieres borrar esta comparativa del historial?")) return;
+                            const { error } = await supabase.from("client_comparisons").delete().eq("id", item.id);
+                            if (error) {
+                              alert("Error al borrar: " + error.message);
+                            } else {
+                              // Refrescar la lista localmente
+                              setHistory(history.filter(h => h.id !== item.id));
+                            }
+                          }}
+                          className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all"
+                          title="Borrar comparativa"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
