@@ -8,7 +8,7 @@ import type { SegCliente, TarifaLocal } from "./utils/calculations";
 import { exportPDF } from "./utils/pdfExport";
 import type { ComercialData } from "./utils/pdfExport";
 import { exportExcel } from "./utils/excelExport";
-import { LogIn, Shield, Users, Plus, Trash2, X, AlertTriangle, Pencil, HelpCircle, Eye, EyeOff, Clock } from "lucide-react";
+import { LogIn, Shield, Users, Plus, Trash2, X, AlertTriangle, Pencil, HelpCircle, Eye, EyeOff, Clock, FileText } from "lucide-react";
 import {
   Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip
 } from "chart.js";
@@ -1257,6 +1257,7 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
                   <th className="px-6 py-4 font-bold">Cliente</th>
                   <th className="px-6 py-4 font-bold">Segmento</th>
                   <th className="px-6 py-4 font-bold text-right">Ahorro</th>
+                  <th className="px-6 py-4 font-bold text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1286,6 +1287,32 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
                       <div className="text-[10px] text-slate-400">
                         Tarifa: {item.calculation_data?.best_tariff}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => {
+                          const cd = item.calculation_data;
+                          if (!cd) return alert("No hay datos de cálculo disponibles.");
+                          
+                          // Mapear de vuelta a los tipos que espera exportPDF
+                          const segLabel = cd.segment || "Residencial";
+                          const taxModel = cd.tax_model || "Canarias";
+                          const potP = cd.pot_prices || [];
+                          const c = cd.client_data || {};
+                          const segTariffs = cd.available_tariffs || [];
+                          const comercial = {
+                            nombre: item.profiles?.full_name || "Comercial Naturgy",
+                            telefono: item.profiles?.phone || "",
+                            email: item.profiles?.email || ""
+                          };
+
+                          exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
+                        }}
+                        className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"
+                        title="Re-generar PDF"
+                      >
+                        <FileText size={20} />
+                      </button>
                     </td>
                   </tr>
                 ))}
