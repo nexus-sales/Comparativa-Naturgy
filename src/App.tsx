@@ -939,9 +939,20 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
         setIsSaving(true);
         const currentUser = user;
         
+        console.log("Intentando guardar comparativa para el usuario:", currentUser?.id);
+        console.log("Datos de la comparativa:", {
+          client_name: c.nombre,
+          action: action,
+          segment: segDef.label
+        });
+
+        if (!currentUser) {
+          throw new Error("No hay sesión de usuario activa");
+        }
+        
         // Primero intentamos guardar la comparativa
-        const { error: compError } = await supabase.from('client_comparisons').insert({
-          user_id: currentUser?.id,
+        const { error: compError, data: compData } = await supabase.from('client_comparisons').insert({
+          user_id: currentUser.id,
           client_name: c.nombre || 'Sin nombre',
           client_email: (c as any).email || null,
           client_address: c.dir || null,
@@ -952,37 +963,34 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
             current_invoice: c.factura,
             segment: segDef.label
           }
-        });
+        }).select();
 
         if (compError) {
-          console.error("Error inserting into client_comparisons:", compError);
-          throw compError;
+          console.error("Error detallado en client_comparisons:", compError);
+          throw new Error(`Error BD (Comparativa): ${compError.message} [${compError.code}]`);
         }
         
+        console.log("Comparativa guardada con éxito:", compData);
+
         // Luego registramos la actividad
         const { error: actError } = await supabase.from('user_activity').insert({
-          user_id: currentUser?.id,
+          user_id: currentUser.id,
           action: action,
           details: { client: c.nombre, segment: segDef.label }
         });
 
         if (actError) {
-          console.error("Error inserting into user_activity:", actError);
-          // No lanzamos error aquí para que al menos la comparativa se considere guardada
+          console.error("Error detallado en user_activity:", actError);
         }
 
         if (action === 'COMPARISON_SAVED') {
-          alert("Comparativa guardada correctamente en el historial.");
-          // Limpiar el estado de guardado
+          alert("✓ Comparativa guardada correctamente en el historial.");
           setIsSaving(false);
         }
       } catch (err: any) {
-        console.error("Error al guardar en el historial:", err);
-        alert("Error al guardar: " + (err.message || "Error desconocido"));
+        console.error("ERROR CRÍTICO AL GUARDAR:", err);
+        alert("❌ Error al guardar: " + (err.message || "Error desconocido"));
         setIsSaving(false);
-      } finally {
-        // No ponemos setIsSaving(false) aquí si queremos que el alert sea lo último antes de resetear
-        // pero por seguridad si algo falla fuera del catch, lo aseguramos
       }
     };
 
