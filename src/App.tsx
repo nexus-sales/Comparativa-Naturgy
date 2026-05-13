@@ -8,7 +8,7 @@ import type { SegCliente, TarifaLocal } from "./utils/calculations";
 import { exportPDF } from "./utils/pdfExport";
 import type { ComercialData } from "./utils/pdfExport";
 import { exportExcel } from "./utils/excelExport";
-import { LogIn, Shield, Users, Plus, Trash2, X, AlertTriangle, Pencil, HelpCircle, Eye, EyeOff } from "lucide-react";
+import { LogIn, Shield, Users, Plus, Trash2, X, AlertTriangle, Pencil, HelpCircle, Eye, EyeOff, Clock } from "lucide-react";
 import {
   Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip
 } from "chart.js";
@@ -46,7 +46,7 @@ const OWNER_ADMIN_EMAILS = new Set(["salvamunoz@avantiasl.com"]);
 
 function App() {
   const { user, loading: authLoading, isAdmin: authIsAdmin, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile">("comparator");
+  const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile" | "history">("comparator");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showAppHelp, setShowAppHelp] = useState(false);
 
@@ -133,6 +133,7 @@ function App() {
           <nav className="flex items-center gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto max-w-full">
             <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />} label="Comercial" />
             <TabButton active={effectiveTab === "profile"} onClick={() => setActiveTab("profile")} icon={<Pencil size={16} />} label="Usuario" />
+            <TabButton active={effectiveTab === "history"} onClick={() => setActiveTab("history")} icon={<Clock size={16} />} label="Historial" />
             {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
           <div className="flex items-center gap-4 text-sm">
@@ -198,6 +199,7 @@ function App() {
             {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} />}
             {effectiveTab === "profile" && <UserProfilePane user={user} profile={profile} isAdmin={isAdmin} />}
             {effectiveTab === "admin" && <AdminView segments={segments} tariffs={tariffs} />}
+            {effectiveTab === "history" && <UserHistoryView user={user} isAdmin={isAdmin} />}
           </>
         )}
       </main>
@@ -1180,6 +1182,108 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
       {sub === "cli" && ClientPane({ segId: activeSeg })}
       {sub === "tar" && TariffPane({ segId: activeSeg })}
       {sub === "comp" && CompPane({ segId: activeSeg })}
+    </div>
+  );
+}
+
+// ── USER HISTORY VIEW ────────────────────────────────────────────────────────
+
+function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setLoading(true);
+      const query = supabase.from("client_comparisons")
+        .select("*, profiles!client_comparisons_user_id_fkey(email)")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      
+      if (!isAdmin) {
+        query.eq("user_id", user?.id);
+      }
+
+      const { data } = await query;
+      if (data) setHistory(data);
+      setLoading(false);
+    };
+    fetchHistory();
+  }, [user, isAdmin]);
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center gap-4 mb-2">
+        <div className="bg-orange-100 p-3 rounded-2xl text-orange-600">
+          <Clock size={32} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-extrabold text-[#002855]">
+            {isAdmin ? "Historial Global" : "Mis Comparativas"}
+          </h2>
+          <p className="text-slate-500">
+            {isAdmin 
+              ? "Registro completo de todas las ofertas realizadas en la plataforma" 
+              : "Consulta y recupera tus comparativas guardadas anteriormente"}
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="p-12 text-center text-slate-400 animate-pulse">Cargando historial...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <tr>
+                  <th className="px-6 py-4 font-bold">Fecha</th>
+                  {isAdmin && <th className="px-6 py-4 font-bold">Comercial</th>}
+                  <th className="px-6 py-4 font-bold">Cliente</th>
+                  <th className="px-6 py-4 font-bold">Segmento</th>
+                  <th className="px-6 py-4 font-bold text-right">Ahorro</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {history.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
+                      {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 font-medium text-blue-700">
+                        {item.profiles?.email?.split('@')[0] || 'Desconocido'}
+                      </td>
+                    )}
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-800">{item.client_name}</div>
+                      <div className="text-[10px] text-slate-400 truncate max-w-[200px]">{item.client_address || 'Sin dirección'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        {item.calculation_data?.segment}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="font-black text-green-600 text-base">
+                        {fmtEur(item.calculation_data?.saving || 0)}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        Tarifa: {item.calculation_data?.best_tariff}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!history.length && (
+              <div className="p-12 text-center text-slate-400 italic bg-slate-50/30">
+                Aún no has guardado ninguna comparativa.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
