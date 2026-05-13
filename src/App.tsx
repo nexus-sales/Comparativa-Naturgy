@@ -1333,8 +1333,14 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
                         
                         <button
                           onClick={async () => {
-                            if (!confirm("¿Seguro que quieres borrar esta comparativa del historial?")) return;
-                            const { error } = await supabase.from("client_comparisons").delete().eq("id", item.id);
+                            if (!confirm("¿Seguro que quieres borrar esta comparativa de tu historial?")) return;
+                            
+                            // En lugar de borrar físicamente, activamos el flag deleted_by_user
+                            const { error } = await supabase
+                              .from("client_comparisons")
+                              .update({ deleted_by_user: true })
+                              .eq("id", item.id);
+                              
                             if (error) {
                               alert("Error al borrar: " + error.message);
                             } else {
