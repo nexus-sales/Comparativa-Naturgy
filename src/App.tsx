@@ -1203,17 +1203,23 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
   useEffect(() => {
     const fetchHistory = async () => {
       setLoading(true);
-      const query = supabase.from("client_comparisons")
+      
+      // Intentamos primero la consulta directa sin la relación para descartar problemas de FK
+      const { data, error } = await supabase.from("client_comparisons")
         .select("*, profiles!client_comparisons_user_id_fkey(email)")
         .order("created_at", { ascending: false })
         .limit(100);
       
-      if (!isAdmin) {
-        query.eq("user_id", user?.id);
+      if (error) {
+        console.error("Error cargando historial:", error);
+        // Si falla la relación, intentamos carga simple
+        const { data: simpleData } = await supabase.from("client_comparisons")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (simpleData) setHistory(simpleData);
+      } else if (data) {
+        setHistory(data);
       }
-
-      const { data } = await query;
-      if (data) setHistory(data);
       setLoading(false);
     };
     fetchHistory();
@@ -1438,13 +1444,22 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
       if (data) setProfiles(data);
     });
     
-    supabase.from("client_comparisons")
-      .select("*, profiles!client_comparisons_user_id_fkey(email)")
-      .order("created_at", { ascending: false })
-      .limit(100)
-      .then(({ data }) => {
-        if (data) setHistory(data);
-      });
+    const fetchAdminHistory = async () => {
+      const { data, error } = await supabase.from("client_comparisons")
+        .select("*, profiles!client_comparisons_user_id_fkey(email)")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      
+      if (error) {
+        console.error("Admin History Error:", error);
+        const { data: sData } = await supabase.from("client_comparisons").select("*").order("created_at", { ascending: false });
+        if (sData) setHistory(sData);
+      } else if (data) {
+        setHistory(data);
+      }
+    };
+
+    fetchAdminHistory();
   }, []);
 
   const toggleApprove = async (id: string, current: boolean) => {
