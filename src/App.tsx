@@ -936,7 +936,9 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
       try {
         setIsSaving(true);
         const currentUser = user;
-        await supabase.from('client_comparisons').insert({
+        
+        // Primero intentamos guardar la comparativa
+        const { error: compError } = await supabase.from('client_comparisons').insert({
           user_id: currentUser?.id,
           client_name: c.nombre || 'Sin nombre',
           client_email: (c as any).email || null,
@@ -949,20 +951,36 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
             segment: segDef.label
           }
         });
+
+        if (compError) {
+          console.error("Error inserting into client_comparisons:", compError);
+          throw compError;
+        }
         
-        await supabase.from('user_activity').insert({
+        // Luego registramos la actividad
+        const { error: actError } = await supabase.from('user_activity').insert({
           user_id: currentUser?.id,
           action: action,
           details: { client: c.nombre, segment: segDef.label }
         });
 
+        if (actError) {
+          console.error("Error inserting into user_activity:", actError);
+          // No lanzamos error aquí para que al menos la comparativa se considere guardada
+        }
+
         if (action === 'COMPARISON_SAVED') {
           alert("Comparativa guardada correctamente en el historial.");
+          // Limpiar el estado de guardado
+          setIsSaving(false);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error al guardar en el historial:", err);
-      } finally {
+        alert("Error al guardar: " + (err.message || "Error desconocido"));
         setIsSaving(false);
+      } finally {
+        // No ponemos setIsSaving(false) aquí si queremos que el alert sea lo último antes de resetear
+        // pero por seguridad si algo falla fuera del catch, lo aseguramos
       }
     };
 
@@ -972,7 +990,9 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
     };
 
     const handleSaveOnly = async () => {
+      console.log("Iniciando guardado de comparativa...");
       await saveToHistory('COMPARISON_SAVED');
+      console.log("Proceso de guardado finalizado.");
     };
 
     const rowDefs: [string, string][] = isPyme ? [
@@ -1182,41 +1202,42 @@ function UserProfilePane({ user, profile, isAdmin }: { user: any; profile: any; 
     });
   }, [profile, user]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.id) {
-      setMessage("Error: no hay sesion activa.");
-      return;
-    }
+    const handleSave = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!user?.id) {
+        setMessage("Error: no hay sesion activa.");
+        return;
+      }
 
-    setSaving(true);
-    setMessage("");
-    try {
-      const payload = {
-        id: user.id,
-        full_name: formData.full_name.trim(),
-        phone: formData.phone.trim(),
-        email: formData.email.trim() || user.email,
-        is_admin: isAdmin, // Mantener el rol actual
-        is_approved: profile?.is_approved ?? false // Mantener el estado de aprobación
-      };
+      setSaving(true);
+      setMessage("");
+      try {
+        const payload = {
+          id: user.id,
+          full_name: formData.full_name.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim() || user.email,
+          is_admin: isAdmin, // Mantener el rol actual
+          is_approved: profile?.is_approved ?? false // Mantener el estado de aprobación
+        };
 
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(payload);
+        const { error } = await supabase
+          .from('profiles')
+          .upsert(payload);
 
-      if (error) throw error;
-      
-      // Forzamos un refresco manual de la página para asegurar que todo el App se entere del cambio
-      // aunque useAuth tenga realtime, a veces el estado local de App.tsx necesita este empujón
-      window.location.reload();
-    } catch (err: any) {
-      console.error(err);
-      setMessage("Error al guardar: " + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+        if (error) {
+          console.error("Upsert error details:", error);
+          throw error;
+        }
+        
+        // Forzamos un refresco manual de la página para asegurar que todo el App se entere del cambio
+        window.location.reload();
+      } catch (err: any) {
+        console.error("Profile save error:", err);
+        setMessage("Error al guardar: " + (err.message || "Error de red o permisos RLS"));
+        setSaving(false);
+      }
+    };
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
