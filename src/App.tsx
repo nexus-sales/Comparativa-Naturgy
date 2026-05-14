@@ -29,20 +29,25 @@ const PERIODO_LABELS = ["P1 — Punta", "P2 — Valle", "P3", "P4", "P5", "P6"];
 
 async function signOutAndReset() {
   try {
-    // 1. Limpiar la sesión en Supabase
-    await supabase.auth.signOut({ scope: 'local' });
+    console.log("Iniciando cierre de sesión...");
     
-    // 2. Limpiar todo el almacenamiento local
+    // 1. Limpiar todo el almacenamiento local explícitamente primero
     localStorage.clear();
     sessionStorage.clear();
     
-    // 3. Forzar redirección limpia al inicio
-    window.location.href = window.location.origin + '/';
+    // 2. Intentar cerrar sesión en Supabase
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.warn('Supabase signOut error (posible sesión ya expirada):', error);
+    }
+    
+    // 3. Forzar redirección física para limpiar estado de React
+    console.log("Redirigiendo...");
+    window.location.href = window.location.origin + window.location.pathname + "?t=" + Date.now();
   } catch (err) {
-    console.error('Error signing out:', err);
-    // Incluso si falla, intentamos limpiar y redirigir
+    console.error('Error crítico en signOutAndReset:', err);
     localStorage.clear();
-    window.location.href = '/';
+    window.location.href = "/";
   }
 }
 
