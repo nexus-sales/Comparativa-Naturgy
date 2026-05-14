@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { fmtEur } from "../../utils/calculations";
+import type { SegCliente, TarifaLocal } from "../../utils/calculations";
 import { exportPDF } from "../../utils/pdfExport";
 import { Trash2, Clock, FileText, Users, RefreshCw } from "lucide-react";
 import { KPICard } from "../KPICard";
@@ -204,14 +205,14 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
 
                               const segLabel = (cd.segment as string) || "Residencial";
                               const taxModel = (cd.tax_model as string) || "Canarias";
-                              const potP = (cd.pot_prices as unknown[]) || [];
-                              const c = (cd.client_data as Record<string, unknown>) || {};
+                              const potP = typeof cd.pot_prices === "number" ? cd.pot_prices : 2;
+                              const c = (cd.client_data as SegCliente) || {};
 
                               const segTariffs = ((cd.available_tariffs as unknown[]) || []).map((t: unknown) => {
                                 const tariff = t as Record<string, unknown>;
                                 const isBest = String(tariff.name).trim() === String(cd.best_tariff).trim();
                                 return { ...tariff, selected: isBest };
-                              });
+                              }) as TarifaLocal[];
 
                               if (segTariffs.length > 0 && !segTariffs.some(t => t.selected)) {
                                 segTariffs[0].selected = true;

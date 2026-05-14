@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";

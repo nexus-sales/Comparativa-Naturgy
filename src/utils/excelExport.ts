@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { SegCliente, TarifaLocal } from './calculations';
+import type { CalcResult, SegCliente, TarifaLocal } from './calculations';
 import { calc, fmtRaw } from './calculations';
 
 export function exportExcel(
@@ -18,7 +18,7 @@ export function exportExcel(
 
   const wb = XLSX.utils.book_new();
 
-  const rowDefs: [string, string][] = isPyme ? [
+  const rowDefs: [string, keyof CalcResult][] = isPyme ? [
     ['Coste potencia', 'potencia'],
     ['Coste energía', 'energia'],
     ['SVA', 'sva'],
@@ -52,8 +52,8 @@ export function exportExcel(
       lbl,
       key === 'alquiler' ? +c.alquiler : null,
       ...results.map(x => {
-        const val = (x.r as Record<string, unknown>)[key as string];
-        return val !== undefined ? +(val as number) : null;
+        const val = x.r[key];
+        return val !== undefined ? +val : null;
       }),
     ]),
     ['TOTAL ESTIMADO', +c.factura, ...results.map(x => +x.r.total)],
