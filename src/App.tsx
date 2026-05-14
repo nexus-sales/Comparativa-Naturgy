@@ -1744,36 +1744,60 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
       )}
 
       {view === "history" && (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
-                <tr>
-                  <th className="px-4 py-3 font-bold">Fecha</th>
-                  <th className="px-4 py-3 font-bold">Comercial</th>
-                  <th className="px-4 py-3 font-bold">Cliente</th>
-                  <th className="px-4 py-3 font-bold">Segmento</th>
-                  <th className="px-4 py-3 font-bold">Ahorro</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {history.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{new Date(item.created_at).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 font-medium">{item.profiles?.email?.split('@')[0] || 'Desconocido'}</td>
-                    <td className="px-4 py-3">{item.client_name}</td>
-                    <td className="px-4 py-3 text-xs">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium whitespace-nowrap">{item.calculation_data?.segment}</span>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-green-600 whitespace-nowrap">{item.calculation_data?.saving} €</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="space-y-6">
+          {/* Admin KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard title="Total Global" value={history.length} icon={<FileText className="text-blue-500" size={20} />} />
+            <KPICard title="Ahorro Acumulado" value={fmtEur(history.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
+            <KPICard title="Ahorro Promedio" value={fmtEur(history.length ? history.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0) / history.length : 0)} icon={<div className="text-emerald-500 font-bold">⌀</div>} />
+            <KPICard title="Top Comercial" value={
+              Object.entries(history.reduce((acc: any, curr) => {
+                const name = curr.profiles?.email?.split('@')[0] || 'Desconocido';
+                acc[name] = (acc[name] || 0) + 1;
+                return acc;
+              }, {})).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || "-"
+            } icon={<Users className="text-orange-500" size={20} />} />
           </div>
-          {!history.length && (
-            <div className="p-8 text-center text-slate-400 italic">No hay registros aún.</div>
-          )}
+
+          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <tr>
+                    <th className="px-6 py-4">Fecha</th>
+                    <th className="px-6 py-4">Comercial</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Sector</th>
+                    <th className="px-6 py-4 text-right">Ahorro</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {history.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
+                        {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-blue-700">
+                        {item.profiles?.email?.split('@')[0] || 'Desconocido'}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-800">{item.client_name}</td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                          {item.target_segment || item.calculation_data?.segment}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-black text-green-600 text-right whitespace-nowrap">
+                        {fmtEur(item.calculation_data?.saving || 0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {!history.length && (
+              <div className="p-12 text-center text-slate-400 italic">No hay registros aún en el sistema.</div>
+            )}
+          </div>
         </div>
       )}
 
