@@ -29,16 +29,20 @@ const PERIODO_LABELS = ["P1 — Punta", "P2 — Valle", "P3", "P4", "P5", "P6"];
 
 async function signOutAndReset() {
   try {
+    // 1. Limpiar la sesión en Supabase
     await supabase.auth.signOut({ scope: 'local' });
+    
+    // 2. Limpiar todo el almacenamiento local
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // 3. Forzar redirección limpia al inicio
+    window.location.href = window.location.origin + '/';
   } catch (err) {
     console.error('Error signing out:', err);
-  } finally {
-    try {
-      localStorage.removeItem('naturgy_data_v1');
-    } catch {
-      // Ignorar si el navegador bloquea localStorage
-    }
-    window.location.assign('/');
+    // Incluso si falla, intentamos limpiar y redirigir
+    localStorage.clear();
+    window.location.href = '/';
   }
 }
 
@@ -1404,8 +1408,8 @@ function UserProfilePane({ user, profile, isAdmin }: { user: any; profile: any; 
           full_name: formData.full_name.trim(),
           phone: formData.phone.trim(),
           email: formData.email.trim() || user.email,
-          is_admin: isAdmin, // Mantener el rol actual
-          is_approved: profile?.is_approved ?? false // Mantener el estado de aprobación
+          is_admin: profile?.is_admin ?? isAdmin, // Usar el valor real de la DB si existe, si no el prop
+          is_approved: profile?.is_approved ?? false 
         };
 
         const { error } = await supabase
@@ -1482,8 +1486,7 @@ function UserProfilePane({ user, profile, isAdmin }: { user: any; profile: any; 
 
         <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
           <div className="text-xs text-slate-400">
-            Rol actual: <span className="font-bold text-blue-600">{isAdmin ? "Administrador" : "Comercial"}</span>
-            {!isAdmin && !profile?.is_approved && <span className="ml-2 text-red-500 font-bold">(Acceso limitado)</span>}
+            Rol actual: <span className="font-bold text-blue-600 uppercase">{isAdmin ? "Administrador" : "Comercial"}</span>
           </div>
           <button 
             type="submit" 
