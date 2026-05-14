@@ -136,6 +136,13 @@ export const SEG_DEFAULTS: Record<string, Partial<SegCliente>> = {
   pyme361:   { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
 };
 
+export const SEG_DEFS = [
+  { id: "res",       label: "Residencial",      color: "#185FA5" },
+  { id: "pyme20",    label: "Pyme 2.0TD",       color: "#0F6E56" },
+  { id: "pyme20one", label: "Pyme ONE 2.0TD",   color: "#B45309" },
+  { id: "pyme361",   label: "Pyme 3.0/6.1TD",   color: "#6D28D9" },
+];
+
 export function makeDefaultClient(segId: string): SegCliente {
   const d = SEG_DEFAULTS[segId] || SEG_DEFAULTS['pyme20'];
   return {

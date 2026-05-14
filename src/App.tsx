@@ -3,7 +3,7 @@ import { supabase } from "./lib/supabase";
 import { useAuth } from "./hooks/useAuth";
 import { useData } from "./hooks/useData";
 import type { Segment, Tariff } from "./hooks/useData";
-import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS } from "./utils/calculations";
+import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS } from "./utils/calculations";
 import type { SegCliente, TarifaLocal } from "./utils/calculations";
 import { exportPDF } from "./utils/pdfExport";
 import type { ComercialData } from "./utils/pdfExport";
@@ -15,13 +15,6 @@ import {
 import { AuthStatus } from "./components/auth/AuthOverlay";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
-
-const SEG_DEFS = [
-  { id: "res",       label: "Residencial",      color: "#185FA5" },
-  { id: "pyme20",    label: "Pyme 2.0TD",       color: "#0F6E56" },
-  { id: "pyme20one", label: "Pyme ONE 2.0TD",   color: "#B45309" },
-  { id: "pyme361",   label: "Pyme 3.0/6.1TD",   color: "#6D28D9" },
-];
 
 const PERIODO_LABELS = ["P1 — Punta", "P2 — Valle", "P3", "P4", "P5", "P6"];
 
