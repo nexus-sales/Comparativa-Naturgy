@@ -1407,17 +1407,16 @@ function UserProfilePane({ user, profile, isAdmin }: { user: any; profile: any; 
           id: user.id,
           full_name: formData.full_name.trim(),
           phone: formData.phone.trim(),
-          email: formData.email.trim() || user.email,
-          is_admin: profile?.is_admin ?? isAdmin, // Usar el valor real de la DB si existe, si no el prop
-          is_approved: profile?.is_approved ?? false 
+          email: formData.email.trim() || user.email
         };
 
         const { error } = await supabase
           .from('profiles')
-          .upsert(payload);
+          .update(payload)
+          .eq('id', user.id);
 
         if (error) {
-          console.error("Upsert error details:", error);
+          console.error("Update error details:", error);
           throw error;
         }
         

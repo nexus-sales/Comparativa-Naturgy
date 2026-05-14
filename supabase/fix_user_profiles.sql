@@ -59,8 +59,6 @@ TO authenticated
 USING (auth.uid() = id)
 WITH CHECK (
   auth.uid() = id
-  AND COALESCE(is_admin, false) = public.is_user_admin()
-  AND COALESCE(is_approved, false) = public.is_user_approved()
 );
 
 CREATE POLICY "Admins can manage all profiles"
