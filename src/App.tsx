@@ -1892,8 +1892,8 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
     name: tariff?.name ?? "",
     type: tariff?.type ?? "uni",
     pot_unit: tariff?.pot_unit ?? "dia",
-    r_pot: tariff ? [...tariff.r_pot.map(String), ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
-    r_en:  tariff ? [...tariff.r_en.map(String),  ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
+    r_pot: tariff ? [...tariff.r_pot.map(v => v === 0 ? "" : String(v)), ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
+    r_en:  tariff ? [...tariff.r_en.map(v => v === 0 ? "" : String(v)),  ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
     sva: String(tariff?.sva ?? "0"),
     requires_auth: tariff?.requires_auth ?? false,
   });
@@ -1914,8 +1914,8 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
       name: form.name.trim(),
       type: form.type,
       pot_unit: form.pot_unit,
-      r_pot: form.type === "hex" ? r_pot.slice(0, 6) : r_pot.slice(0, 2),
-      r_en:  form.type === "hex" ? r_en.slice(0, 6) : (form.type === "tri" ? r_en.slice(0, 3) : r_en.slice(0, 1)),
+      r_pot: r_pot,
+      r_en:  r_en,
       sva: cleanNum(form.sva),
       requires_auth: form.requires_auth,
     };
