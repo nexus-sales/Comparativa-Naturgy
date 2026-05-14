@@ -1290,11 +1290,6 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
     acc[seg] = (acc[seg] || 0) + 1;
     return acc;
   }, {});
-  const countByTariff = filteredHistory.reduce((acc: any, curr) => {
-    const t = curr.target_tariff || curr.calculation_data?.best_tariff || "Desconocida";
-    acc[t] = (acc[t] || 0) + 1;
-    return acc;
-  }, {});
 
   const uniqueTariffs = Array.from(new Set(history.map(item => item.target_tariff || item.calculation_data?.best_tariff).filter(Boolean)));
   const uniqueSegments = Array.from(new Set(history.map(item => item.target_segment || item.calculation_data?.segment).filter(Boolean)));

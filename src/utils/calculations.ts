@@ -29,6 +29,7 @@ export interface TarifaLocal {
   open: boolean;
   selected: boolean;
   requires_auth?: boolean;
+  segment_id?: string;
 }
 
 export interface CalcResult {
