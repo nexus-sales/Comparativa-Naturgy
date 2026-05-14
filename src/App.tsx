@@ -53,8 +53,6 @@ function App() {
   useEffect(() => {
     if (user && !isAdmin && (!profile || !profile.full_name) && activeTab === "comparator") {
       setActiveTab("profile");
-    } else if (user && profile?.full_name && activeTab === "profile") {
-      setActiveTab("comparator");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, profile, isAdmin]);
