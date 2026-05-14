@@ -1156,15 +1156,18 @@ function ComparatorView({ segments, tariffs, isAdmin, profile, user }: { segment
             <span className="flex items-center gap-1.5 text-xs text-slate-500">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#94a3b8] inline-block"></span> Factura actual
             </span>
-            {results.map(x => (
-              <span key={x.t.id} className="flex items-center gap-1.5 text-xs text-slate-500">
-                <span 
-                  className={`w-2.5 h-2.5 rounded-sm inline-block ${x.t.id === best.t.id ? "bg-orange-500" : ""}`}
-                  style={x.t.id === best.t.id ? {} : { backgroundColor: x.color }}
-                ></span>
-                {x.t.nombre}
-              </span>
-            ))}
+            {results.map(x => {
+              const segDef = SEG_DEFS.find(s => s.id === x.t.segment_id);
+              return (
+                <span key={x.t.id} className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span 
+                    className={`w-2.5 h-2.5 rounded-sm inline-block ${x.t.id === best.t.id ? "bg-orange-500" : (segDef ? `bg-[${segDef.color}]` : "bg-blue-500")}`}
+                    style={x.t.id === best.t.id ? {} : { backgroundColor: x.color }}
+                  ></span>
+                  {x.t.nombre}
+                </span>
+              );
+            })}
           </div>
 
           <div className="mt-8 pt-4 border-t border-slate-100 text-center">
@@ -1329,6 +1332,7 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-400 uppercase">Tarifa:</span>
           <select 
+            title="Filtrar por Tarifa"
             value={filterTariff} 
             onChange={(e) => setFilterTariff(e.target.value)}
             className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
@@ -1340,6 +1344,7 @@ function UserHistoryView({ user, isAdmin }: { user: any; isAdmin: boolean }) {
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-400 uppercase">Sector:</span>
           <select 
+            title="Filtrar por Sector"
             value={filterSegment} 
             onChange={(e) => setFilterSegment(e.target.value)}
             className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
@@ -1696,7 +1701,7 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
                   onClick={() => setFilterSegment(seg.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === seg.id ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
                 >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: (seg as any).color }}></span>
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: (SEG_DEFS.find(s => s.id === seg.id)?.color || '#cbd5e1') }}></span>
                   {seg.label}
                 </button>
               ))}
