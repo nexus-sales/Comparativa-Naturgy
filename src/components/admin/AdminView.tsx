@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { Shield, Trash2, Pencil, Plus, FileText, Users, X } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur, SEG_DEFS } from "../../utils/calculations";
-import type { Segment, Tariff } from "../../hooks/useData";
+import { useAppStore } from "../../store/useAppStore";
+import type { Segment, Tariff, ClientComparison, Profile } from "../../types";
 
 interface AdminViewProps {
   segments: Segment[];
@@ -11,8 +12,9 @@ interface AdminViewProps {
 }
 
 export function AdminView({ segments, tariffs }: AdminViewProps) {
-  const [profiles, setProfiles] = useState<{ id: string; email: string; is_admin: boolean; is_approved: boolean }[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
+  const { refresh: refreshStore } = useAppStore();
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [history, setHistory] = useState<ClientComparison[]>([]);
   const [view, setView] = useState<"tariffs" | "users" | "history">("tariffs");
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
@@ -72,23 +74,27 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
       alert("Error al borrar: " + error.message);
     } else {
       alert("Tarifa eliminada");
-      if (typeof (window as any).refreshAppCache === 'function') {
-        (window as any).refreshAppCache();
-      }
+      void refreshStore();
     }
   };
 
   const closeForm = () => { setShowTariffForm(false); setEditingTariff(null); };
 
-  // Filtrado de Historial para Admin
   const filteredHistory = history.filter(item => {
-    const tariffMatch = !historyFilterTariff || item.target_tariff === historyFilterTariff || item.calculation_data?.best_tariff === historyFilterTariff;
-    const segmentMatch = !historyFilterSegment || item.target_segment === historyFilterSegment || item.calculation_data?.segment === historyFilterSegment;
+    const cd = item.calculation_data as Record<string, unknown>;
+    const tariffMatch = !historyFilterTariff || item.target_tariff === historyFilterTariff || cd?.best_tariff === historyFilterTariff;
+    const segmentMatch = !historyFilterSegment || item.target_segment === historyFilterSegment || cd?.segment === historyFilterSegment;
     return tariffMatch && segmentMatch;
   });
 
-  const uniqueHistoryTariffs = Array.from(new Set(history.map(item => item.target_tariff || item.calculation_data?.best_tariff).filter(Boolean)));
-  const uniqueHistorySegments = Array.from(new Set(history.map(item => item.target_segment || item.calculation_data?.segment).filter(Boolean)));
+  const uniqueHistoryTariffs = Array.from(new Set(history.map(item => {
+    const cd = item.calculation_data as Record<string, unknown>;
+    return item.target_tariff || (cd?.best_tariff as string);
+  }).filter(Boolean)));
+  const uniqueHistorySegments = Array.from(new Set(history.map(item => {
+    const cd = item.calculation_data as Record<string, unknown>;
+    return item.target_segment || (cd?.segment as string);
+  }).filter(Boolean)));
 
   return (
     <div className="p-6 bg-white rounded-2xl shadow-sm border border-slate-200">
@@ -160,14 +166,14 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <KPICard title="Total Global" value={filteredHistory.length} icon={<FileText className="text-blue-500" size={20} />} />
-            <KPICard title="Ahorro Acumulado" value={fmtEur(filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
-            <KPICard title="Ahorro Promedio" value={filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0) / filteredHistory.length : 0} icon={<div className="text-emerald-500 font-bold">⌀</div>} />
+            <KPICard title="Ahorro Acumulado" value={fmtEur(filteredHistory.reduce((acc, curr) => acc + (((curr.calculation_data as Record<string, unknown>)?.saving as number) || 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
+            <KPICard title="Ahorro Promedio" value={filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (((curr.calculation_data as Record<string, unknown>)?.saving as number) || 0), 0) / filteredHistory.length : 0} icon={<div className="text-emerald-500 font-bold">⌀</div>} />
             <KPICard title="Top Comercial" value={
-              Object.entries(filteredHistory.reduce((acc: any, curr) => {
+              Object.entries(filteredHistory.reduce<Record<string, number>>((acc, curr) => {
                 const name = curr.profiles?.email?.split('@')[0] || 'Desconocido';
                 acc[name] = (acc[name] || 0) + 1;
                 return acc;
-              }, {})).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || "-"
+              }, {})).sort((a, b) => b[1] - a[1])[0]?.[0] || "-"
             } icon={<Users className="text-orange-500" size={20} />} />
           </div>
 
@@ -219,25 +225,28 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredHistory.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
-                        {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-blue-700">
-                        {item.profiles?.email?.split('@')[0] || 'Desconocido'}
-                      </td>
-                      <td className="px-6 py-4 font-medium text-slate-800">{item.client_name}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                          {item.target_segment || item.calculation_data?.segment}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-black text-green-600 text-right whitespace-nowrap">
-                        {fmtEur(item.calculation_data?.saving || 0)}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredHistory.map(item => {
+                    const cd = item.calculation_data as Record<string, unknown>;
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
+                          {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-blue-700">
+                          {item.profiles?.email?.split('@')[0] || 'Desconocido'}
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-800">{item.client_name}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                            {item.target_segment || (cd?.segment as string)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-black text-green-600 text-right whitespace-nowrap">
+                          {fmtEur((cd?.saving as number) || 0)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -335,12 +344,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
 
     if (error) {
       alert("Error al guardar: " + error.message);
-    } else { 
+    } else {
       alert("Tarifa guardada correctamente");
-      onClose(); 
-      if (typeof (window as any).refreshAppCache === 'function') {
-        (window as any).refreshAppCache();
-      }
+      onClose();
+      void useAppStore.getState().refresh();
     }
   };
 

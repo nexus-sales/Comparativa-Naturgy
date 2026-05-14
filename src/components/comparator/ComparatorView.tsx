@@ -7,19 +7,18 @@ import type { ComercialData } from "../../utils/pdfExport";
 import { exportExcel } from "../../utils/excelExport";
 import { Trash2, AlertTriangle, Shield } from "lucide-react";
 import { Chart } from "chart.js";
-import type { Segment, Tariff } from "../../hooks/useData";
+import type { Segment, Tariff, Profile } from "../../types";
+import type { User } from "@supabase/supabase-js";
 
 interface ComparatorViewProps {
   segments: Segment[];
   tariffs: Tariff[];
   isAdmin: boolean;
-  profile: any;
-  user: any;
-  refreshData: () => void;
-  loading?: boolean;
+  profile: Profile | null;
+  user: User;
 }
 
-export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refreshData, loading }: ComparatorViewProps) {
+export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: ComparatorViewProps) {
   const [clients, setClients] = useState<Record<string, SegCliente>>({});
   const hasInitializedClients = useRef(false);
   const [activeSeg, setActiveSeg] = useState("res");
@@ -28,11 +27,11 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const chartInstances = useRef<Record<string, Chart>>({});
-  
-  const [comercialData, setComercialData] = useState<ComercialData>({ 
-    nombre: profile?.full_name || "Comercial", 
-    telefono: profile?.phone || "", 
-    email: profile?.email || user?.email || "" 
+
+  const [comercialData, setComercialData] = useState<ComercialData>({
+    nombre: profile?.full_name || "Comercial",
+    telefono: profile?.phone || "",
+    email: profile?.email || user?.email || ""
   });
 
   useEffect(() => {
@@ -110,7 +109,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
     });
 
   const clearClient = (segId: string) => {
-    if (!confirm("øLimpiar todos los datos del cliente? Esta acciÛn no se puede deshacer.")) return;
+    if (!confirm("¬øLimpiar todos los datos del cliente? Esta acci√≥n no se puede deshacer.")) return;
     const keep = (({ bonoRate, excedenteRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7, alquiler }) =>
       ({ bonoRate, excedenteRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7, alquiler }))(clients[segId]);
     setClients(prev => ({ ...prev, [segId]: { ...makeDefaultClient(segId), ...keep, nombre: "", cups: "", dir: "", f1: "", f2: "", dias: 0, kw: [0,0,0,0,0,0], en: [0,0,0,0,0,0], enExc: 0, factura: 0 } }));
@@ -134,7 +133,8 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
       tax_igic_red: c.taxIGICRed,
       tax_igic_7: c.taxIGIC7
     }).eq("id", segId);
-    if (error) alert("Error: " + error.message); else alert("ConfiguraciÛn fiscal guardada.");
+    if (error) alert("Error: " + error.message);
+    else alert("Configuraci√≥n fiscal guardada.");
   };
 
   useEffect(() => {
@@ -146,7 +146,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
       const canvas = document.getElementById(`compChart_${segId}`) as HTMLCanvasElement | null;
       if (!canvas) return;
       if (chartInstances.current[segId]) { chartInstances.current[segId].destroy(); delete chartInstances.current[segId]; }
-      
+
       const c = clients[segId];
       if (!c) return;
 
@@ -179,7 +179,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
     <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
       <AlertTriangle size={18} className="text-amber-600 mt-0.5" />
       <div className="text-sm">
-        <strong className="text-amber-800">AutorizaciÛn previa requerida</strong>
+        <strong className="text-amber-800">Autorizaci√≥n previa requerida</strong>
         <p className="text-amber-700 mt-0.5">Consulta con tu responsable antes de ofertar este segmento.</p>
       </div>
     </div>
@@ -195,51 +195,51 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
         <AuthWarning />
         <div className="flex items-center justify-between mb-5">
-           <h3 className="font-bold text-[#002855]">Datos del cliente</h3>
-           <button onClick={() => clearClient(segId)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
+          <h3 className="font-bold text-[#002855]">Datos del cliente</h3>
+          <button onClick={() => clearClient(segId)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-           <div><label htmlFor={`${segId}-nombre`} className="block text-xs font-bold text-slate-500 mb-1">Nombre</label><input id={`${segId}-nombre`} placeholder="Ej: Juan PÈrez" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.nombre} onChange={e => upClient(segId,"nombre",e.target.value)} /></div>
-           <div><label htmlFor={`${segId}-cups`} className="block text-xs font-bold text-slate-500 mb-1">CUPS</label><input id={`${segId}-cups`} placeholder="ES0000..." className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm font-mono" value={c.cups} onChange={e => upClient(segId,"cups",e.target.value.toUpperCase())} /></div>
+          <div><label htmlFor={`${segId}-nombre`} className="block text-xs font-bold text-slate-500 mb-1">Nombre</label><input id={`${segId}-nombre`} placeholder="Ej: Juan P√©rez" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.nombre} onChange={e => upClient(segId,"nombre",e.target.value)} /></div>
+          <div><label htmlFor={`${segId}-cups`} className="block text-xs font-bold text-slate-500 mb-1">CUPS</label><input id={`${segId}-cups`} placeholder="ES0000..." className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm font-mono" value={c.cups} onChange={e => upClient(segId,"cups",e.target.value.toUpperCase())} /></div>
         </div>
-        <div className="mb-4"><label htmlFor={`${segId}-dir`} className="block text-xs font-bold text-slate-500 mb-1">DirecciÛn</label><input id={`${segId}-dir`} placeholder="Calle, N˙mero, Ciudad" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.dir} onChange={e => upClient(segId, "dir", e.target.value)} /></div>
+        <div className="mb-4"><label htmlFor={`${segId}-dir`} className="block text-xs font-bold text-slate-500 mb-1">Direcci√≥n</label><input id={`${segId}-dir`} placeholder="Calle, N√∫mero, Ciudad" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.dir} onChange={e => upClient(segId, "dir", e.target.value)} /></div>
         <div className="grid grid-cols-3 gap-4 mb-4">
-           <div><label htmlFor={`${segId}-f1`} className="block text-xs font-bold text-slate-500 mb-1">Inicio</label><input id={`${segId}-f1`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.f1} onChange={e => upDate(segId,"f1",e.target.value)} /></div>
-           <div><label htmlFor={`${segId}-f2`} className="block text-xs font-bold text-slate-500 mb-1">Fin</label><input id={`${segId}-f2`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.f2} onChange={e => upDate(segId,"f2",e.target.value)} /></div>
-           <div><label htmlFor={`${segId}-dias`} className="block text-xs font-bold text-slate-500 mb-1">DÌas</label><input id={`${segId}-dias`} placeholder="0" type="text" className="w-full p-2.5 bg-orange-50 border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={inputValues[`${segId}-dias`] ?? c.dias} onChange={e => { const v = e.target.value; setInputValues(p=>({...p,[`${segId}-dias`]:v})); const n = parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"dias",n); }} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-dias`]; return n;})}/></div>
+          <div><label htmlFor={`${segId}-f1`} className="block text-xs font-bold text-slate-500 mb-1">Inicio</label><input id={`${segId}-f1`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.f1} onChange={e => upDate(segId,"f1",e.target.value)} /></div>
+          <div><label htmlFor={`${segId}-f2`} className="block text-xs font-bold text-slate-500 mb-1">Fin</label><input id={`${segId}-f2`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.f2} onChange={e => upDate(segId,"f2",e.target.value)} /></div>
+          <div><label htmlFor={`${segId}-dias`} className="block text-xs font-bold text-slate-500 mb-1">D√≠as</label><input id={`${segId}-dias`} placeholder="0" type="text" className="w-full p-2.5 bg-orange-50 border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={inputValues[`${segId}-dias`] ?? c.dias} onChange={e => { const v = e.target.value; setInputValues(p=>({...p,[`${segId}-dias`]:v})); const n = parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"dias",n); }} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-dias`]; return n;})}/></div>
         </div>
         <div className="border-t border-slate-100 my-4"></div>
         <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-orange-500 pl-2">Potencia (kW)</p>
         <div className={`grid gap-3 mb-4 ${potP === 6 ? "grid-cols-3 md:grid-cols-6" : "grid-cols-2"}`}>
-           {Array.from({length:potP},(_,i)=>(
-             <div key={i}><label htmlFor={`${segId}-kw-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
-             <input id={`${segId}-kw-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${segId}-kw-${i}`] ?? fmtRaw(c.kw[i],3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-kw-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(segId,"kw",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-kw-${i}`]; return n;})}/></div>
-           ))}
+          {Array.from({length:potP},(_,i)=>(
+            <div key={i}><label htmlFor={`${segId}-kw-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
+            <input id={`${segId}-kw-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${segId}-kw-${i}`] ?? fmtRaw(c.kw[i],3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-kw-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(segId,"kw",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-kw-${i}`]; return n;})}/></div>
+          ))}
         </div>
-        <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-blue-500 pl-2">EnergÌa (kWh)</p>
+        <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-blue-500 pl-2">Energ√≠a (kWh)</p>
         <div className={`grid gap-3 mb-4 ${potP === 6 ? "grid-cols-3 md:grid-cols-6" : "grid-cols-3"}`}>
-           {Array.from({length: (potP===6?6:3)},(_,i)=>(
-             <div key={i}><label htmlFor={`${segId}-en-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
-             <input id={`${segId}-en-${i}`} placeholder="0" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${segId}-en-${i}`] ?? fmtRaw(c.en[i],2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-en-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(segId,"en",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-en-${i}`]; return n;})}/></div>
-           ))}
+          {Array.from({length: (potP===6?6:3)},(_,i)=>(
+            <div key={i}><label htmlFor={`${segId}-en-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
+            <input id={`${segId}-en-${i}`} placeholder="0" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${segId}-en-${i}`] ?? fmtRaw(c.en[i],2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-en-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(segId,"en",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-en-${i}`]; return n;})}/></div>
+          ))}
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
-           <div><label htmlFor={`${segId}-alq`} className="block text-xs font-bold text-slate-500 mb-1">Alquiler (Ä)</label><input id={`${segId}-alq`} placeholder="0,00" type="text" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={inputValues[`${segId}-alq`] ?? fmtRaw(c.alquiler,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-alq`]:v})); const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"alquiler",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-alq`]; return n;})}/></div>
-           <div><label htmlFor={`${segId}-exc`} className="block text-xs font-bold text-green-600 mb-1">Excedentes kWh</label><input id={`${segId}-exc`} placeholder="0" type="text" className="w-full p-2.5 bg-green-50 border-green-200 rounded-lg text-sm font-bold" value={inputValues[`${segId}-exc`] ?? c.enExc} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-exc`]:v})); const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"enExc",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-exc`]; return n;})}/></div>
+          <div><label htmlFor={`${segId}-alq`} className="block text-xs font-bold text-slate-500 mb-1">Alquiler (‚Ç¨)</label><input id={`${segId}-alq`} placeholder="0,00" type="text" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={inputValues[`${segId}-alq`] ?? fmtRaw(c.alquiler,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-alq`]:v})); const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"alquiler",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-alq`]; return n;})}/></div>
+          <div><label htmlFor={`${segId}-exc`} className="block text-xs font-bold text-green-600 mb-1">Excedentes kWh</label><input id={`${segId}-exc`} placeholder="0" type="text" className="w-full p-2.5 bg-green-50 border-green-200 rounded-lg text-sm font-bold" value={inputValues[`${segId}-exc`] ?? c.enExc} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-exc`]:v})); const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"enExc",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-exc`]; return n;})}/></div>
         </div>
-        <div className="mb-4"><label htmlFor={`${segId}-fac`} className="block text-xs font-bold text-blue-700 mb-1">Factura Actual (Ä)</label><input id={`${segId}-fac`} placeholder="0,00" type="text" className="w-full p-2.5 bg-blue-50 border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={inputValues[`${segId}-fac`] ?? fmtRaw(c.factura,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-fac`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(segId,"factura",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-fac`]; return n;})}/></div>
+        <div className="mb-4"><label htmlFor={`${segId}-fac`} className="block text-xs font-bold text-blue-700 mb-1">Factura Actual (‚Ç¨)</label><input id={`${segId}-fac`} placeholder="0,00" type="text" className="w-full p-2.5 bg-blue-50 border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={inputValues[`${segId}-fac`] ?? fmtRaw(c.factura,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-fac`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(segId,"factura",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-fac`]; return n;})}/></div>
         {isAdmin && (
           <div className="mt-6 pt-4 border-t border-red-100 bg-red-50/50 p-4 rounded-xl">
-             <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={12}/> ConfiguraciÛn Fiscal (Admin)</p>
-             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <div><label htmlFor={`${segId}-tax-imp`} className="text-[10px] text-slate-500">Imp. Elec %</label><input id={`${segId}-tax-imp`} type="number" step="0.001" className="w-full p-2 text-xs border rounded" value={c.taxImpElec} onChange={e=>upClient(segId,"taxImpElec",+e.target.value)}/></div>
-                <div><label htmlFor={`${segId}-tax-bono`} className="text-[10px] text-slate-500">Bono Social Ä/d</label><input id={`${segId}-tax-bono`} type="number" step="0.000001" className="w-full p-2 text-xs border rounded" value={c.bonoRate} onChange={e=>upClient(segId,"bonoRate",+e.target.value)}/></div>
-                {isPyme ? <>
-                  <div><label htmlFor={`${segId}-tax-igic-red`} className="text-[10px] text-slate-500">IGIC Red %</label><input id={`${segId}-tax-igic-red`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGICRed} onChange={e=>upClient(segId,"taxIGICRed",+e.target.value)}/></div>
-                  <div><label htmlFor={`${segId}-tax-igic-7`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${segId}-tax-igic-7`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGIC7} onChange={e=>upClient(segId,"taxIGIC7",+e.target.value)}/></div>
-                </> : <div><label htmlFor={`${segId}-tax-igic`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${segId}-tax-igic`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGIC} onChange={e=>upClient(segId,"taxIGIC",+e.target.value)}/></div>}
-             </div>
-             <button onClick={()=>saveFiscalConfig(segId)} className="w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-2 rounded shadow-sm transition-colors">GUARDAR FISCALIDAD PARA ESTE SEGMENTO</button>
+            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={12}/> Configuraci√≥n Fiscal (Admin)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div><label htmlFor={`${segId}-tax-imp`} className="text-[10px] text-slate-500">Imp. Elec %</label><input id={`${segId}-tax-imp`} type="number" step="0.001" className="w-full p-2 text-xs border rounded" value={c.taxImpElec} onChange={e=>upClient(segId,"taxImpElec",+e.target.value)}/></div>
+              <div><label htmlFor={`${segId}-tax-bono`} className="text-[10px] text-slate-500">Bono Social ‚Ç¨/d</label><input id={`${segId}-tax-bono`} type="number" step="0.000001" className="w-full p-2 text-xs border rounded" value={c.bonoRate} onChange={e=>upClient(segId,"bonoRate",+e.target.value)}/></div>
+              {isPyme ? <>
+                <div><label htmlFor={`${segId}-tax-igic-red`} className="text-[10px] text-slate-500">IGIC Red %</label><input id={`${segId}-tax-igic-red`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGICRed} onChange={e=>upClient(segId,"taxIGICRed",+e.target.value)}/></div>
+                <div><label htmlFor={`${segId}-tax-igic-7`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${segId}-tax-igic-7`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGIC7} onChange={e=>upClient(segId,"taxIGIC7",+e.target.value)}/></div>
+              </> : <div><label htmlFor={`${segId}-tax-igic`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${segId}-tax-igic`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGIC} onChange={e=>upClient(segId,"taxIGIC",+e.target.value)}/></div>}
+            </div>
+            <button onClick={()=>saveFiscalConfig(segId)} className="w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-2 rounded shadow-sm transition-colors">GUARDAR FISCALIDAD PARA ESTE SEGMENTO</button>
           </div>
         )}
       </div>
@@ -262,29 +262,29 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
           const isSelected = tariffMeta[t.id]?.selected ?? true;
           return (
             <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-               <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50" onClick={()=>toggleOpen(t.id)}>
-                 <input aria-label={`Seleccionar tarifa ${t.nombre}`} type="checkbox" checked={isSelected} className="w-4 h-4" onClick={e=>{e.stopPropagation(); toggleSelected(t.id);}} onChange={()=>{}}/>
-                 <span className={`text-slate-400 text-[10px] transition-transform ${isOpen?"rotate-90":""}`}>?</span>
-                 <div className="flex-1 font-bold text-slate-800 text-sm">{t.nombre}</div>
-                 <div className="text-right">
-                   <div className="font-black text-[#002855]">{fmtEur(r.total)}</div>
-                   {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah))}</div>}
-                 </div>
-               </div>
-               {isOpen && (
-                 <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-[11px] text-slate-600">
-                    <div className="grid grid-cols-2 gap-4">
-                       <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-orange-600">Potencia (Ä/kW)</p>{t.rPot.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
-                       <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-blue-600">EnergÌa (Ä/kWh)</p>{t.rEn.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-slate-200 grid grid-cols-2 gap-x-8 gap-y-1">
-                       <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia)}</span></div>
-                       <div className="flex justify-between"><span>EnergÌa bruta</span><span>{fmtEur(r.energia)}</span></div>
-                       <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler)}</span></div>
-                       <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total)}</span></div>
-                    </div>
-                 </div>
-               )}
+              <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50" onClick={()=>toggleOpen(t.id)}>
+                <input aria-label={`Seleccionar tarifa ${t.nombre}`} type="checkbox" checked={isSelected} className="w-4 h-4" onClick={e=>{e.stopPropagation(); toggleSelected(t.id);}} onChange={()=>{}}/>
+                <span className={`text-slate-400 text-[10px] transition-transform ${isOpen?"rotate-90":""}`}>‚Ä∫</span>
+                <div className="flex-1 font-bold text-slate-800 text-sm">{t.nombre}</div>
+                <div className="text-right">
+                  <div className="font-black text-[#002855]">{fmtEur(r.total)}</div>
+                  {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah))}</div>}
+                </div>
+              </div>
+              {isOpen && (
+                <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-[11px] text-slate-600">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-orange-600">Potencia (‚Ç¨/kW)</p>{t.rPot.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
+                    <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-blue-600">Energ√≠a (‚Ç¨/kWh)</p>{t.rEn.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-200 grid grid-cols-2 gap-x-8 gap-y-1">
+                    <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia)}</span></div>
+                    <div className="flex justify-between"><span>Energ√≠a bruta</span><span>{fmtEur(r.energia)}</span></div>
+                    <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler)}</span></div>
+                    <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total)}</span></div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -298,63 +298,78 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
     const { taxModel, potP } = getSegMeta(segId);
     const segTariffs = getSegTariffs(segId).filter(t=>t.selected);
     if (!segTariffs.length) return <div className="p-12 text-center text-slate-400">Selecciona al menos una tarifa.</div>;
-    
-    const results = segTariffs.map((t,i)=>({t,r:calc(taxModel,potP,c,t), color: CHART_COLS[i%CHART_COLS.length]}));
+
+    const results = segTariffs.map((t,i)=>({t, r:calc(taxModel,potP,c,t), color: CHART_COLS[i%CHART_COLS.length]}));
     const best = results.reduce((a,b)=>b.r.total<a.r.total?b:a,results[0]);
     const bestAh = +(c.factura - best.r.total).toFixed(2);
 
-    const saveComp = async (act: string) => {
+    const saveComp = async (act: "SAVE" | "PDF") => {
+      if (isSaving) return;
       try {
         setIsSaving(true);
-        const sEsc = (s:any)=>typeof s==="string"?s.replace(/[<>"{}$%]/g,"").trim():s;
+        const sEsc = (s: unknown) => typeof s === "string" ? s.replace(/[<>"{}$%]/g,"").trim() : s;
         const { error } = await supabase.from("client_comparisons").insert({
-          user_id: user.id, client_name: sEsc(c.nombre)||"S/N", target_tariff: best.t.nombre, target_segment: segDef.label,
-          calculation_data: { 
-            best_tariff: best.t.nombre, total_cost: best.r.total, saving: bestAh, current_invoice: c.factura,
+          user_id: user.id,
+          client_name: sEsc(c.nombre) || "S/N",
+          target_tariff: best.t.nombre,
+          target_segment: segDef.label,
+          calculation_data: {
+            best_tariff: best.t.nombre,
+            total_cost: best.r.total,
+            saving: bestAh,
+            current_invoice: c.factura,
             client_data: {...c, nombre: sEsc(c.nombre), cups: sEsc(c.cups), dir: sEsc(c.dir)}
           }
         });
         if (error) throw error;
-        if(act==="SAVE") alert("? Guardado correctamente.");
+        if (act === "SAVE") alert("‚úì Guardado correctamente.");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Error desconocido";
+        alert("Error al guardar: " + msg);
+      } finally {
         setIsSaving(false);
-      } catch (err: any) { alert("Error: " + err.message); setIsSaving(false); }
+      }
     };
 
-    const handlePDF = async () => { exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData); await saveComp("PDF"); };
+    const handlePDF = async () => {
+      if (isSaving) return;
+      exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
+      await saveComp("PDF");
+    };
 
     return (
       <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex gap-2">
-           <button onClick={handlePDF} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs">PDF INFORME</button>
-           <button onClick={() => exportExcel(segDef.label, taxModel, potP, c, segTariffs)} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
-           <button onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg">{isSaving?"...":"GUARDAR"}</button>
+          <button onClick={handlePDF} disabled={isSaving} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">PDF INFORME</button>
+          <button onClick={() => exportExcel(segDef.label, taxModel, potP, c, segTariffs)} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
+          <button onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">{isSaving?"...":"GUARDAR"}</button>
         </div>
         <div className="grid grid-cols-2 gap-3">
-           <div className="bg-white p-4 rounded-2xl border border-slate-200">
-              <p className="text-[10px] font-black text-slate-400 uppercase">FACTURA ACTUAL</p>
-              <p className="text-xl font-black text-slate-700">{fmtEur(c.factura)}</p>
-           </div>
-           <div className={`bg-white p-4 rounded-2xl border-2 ${activeSeg==="res"?"border-orange-500":"border-blue-600"}`}>
-              <p className="text-[10px] font-black text-slate-400 uppercase">MEJOR OPCI”N</p>
-              <p className={`text-xl font-black ${activeSeg==="res"?"text-orange-500":"text-blue-600"}`}>{fmtEur(best.r.total)}</p>
-           </div>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200">
+            <p className="text-[10px] font-black text-slate-400 uppercase">FACTURA ACTUAL</p>
+            <p className="text-xl font-black text-slate-700">{fmtEur(c.factura)}</p>
+          </div>
+          <div className={`bg-white p-4 rounded-2xl border-2 ${activeSeg==="res"?"border-orange-500":"border-blue-600"}`}>
+            <p className="text-[10px] font-black text-slate-400 uppercase">MEJOR OPCI√ìN</p>
+            <p className={`text-xl font-black ${activeSeg==="res"?"text-orange-500":"text-blue-600"}`}>{fmtEur(best.r.total)}</p>
+          </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-           <table className="w-full text-[11px]">
-              <thead className="bg-slate-50 border-b">
-                 <tr><th className="p-3 text-left">Periodo</th><th className="p-3 text-right">Actual</th><th className="p-3 text-right text-orange-500">{best.t.nombre}</th></tr>
-              </thead>
-              <tbody>
-                 <tr className="border-b"><td>Potencia</td><td className="text-right">ó</td><td className="text-right font-bold">{fmtEur(best.r.potencia)}</td></tr>
-                 <tr className="border-b"><td>EnergÌa</td><td className="text-right">ó</td><td className="text-right font-bold">{fmtEur(best.r.energia)}</td></tr>
-                 <tr className="border-b"><td>Impuestos</td><td className="text-right">ó</td><td className="text-right font-bold">{fmtEur((best.r.igic??0)+(best.r.igicRed??0)+(best.r.igic7??0)+best.r.impElec)}</td></tr>
-                 <tr className="bg-orange-50/30 font-black text-sm"><td>TOTAL</td><td className="text-right">{fmtEur(c.factura)}</td><td className="text-right text-orange-500">{fmtEur(best.r.total)}</td></tr>
-              </tbody>
-           </table>
+          <table className="w-full text-[11px]">
+            <thead className="bg-slate-50 border-b">
+              <tr><th className="p-3 text-left">Periodo</th><th className="p-3 text-right">Actual</th><th className="p-3 text-right text-orange-500">{best.t.nombre}</th></tr>
+            </thead>
+            <tbody>
+              <tr className="border-b"><td className="p-3">Potencia</td><td className="text-right p-3">‚Äî</td><td className="text-right p-3 font-bold">{fmtEur(best.r.potencia)}</td></tr>
+              <tr className="border-b"><td className="p-3">Energ√≠a</td><td className="text-right p-3">‚Äî</td><td className="text-right p-3 font-bold">{fmtEur(best.r.energia)}</td></tr>
+              <tr className="border-b"><td className="p-3">Impuestos</td><td className="text-right p-3">‚Äî</td><td className="text-right p-3 font-bold">{fmtEur((best.r.igic??0)+(best.r.igicRed??0)+(best.r.igic7??0)+best.r.impElec)}</td></tr>
+              <tr className="bg-orange-50/30 font-black text-sm"><td className="p-3">TOTAL</td><td className="text-right p-3">{fmtEur(c.factura)}</td><td className="text-right p-3 text-orange-500">{fmtEur(best.r.total)}</td></tr>
+            </tbody>
+          </table>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase mb-4">GR¡FICO COMPARATIVO</p>
-          <div className="h-[240px] relative"><canvas id={`compChart_${segId}`} title={`Gr·fico comparativo para ${segDef.label}`}></canvas></div>
+          <p className="text-[10px] font-black text-slate-400 uppercase mb-4">GR√ÅFICO COMPARATIVO</p>
+          <div className="h-[240px] relative"><canvas id={`compChart_${segId}`} title={`Gr√°fico comparativo para ${segDef.label}`}></canvas></div>
         </div>
       </div>
     );
@@ -370,9 +385,9 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user, refr
         ))}
       </div>
       <div className="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar">
-         {[["cli","DATOS CLIENTE"],["tar","TARIFAS"],["comp","COMPARATIVA"]].map(([id,lbl])=>(
-           <button key={id} onClick={()=>setSubTab(id)} className={`px-6 py-3 text-[11px] font-black tracking-widest transition-all border-b-2 ${sub===id?(activeSeg==="res"?"text-orange-500 border-orange-500":"text-blue-600 border-blue-600"):"text-slate-400 border-transparent"}`}>{lbl}</button>
-         ))}
+        {[["cli","DATOS CLIENTE"],["tar","TARIFAS"],["comp","COMPARATIVA"]].map(([id,lbl])=>(
+          <button key={id} onClick={()=>setSubTab(id)} className={`px-6 py-3 text-[11px] font-black tracking-widest transition-all border-b-2 ${sub===id?(activeSeg==="res"?"text-orange-500 border-orange-500":"text-blue-600 border-blue-600"):"text-slate-400 border-transparent"}`}>{lbl}</button>
+        ))}
       </div>
       <div className="min-h-[400px]">
         {sub === "cli" && <ClientPane segId={activeSeg} />}

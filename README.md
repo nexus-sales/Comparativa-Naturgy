@@ -3,9 +3,9 @@
 ## Configuración de Supabase
 
 1. Crea un proyecto en [Supabase](https://supabase.com).
-2. Ejecuta el SQL de 'supabase/schema.sql' en el SQL Editor de tu proyecto Supabase.
-3. Copia las credenciales (URL y Anon Key) en un archivo '.env' basado en '.env.example'.
-4. Habilita el método de autenticación 'Email/Password'.
+2. Ejecuta el SQL de `supabase/schema_v2.sql` en el SQL Editor de tu proyecto Supabase.
+3. Copia las credenciales (URL y Anon Key) en un archivo `.env` basado en `.env.example`.
+4. Habilita el método de autenticación `Email/Password`.
 
 ## Desarrollo
 
@@ -18,6 +18,37 @@
 - **Administradores**: Tienen permisos totales ('ALL'). Para hacer a un usuario administrador, cambia el campo 'is_admin' a 'true' en la tabla 'public.profiles' para su 'id' correspondiente.
 
 ## Mantenimiento y Correcciones Recientes
+
+### Mayo 2026 — Refactorización Arquitectural Completa (v2.0.0)
+
+Auditoría de seguridad y calidad completa con reset de base de datos y refactorización integral del código.
+
+#### Base de datos
+
+- Reset completo de Supabase: esquema único y definitivo `supabase/schema_v2.sql` reemplaza 13 migraciones inconsistentes.
+- Eliminados los bugs críticos de RLS: `is_admin()` renombrada a `is_user_admin()` de forma consistente (los fallos previos provocaban que las tarifas no se guardasen y que el historial desapareciese).
+- FK de `client_comparisons.user_id → profiles.id` para soporte correcto del JOIN en la API de Supabase.
+
+#### Estado global (Zustand)
+
+- Nuevo store `src/store/useAppStore.ts` con métodos `load()`, `refresh()` y `reset()`.
+- Eliminado el hack `window.refreshAppCache` (global JS inyectado al window).
+- Eliminado `src/hooks/useData.ts` (reemplazado por el store).
+- Cache local con TTL de 30 minutos e hidratación síncrona al inicio.
+
+#### Seguridad
+
+- Eliminada la constante `OWNER_ADMIN_EMAILS` con el email del admin en el bundle de cliente.
+- El rol de administrador se determina exclusivamente desde `profiles.is_admin` en Supabase.
+
+#### Calidad de código
+
+- Eliminados todos los tipos `any`: nuevo fichero `src/types/index.ts` con interfaces `Profile`, `Segment`, `Tariff` y `ClientComparison`.
+- Stale closure corregida en `useAuth.ts`: `checkAdminStatus` recibe el objeto `User` completo en lugar de cerrarse sobre el estado de React.
+- Bug de doble guardado corregido en `ComparatorView`: botones GUARDAR y PDF desactivados mientras `isSaving=true`.
+- Bug `hasLoaded` eliminado en `UserHistoryView`: la vista ahora puede refrescar datos; añadido botón "Actualizar".
+- Corrección de todos los caracteres mal codificados en la UI (UTF-8, visible como `◆` en el navegador).
+- Build limpio: 0 errores TypeScript (`tsc --noEmit` + `vite build`).
 
 ### Mayo 2026 - Corrección de errores de compilación (Build Fix)
 Se han solucionado varios problemas de TypeScript que impedían el despliegue automático en Vercel:

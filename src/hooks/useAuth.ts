@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import type { Profile } from '../types';
 
-function fallbackProfile(user: User) {
+function fallbackProfile(user: User): Profile {
   return {
     id: user.id,
     email: user.email ?? '',
-    full_name: '',
-    phone: '',
+    full_name: null,
+    phone: null,
     is_admin: false,
     is_approved: false,
+    is_blocked: null,
+    last_login_at: null,
+    accepted_terms_at: null,
   };
 }
 
@@ -17,26 +21,24 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function checkAdminStatus(userId: string) {
+    async function checkAdminStatus(authUser: User) {
       try {
         const { data } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', userId)
+          .eq('id', authUser.id)
           .maybeSingle();
-        
+
         if (!cancelled && data) {
-          setProfile(data);
+          setProfile(data as Profile);
           setIsAdmin(data.is_admin ?? false);
         } else if (!cancelled) {
-          // Si no hay perfil, al menos intentamos ver si es el admin principal por email
-          // Esto se refuerza en App.tsx con OWNER_ADMIN_EMAILS
-          setProfile(fallbackProfile({ id: userId, email: user?.email } as any));
+          setProfile(fallbackProfile(authUser));
         }
       } catch (err) {
         console.error("Error checking profile:", err);
@@ -47,10 +49,10 @@ export function useAuth() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
-        
+
         if (session?.user) {
           setUser(session.user);
-          await checkAdminStatus(session.user.id);
+          await checkAdminStatus(session.user);
         }
       } catch (err) {
         console.error("Auth init error:", err);
@@ -63,10 +65,10 @@ export function useAuth() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (cancelled) return;
-      
+
       if (session?.user) {
         setUser(session.user);
-        await checkAdminStatus(session.user.id);
+        await checkAdminStatus(session.user);
       } else {
         setUser(null);
         setProfile(null);

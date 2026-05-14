@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./hooks/useAuth";
-import { useData } from "./hooks/useData";
+import { useAppStore } from "./store/useAppStore";
 import { ComparatorView } from "./components/comparator/ComparatorView";
 import { AdminView } from "./components/admin/AdminView";
 import { UserHistoryView } from "./components/history/UserHistoryView";
@@ -9,44 +9,42 @@ import { UserProfileView } from "./components/profile/UserProfileView";
 import { AuthStatus } from "./components/auth/AuthOverlay";
 import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X } from "lucide-react";
 
-// Register Chart.js components globally for the whole app
 import {
   Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip
 } from "chart.js";
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
 
-// -- APP SHELL UTILS -----------------------------------------------------------
-
-async function signOutAndReset() {
+async function signOutAndReset(resetStore: () => void) {
   try {
     localStorage.clear();
     sessionStorage.clear();
+    resetStore();
     const { error } = await supabase.auth.signOut();
     if (error) console.warn("Supabase signOut error:", error);
     window.location.href = window.location.origin + window.location.pathname + "?t=" + Date.now();
   } catch (err) {
-    console.error("Error crítico en signOutAndReset:", err);
+    console.error("Error crÃ­tico en signOutAndReset:", err);
     localStorage.clear();
     window.location.href = "/";
   }
 }
 
-const OWNER_ADMIN_EMAILS = new Set(["salvamunoz@avantiasl.com"]);
-
 function App() {
-  const { user, loading: authLoading, isAdmin: authIsAdmin, profile } = useAuth();
+  const { user, loading: authLoading, isAdmin, profile } = useAuth();
+  const { segments, tariffs, loading: dataLoading, error: dataError, load, refresh, reset } = useAppStore();
   const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile" | "history">("comparator");
   const [showAppHelp, setShowAppHelp] = useState(false);
 
-  const isOwnerAdmin = !!user?.email && OWNER_ADMIN_EMAILS.has(user.email.toLowerCase());
-  const isAdmin = authIsAdmin || isOwnerAdmin;
   const canLoadData = !!user && !authLoading && (isAdmin || profile?.is_approved === true);
-  const { segments, tariffs, loading: dataLoading, error: dataError, refresh: refreshData } = useData(canLoadData, user?.id ?? "anonymous");
-  
+
   useEffect(() => {
-    (window as any).refreshAppCache = refreshData;
-    return () => { delete (window as any).refreshAppCache; };
-  }, [refreshData]);
+    if (!canLoadData) return;
+    if (segments.length === 0) {
+      load();
+    } else {
+      refresh();
+    }
+  }, [canLoadData]);
 
   const effectiveTab = (!isAdmin && activeTab === "admin") ? "comparator" : activeTab;
 
@@ -56,13 +54,11 @@ function App() {
     } else if (user && profile?.full_name && activeTab === "profile") {
       setActiveTab("comparator");
     }
-  }, [user, profile, isAdmin]); // Removido activeTab de dependencias para evitar warnings de loops si fuera necesario, aunque aquí es seguro
+  }, [user, profile, isAdmin]);
 
   const [authTimeout, setAuthTimeout] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (authLoading) setAuthTimeout(true);
-    }, 6000);
+    const timer = setTimeout(() => { if (authLoading) setAuthTimeout(true); }, 6000);
     return () => clearTimeout(timer);
   }, [authLoading]);
 
@@ -80,9 +76,9 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-lg font-bold tracking-tight">Comparativa Tarifas Naturgy</h1>
-            <p className="text-xs text-blue-200">Herramienta comercial — Canarias</p>
+            <p className="text-xs text-blue-200">Herramienta comercial Â· Canarias</p>
           </div>
-          <button onClick={signOutAndReset} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10">Salir</button>
+          <button onClick={() => signOutAndReset(reset)} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10">Salir</button>
         </div>
         <div className="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-blue-800"></div>
       </header>
@@ -91,8 +87,8 @@ function App() {
           <div className="flex items-start gap-4">
             <div className="bg-amber-100 p-2 rounded-lg text-amber-700"><AlertTriangle size={24} /></div>
             <div>
-              <h2 className="text-xl font-bold text-[#002855]">Cuenta pendiente de aprobación</h2>
-              <p className="text-slate-600 mt-2">Tu usuario ya ha iniciado sesión, pero todavía no tiene permiso para ver las tarifas. Cuando un administrador apruebe la cuenta, se activará el acceso.</p>
+              <h2 className="text-xl font-bold text-[#002855]">Cuenta pendiente de aprobaciÃ³n</h2>
+              <p className="text-slate-600 mt-2">Tu usuario ya ha iniciado sesiÃ³n, pero todavÃ­a no tiene permiso para ver las tarifas. Cuando un administrador apruebe la cuenta, se activarÃ¡ el acceso.</p>
             </div>
           </div>
         </div>
@@ -105,22 +101,24 @@ function App() {
       <header className="bg-[#002855] text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-             <LogoNaturgy />
+            <LogoNaturgy />
             <div>
               <h1 className="text-lg font-bold tracking-tight">Comparativa Tarifas Naturgy</h1>
-              <p className="text-xs text-blue-200">Herramienta comercial — Canarias</p>
+              <p className="text-xs text-blue-200">Herramienta comercial Â· Canarias</p>
             </div>
           </div>
           <nav className="flex items-center gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto max-w-full">
             <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />} label="Comercial" />
-            <TabButton active={effectiveTab === "profile"} onClick={() => setActiveTab("profile")} icon={<Pencil size={16} />} label="Usuario" />
-            <TabButton active={effectiveTab === "history"} onClick={() => setActiveTab("history")} icon={<Clock size={16} />} label="Historial" />
+            <TabButton active={effectiveTab === "profile"}    onClick={() => setActiveTab("profile")}    icon={<Pencil size={16} />} label="Usuario" />
+            <TabButton active={effectiveTab === "history"}    onClick={() => setActiveTab("history")}    icon={<Clock size={16} />}  label="Historial" />
             {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-blue-200 hidden md:inline">{user.email}</span>
-            <button onClick={() => setShowAppHelp(true)} className="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2"><HelpCircle size={16} /><span className="hidden sm:inline text-xs">Ayuda</span></button>
-            <button onClick={signOutAndReset} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10 text-xs font-bold">Salir</button>
+            <button onClick={() => setShowAppHelp(true)} className="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2">
+              <HelpCircle size={16} /><span className="hidden sm:inline text-xs">Ayuda</span>
+            </button>
+            <button onClick={() => signOutAndReset(reset)} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10 text-xs font-bold">Salir</button>
           </div>
         </div>
         <div className="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-blue-800"></div>
@@ -131,19 +129,21 @@ function App() {
           <div className="mb-6 bg-red-50 border border-red-200 text-red-800 rounded-2xl p-6 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-4">
               <AlertTriangle className="text-red-600" size={24} />
-              <div><h3 className="font-bold">Error de conexión</h3><p className="text-sm">{dataError}</p></div>
+              <div><h3 className="font-bold">Error de conexiÃ³n</h3><p className="text-sm">{dataError}</p></div>
             </div>
-            <button onClick={refreshData} className="bg-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm border border-red-200 hover:bg-red-100 transition-colors">Reintentar</button>
+            <button onClick={load} className="bg-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm border border-red-200 hover:bg-red-100 transition-colors">Reintentar</button>
           </div>
         )}
         {dataLoading ? (
-          <div className="flex items-center justify-center p-12"><div className="animate-pulse text-slate-400 font-bold">Cargando datos...</div></div>
+          <div className="flex items-center justify-center p-12">
+            <div className="animate-pulse text-slate-400 font-bold">Cargando datos...</div>
+          </div>
         ) : (
           <>
-            {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} refreshData={refreshData} loading={dataLoading} />}
-            {effectiveTab === "profile" && <UserProfileView user={user} profile={profile} isAdmin={isAdmin} />}
-            {effectiveTab === "admin" && <AdminView segments={segments} tariffs={tariffs} />}
-            {effectiveTab === "history" && <UserHistoryView user={user} isAdmin={isAdmin} />}
+            {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} />}
+            {effectiveTab === "profile"    && <UserProfileView user={user} profile={profile} isAdmin={isAdmin} />}
+            {effectiveTab === "admin"      && <AdminView segments={segments} tariffs={tariffs} />}
+            {effectiveTab === "history"    && <UserHistoryView user={user} isAdmin={isAdmin} />}
           </>
         )}
       </main>
@@ -154,7 +154,10 @@ function App() {
 
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-2 px-5 py-2 rounded-lg transition-all duration-200 font-medium text-sm ${active ? "bg-orange-500 text-white shadow-md" : "text-blue-100 hover:bg-white/10"}`}>
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-5 py-2 rounded-lg transition-all duration-200 font-medium text-sm ${active ? "bg-orange-500 text-white shadow-md" : "text-blue-100 hover:bg-white/10"}`}
+    >
       {icon} {label}
     </button>
   );
@@ -175,23 +178,27 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-10 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto relative">
         <button onClick={onClose} title="Cerrar ayuda" className="absolute top-8 right-8 text-slate-400 hover:text-slate-600 transition-colors"><X size={28} /></button>
         <div className="space-y-2">
-          <h2 className="text-3xl font-black text-[#002855] leading-tight">Ayuda y Guía de Uso</h2>
+          <h2 className="text-3xl font-black text-[#002855] leading-tight">Ayuda y GuÃ­a de Uso</h2>
           <p className="text-slate-500 font-medium">Todo lo que necesitas saber para usar la herramienta</p>
         </div>
         <div className="space-y-6">
           <section className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div> Cómo hacer una comparativa</h3>
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-orange-500"></div> CÃ³mo hacer una comparativa
+            </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
               1. Selecciona el sector (Residencial o Pyme).<br/>
-              2. Introduce los datos de la factura actual en la pestaña <strong className="text-slate-900">Datos cliente</strong>.<br/>
+              2. Introduce los datos de la factura actual en la pestaÃ±a <strong className="text-slate-900">Datos cliente</strong>.<br/>
               3. Revisa las tarifas disponibles y selecciona las que quieras comparar.<br/>
-              4. Obtén el resultado visual y genera el informe PDF para el cliente.
+              4. ObtÃ©n el resultado visual y genera el informe PDF para el cliente.
             </p>
           </section>
           <section className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div> Exportaciones e Historial</h3>
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div> Exportaciones e Historial
+            </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Todas las comparativas guardadas o exportadas a PDF se registran automáticamente en tu <strong className="text-slate-900">Historial</strong>. Desde allí puedes volver a descargar el informe en cualquier momento sin volver a introducir los datos.
+              Todas las comparativas guardadas o exportadas a PDF se registran automÃ¡ticamente en tu <strong className="text-slate-900">Historial</strong>. Desde allÃ­ puedes volver a descargar el informe en cualquier momento.
             </p>
           </section>
           <button onClick={onClose} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg text-sm">Entendido, cerrar ayuda</button>

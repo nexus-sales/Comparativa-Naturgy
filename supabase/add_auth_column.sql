@@ -1,1 +1,0 @@
-﻿ALTER TABLE tariffs ADD COLUMN IF NOT EXISTS requires_auth BOOLEAN DEFAULT false;
