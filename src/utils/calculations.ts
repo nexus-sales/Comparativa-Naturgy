@@ -78,7 +78,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
     return {
       potencia: +costPot.toFixed(4),
       energia: +costEn.toFixed(4),
-      excedentes: -costExc,
+      excedentes: - +costExc.toFixed(4),
       sva, alquiler: alq,
       subtotal: +subtotal.toFixed(4),
       impElec: +impElec.toFixed(4),
@@ -93,7 +93,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   return {
     potencia: +costPot.toFixed(4),
     energia: +costEn.toFixed(4),
-    excedentes: -costExc,
+    excedentes: - +costExc.toFixed(4),
     sva, alquiler: alq,
     subtotal: +subtotal.toFixed(4),
     impElec: +impElec.toFixed(4),

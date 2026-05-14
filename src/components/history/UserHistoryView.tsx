@@ -1,0 +1,254 @@
+import React, { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabase";
+import { fmtEur } from "../../utils/calculations";
+import { exportPDF } from "../../utils/pdfExport";
+import { Trash2, Clock, FileText, Users } from "lucide-react";
+import { KPICard } from "../KPICard";
+
+interface UserHistoryViewProps {
+  user: any;
+  isAdmin: boolean;
+}
+
+export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  // Filtros
+  const [filterTariff, setFilterTariff] = useState("");
+  const [filterSegment, setFilterSegment] = useState("");
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (hasLoaded) return;
+      setLoading(true);
+      
+      try {
+        const { data, error } = await supabase.from("client_comparisons")
+          .select("*, profiles(email, full_name, phone)")
+          .order("created_at", { ascending: false })
+          .limit(200);
+        
+        if (error) throw error;
+        if (data) setHistory(data);
+      } catch (error) {
+        console.error("Error cargando historial:", error);
+        const { data: simpleData } = await supabase.from("client_comparisons")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (simpleData) setHistory(simpleData);
+      } finally {
+        setLoading(false);
+        setHasLoaded(true);
+      }
+    };
+
+    fetchHistory();
+  }, [user, isAdmin, hasLoaded]);
+
+  // Lógica de filtrado
+  const filteredHistory = history.filter(item => {
+    const tariffMatch = !filterTariff || item.target_tariff === filterTariff || item.calculation_data?.best_tariff === filterTariff;
+    const segmentMatch = !filterSegment || item.target_segment === filterSegment || item.calculation_data?.segment === filterSegment;
+    return tariffMatch && segmentMatch;
+  });
+
+  // Cálculo de KPIs
+  const totalSavings = filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0);
+  const avgSaving = filteredHistory.length ? totalSavings / filteredHistory.length : 0;
+  const countBySegment = filteredHistory.reduce((acc: any, curr) => {
+    const seg = curr.target_segment || curr.calculation_data?.segment || "Otro";
+    acc[seg] = (acc[seg] || 0) + 1;
+    return acc;
+  }, {});
+
+  const uniqueTariffs = Array.from(new Set(history.map(item => item.target_tariff || item.calculation_data?.best_tariff).filter(Boolean)));
+  const uniqueSegments = Array.from(new Set(history.map(item => item.target_segment || item.calculation_data?.segment).filter(Boolean)));
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div className="flex items-center gap-4">
+          <div className="bg-orange-100 p-3 rounded-2xl text-orange-600">
+            <Clock size={32} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-extrabold text-[#002855]">
+              {isAdmin ? "Panel de Control" : "Mis Comparativas"}
+            </h2>
+            <p className="text-slate-500">
+              {isAdmin 
+                ? "Estadísticas y registro global de ofertas" 
+                : "Consulta y recupera tus comparativas guardadas anteriormente"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <KPICard title="Total Ofertas" value={filteredHistory.length} icon={<FileText className="text-blue-500" />} />
+        <KPICard title="Ahorro Total" value={fmtEur(totalSavings)} icon={<div className="text-green-500 font-bold">€</div>} />
+        <KPICard title="Ahorro Medio" value={fmtEur(avgSaving)} icon={<div className="text-emerald-500 font-bold">⌀</div>} />
+        <KPICard title="Top Segmento" value={Object.entries(countBySegment).sort((a:any, b:any) => b[1] - a[1])[0]?.[0] || "-"} icon={<Users className="text-orange-500" />} />
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-400 uppercase">Tarifa:</span>
+          <select 
+            title="Filtrar por Tarifa"
+            value={filterTariff} 
+            onChange={(e) => setFilterTariff(e.target.value)}
+            className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+          >
+            <option value="">Todas</option>
+            {uniqueTariffs.map(t => <option key={t as string} value={t as string}>{t as string}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-400 uppercase">Sector:</span>
+          <select 
+            title="Filtrar por Sector"
+            value={filterSegment} 
+            onChange={(e) => setFilterSegment(e.target.value)}
+            className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+          >
+            <option value="">Todos</option>
+            {uniqueSegments.map(s => <option key={s as string} value={s as string}>{s as string}</option>)}
+          </select>
+        </div>
+        {(filterTariff || filterSegment) && (
+          <button 
+            onClick={() => { setFilterTariff(""); setFilterSegment(""); }}
+            className="text-xs font-bold text-orange-600 hover:text-orange-700 underline"
+          >
+            Limpiar Filtros
+          </button>
+        )}
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="p-12 text-center text-slate-400 animate-pulse">Cargando historial...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                <tr>
+                  <th className="px-6 py-4">Fecha</th>
+                  {isAdmin && <th className="px-6 py-4">Comercial</th>}
+                  <th className="px-6 py-4">Cliente</th>
+                  <th className="px-6 py-4">Sector</th>
+                  <th className="px-6 py-4 text-right">Ahorro</th>
+                  <th className="px-6 py-4 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredHistory.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
+                      {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 font-medium text-blue-700">
+                        {item.profiles?.email?.split('@')[0] || 'Desconocido'}
+                      </td>
+                    )}
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-800">{item.client_name}</div>
+                      <div className="text-[10px] text-slate-400 truncate max-w-[200px]">{item.client_address || 'Sin dirección'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        {item.target_segment || item.calculation_data?.segment}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="font-black text-green-600 text-base">
+                        {fmtEur(item.calculation_data?.saving || 0)}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        Tarifa: {item.target_tariff || item.calculation_data?.best_tariff}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => {
+                            const cd = item.calculation_data;
+                            if (!cd) return alert("No hay datos de cálculo disponibles.");
+                            
+                            const segLabel = cd.segment || "Residencial";
+                            const taxModel = cd.tax_model || "Canarias";
+                            const potP = cd.pot_prices || [];
+                            const c = cd.client_data || {};
+                            
+                            const segTariffs = (cd.available_tariffs || []).map((t: any) => {
+                              const isBest = String(t.name).trim() === String(cd.best_tariff).trim();
+                              return { ...t, selected: isBest };
+                            });
+
+                            if (segTariffs.length > 0 && !segTariffs.some((t: any) => t.selected)) {
+                              segTariffs[0].selected = true;
+                            }
+
+                            if (segTariffs.length === 0) {
+                              return alert("Error: No hay tarifas guardadas en esta comparativa.");
+                            }
+
+                            const comercial = {
+                              nombre: item.profiles?.full_name || "Comercial Naturgy",
+                              telefono: item.profiles?.phone || "",
+                              email: item.profiles?.email || ""
+                            };
+
+                            exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
+                          }}
+                          className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"
+                          title="Re-generar PDF"
+                        >
+                          <FileText size={18} />
+                        </button>
+                        
+                        <button
+                          onClick={async () => {
+                            if (!confirm("¿Seguro que quieres borrar esta comparativa de tu historial?")) return;
+                            
+                            // En lugar de borrar físicamente, activamos el flag deleted_by_user
+                            const { error } = await supabase
+                              .from("client_comparisons")
+                              .update({ deleted_by_user: true })
+                              .eq("id", item.id);
+                              
+                            if (error) {
+                              alert("Error al borrar: " + error.message);
+                            } else {
+                              // Refrescar la lista localmente
+                              setHistory(history.filter(h => h.id !== item.id));
+                            }
+                          }}
+                          className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all"
+                          title="Borrar comparativa"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!filteredHistory.length && (
+              <div className="p-12 text-center text-slate-400 italic bg-slate-50/30">
+                {history.length ? "No hay resultados para los filtros seleccionados." : "Aún no hay comparativas registradas."}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -86,27 +86,26 @@ export function useData(enabled = true, cacheScope = 'default') {
     const timeoutId = window.setTimeout(() => controller.abort(), DATA_TIMEOUT_MS);
 
     try {
-      const [segRes, tarRes] = await Promise.all([
-        supabase
+      const { data: segData, error: segError } = await supabase
           .from('segments')
           .select('*')
           .order('id')
-          .abortSignal(controller.signal),
-        supabase
+          .abortSignal(controller.signal);
+
+      const { data: tarData, error: tarError } = await supabase
           .from('tariffs')
           .select('*')
           .eq('is_active', true)
           .order('segment_id')
           .order('name')
-          .abortSignal(controller.signal),
-      ]);
+          .abortSignal(controller.signal);
 
-      if (segRes.error || tarRes.error) {
-        console.error('Error fetching data:', segRes.error ?? tarRes.error);
+      if (segError || tarError) {
+        console.error('Error fetching data:', segError ?? tarError);
         if (!silent) setError('Error al cargar los datos. Comprueba tu conexión e inténtalo de nuevo.');
       } else {
-        const nextSegments = segRes.data ?? [];
-        const nextTariffs = tarRes.data ?? [];
+        const nextSegments = segData ?? [];
+        const nextTariffs = tarData ?? [];
         setSegments(nextSegments);
         setTariffs(nextTariffs);
         saveCache(nextSegments, nextTariffs);
