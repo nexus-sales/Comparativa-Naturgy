@@ -31,6 +31,8 @@ DROP FUNCTION IF EXISTS public.check_user_access() CASCADE;
 DROP FUNCTION IF EXISTS public.handle_new_user()  CASCADE;
 DROP FUNCTION IF EXISTS public.log_user_login()   CASCADE;
 DROP FUNCTION IF EXISTS public.update_timestamp() CASCADE;
+DROP FUNCTION IF EXISTS public.prevent_profile_privilege_overwrite() CASCADE;
+DROP FUNCTION IF EXISTS public.prevent_user_comparison_overwrite() CASCADE;
 
 -- Limpiar políticas de profiles (serán recreadas limpias)
 DROP POLICY IF EXISTS "Users can view own profile"               ON profiles;
@@ -51,7 +53,8 @@ DROP POLICY IF EXISTS "profiles_admin_all"                       ON profiles;
 
 -- Verifica si el usuario actual es admin (SECURITY DEFINER evita recursión RLS)
 CREATE OR REPLACE FUNCTION public.is_user_admin()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public, auth AS $$
   SELECT COALESCE(
     (SELECT is_admin FROM public.profiles WHERE id = auth.uid()),
     false
@@ -60,9 +63,10 @@ $$;
 
 -- Verifica si el usuario actual está aprobado
 CREATE OR REPLACE FUNCTION public.is_user_approved()
-RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE AS $$
+RETURNS boolean LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public, auth AS $$
   SELECT COALESCE(
-    (SELECT is_approved FROM public.profiles WHERE id = auth.uid()),
+    (SELECT is_approved AND NOT COALESCE(is_blocked, false) FROM public.profiles WHERE id = auth.uid()),
     false
   );
 $$;
@@ -76,6 +80,65 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Impide que usuarios no admin reescriban su historial.
+-- Solo se permite marcar deleted_by_user = TRUE; admin conserva UPDATE completo.
+CREATE OR REPLACE FUNCTION public.prevent_user_comparison_overwrite()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF public.is_user_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  IF auth.uid() IS NULL OR auth.uid() <> OLD.user_id THEN
+    RAISE EXCEPTION 'not allowed';
+  END IF;
+
+  IF NEW.id              IS DISTINCT FROM OLD.id
+     OR NEW.user_id      IS DISTINCT FROM OLD.user_id
+     OR NEW.client_name  IS DISTINCT FROM OLD.client_name
+     OR NEW.client_email IS DISTINCT FROM OLD.client_email
+     OR NEW.client_address IS DISTINCT FROM OLD.client_address
+     OR NEW.target_tariff  IS DISTINCT FROM OLD.target_tariff
+     OR NEW.target_segment IS DISTINCT FROM OLD.target_segment
+     OR NEW.calculation_data IS DISTINCT FROM OLD.calculation_data
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at
+     OR NEW.deleted_by_user IS DISTINCT FROM TRUE THEN
+    RAISE EXCEPTION 'only logical deletion is allowed';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, auth;
+
+-- Impide que un usuario modifique identidad, roles o bloqueo desde su perfil.
+-- Admin conserva UPDATE completo sobre profiles.
+CREATE OR REPLACE FUNCTION public.prevent_profile_privilege_overwrite()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF public.is_user_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  IF auth.uid() IS NULL OR auth.uid() <> OLD.id THEN
+    RAISE EXCEPTION 'not allowed';
+  END IF;
+
+  IF NEW.id IS DISTINCT FROM OLD.id
+     OR NEW.email IS DISTINCT FROM OLD.email
+     OR NEW.is_admin IS DISTINCT FROM OLD.is_admin
+     OR NEW.is_approved IS DISTINCT FROM OLD.is_approved
+     OR COALESCE(NEW.is_blocked, false) IS DISTINCT FROM COALESCE(OLD.is_blocked, false)
+     OR NEW.blocked_reason IS DISTINCT FROM OLD.blocked_reason
+     OR NEW.last_login_at IS DISTINCT FROM OLD.last_login_at THEN
+    RAISE EXCEPTION 'profile field is not user-editable';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, auth;
+
 -- Crea perfil automáticamente al registrarse un usuario en auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -85,7 +148,8 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, auth;
 
 -- Recrear trigger de nuevo usuario
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -119,11 +183,11 @@ USING (auth.uid() = id);
 CREATE POLICY "profiles_update_own" ON profiles
 FOR UPDATE TO authenticated
 USING (auth.uid() = id)
-WITH CHECK (
-  auth.uid() = id
-  AND is_admin    = (SELECT is_admin    FROM profiles WHERE id = auth.uid())
-  AND is_approved = (SELECT is_approved FROM profiles WHERE id = auth.uid())
-);
+WITH CHECK (auth.uid() = id);
+
+CREATE TRIGGER prevent_profile_privilege_overwrite
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.prevent_profile_privilege_overwrite();
 
 -- Admin puede hacer cualquier cosa en profiles
 CREATE POLICY "profiles_admin_all" ON profiles
@@ -253,7 +317,12 @@ WITH CHECK (auth.uid() = user_id OR public.is_user_admin());
 -- UPDATE: usuario puede marcar como borrada; admin puede modificar cualquiera
 CREATE POLICY "comparisons_update" ON client_comparisons
 FOR UPDATE TO authenticated
-USING (auth.uid() = user_id OR public.is_user_admin());
+USING (auth.uid() = user_id OR public.is_user_admin())
+WITH CHECK (auth.uid() = user_id OR public.is_user_admin());
+
+CREATE TRIGGER prevent_user_comparison_overwrite
+  BEFORE UPDATE ON client_comparisons
+  FOR EACH ROW EXECUTE PROCEDURE public.prevent_user_comparison_overwrite();
 
 -- DELETE físico: solo admin
 CREATE POLICY "comparisons_delete" ON client_comparisons
@@ -303,7 +372,7 @@ ORDER BY tablename, cmd;
 -- Ver funciones creadas
 SELECT proname, prosecdef
 FROM pg_proc
-WHERE proname IN ('is_user_admin','is_user_approved','handle_new_user','update_timestamp')
+WHERE proname IN ('is_user_admin','is_user_approved','handle_new_user','update_timestamp','prevent_profile_privilege_overwrite','prevent_user_comparison_overwrite')
 AND pronamespace = 'public'::regnamespace;
 
 -- Ver columnas de cada tabla

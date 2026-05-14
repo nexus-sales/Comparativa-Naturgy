@@ -15,16 +15,14 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
   const [message, setMessage] = useState("");
   const [formData, setFormData] = useState({
     full_name: "",
-    phone: "",
-    email: ""
+    phone: ""
   });
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setFormData({
       full_name: profile?.full_name || "",
-      phone: profile?.phone || "",
-      email: profile?.email || user?.email || ""
+      phone: profile?.phone || ""
     });
   }, [profile, user]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -44,8 +42,7 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
       const payload = {
         id: user.id,
         full_name: cleanStr(formData.full_name),
-        phone: cleanStr(formData.phone),
-        email: cleanStr(formData.email) || user.email
+        phone: cleanStr(formData.phone)
       };
 
       const { error } = await supabase
@@ -106,11 +103,10 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
             <label className="block text-sm font-bold text-slate-700 mb-2">Email Profesional</label>
             <input
               type="email"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 outline-none"
               placeholder="tu@email.com"
-              value={formData.email}
-              onChange={e => setFormData({...formData, email: e.target.value})}
-              required
+              value={profile?.email || user?.email || ""}
+              readOnly
             />
           </div>
         </div>

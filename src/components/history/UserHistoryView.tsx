@@ -210,7 +210,8 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
 
                               const segTariffs = ((cd.available_tariffs as unknown[]) || []).map((t: unknown) => {
                                 const tariff = t as Record<string, unknown>;
-                                const isBest = String(tariff.name).trim() === String(cd.best_tariff).trim();
+                                const tariffName = tariff.nombre ?? tariff.name;
+                                const isBest = String(tariffName).trim() === String(cd.best_tariff).trim();
                                 return { ...tariff, selected: isBest };
                               }) as TarifaLocal[];
 

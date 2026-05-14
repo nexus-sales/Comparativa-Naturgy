@@ -36,7 +36,7 @@ export function useAuth() {
 
         if (!cancelled && data) {
           setProfile(data as Profile);
-          setIsAdmin(data.is_admin ?? false);
+          setIsAdmin((data.is_admin ?? false) && !(data.is_blocked ?? false));
         } else if (!cancelled) {
           setProfile(fallbackProfile(authUser));
         }

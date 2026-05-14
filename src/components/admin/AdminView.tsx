@@ -57,14 +57,29 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   }, []);
 
   const toggleApprove = async (id: string, current: boolean) => {
-    await supabase.from("profiles").update({ is_approved: !current }).eq("id", id);
-    setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: !current } : p));
+    const nextApproved = !current;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_approved: nextApproved, is_blocked: !nextApproved })
+      .eq("id", id);
+    if (error) {
+      alert("Error al actualizar usuario: " + error.message);
+      return;
+    }
+    setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: nextApproved, is_blocked: !nextApproved } : p));
   };
 
   const toggleAdmin = async (id: string, current: boolean) => {
     if (!confirm(`¿${current ? "Quitar" : "Dar"} permisos de administrador a este usuario?`)) return;
-    await supabase.from("profiles").update({ is_admin: !current, is_approved: true }).eq("id", id);
-    setProfiles(profiles.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true } : p));
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_admin: !current, is_approved: true, is_blocked: false })
+      .eq("id", id);
+    if (error) {
+      alert("Error al actualizar permisos: " + error.message);
+      return;
+    }
+    setProfiles(profiles.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true, is_blocked: false } : p));
   };
 
   const deleteTariff = async (id: string) => {

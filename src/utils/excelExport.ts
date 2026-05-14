@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import type { CalcResult, SegCliente, TarifaLocal } from './calculations';
 import { calc, fmtRaw } from './calculations';
 
@@ -9,6 +8,16 @@ export function exportExcel(
   cliente: SegCliente,
   tariffs: TarifaLocal[]
 ): void {
+  void exportExcelAsync(segLabel, taxModel, potP, cliente, tariffs);
+}
+
+async function exportExcelAsync(
+  segLabel: string,
+  taxModel: string,
+  potP: number,
+  cliente: SegCliente,
+  tariffs: TarifaLocal[]
+): Promise<void> {
   const selected = tariffs.filter(t => t.selected);
   if (!selected.length) return;
 
@@ -16,11 +25,9 @@ export function exportExcel(
   const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
   const isPyme = taxModel !== 'res';
 
-  const wb = XLSX.utils.book_new();
-
   const rowDefs: [string, keyof CalcResult][] = isPyme ? [
     ['Coste potencia', 'potencia'],
-    ['Coste energía', 'energia'],
+    ['Coste energia', 'energia'],
     ['SVA', 'sva'],
     ['Alquiler', 'alquiler'],
     ['Subtotal', 'subtotal'],
@@ -30,7 +37,7 @@ export function exportExcel(
     ['Bono Social (ref.)', 'bonoSocial'],
   ] : [
     ['Coste potencia', 'potencia'],
-    ['Coste energía', 'energia'],
+    ['Coste energia', 'energia'],
     ['SVA', 'sva'],
     ['Alquiler', 'alquiler'],
     ['Subtotal', 'subtotal'],
@@ -41,11 +48,11 @@ export function exportExcel(
 
   const c = cliente;
   const rows: (string | number | null)[][] = [
-    [`Comparativa Tarifas Naturgy — ${segLabel}`],
+    [`Comparativa Tarifas Naturgy - ${segLabel}`],
     [],
     ['Cliente:', c.nombre, 'CUPS:', c.cups],
-    ['Dirección:', c.dir],
-    ['Período:', `${c.f1} → ${c.f2}`, 'Días:', c.dias],
+    ['Direccion:', c.dir],
+    ['Periodo:', `${c.f1} -> ${c.f2}`, 'Dias:', c.dias],
     [],
     ['Componente', 'Factura actual', ...results.map(x => x.t.nombre)],
     ...rowDefs.map(([lbl, key]) => [
@@ -58,28 +65,42 @@ export function exportExcel(
     ]),
     ['TOTAL ESTIMADO', +c.factura, ...results.map(x => +x.r.total)],
     [],
-    ['Mejor opción:', best.t.nombre, `Total: ${fmtRaw(best.r.total)} €`],
+    ['Mejor opcion:', best.t.nombre, `Total: ${fmtRaw(best.r.total)} EUR`],
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 28 }, { wch: 16 }, ...results.map(() => ({ wch: 20 }))];
-  XLSX.utils.book_append_sheet(wb, ws, 'Comparativa');
+  const { default: ExcelJS } = await import('exceljs');
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Naturgy Comparativa';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Comparativa');
+  ws.addRows(rows);
+  ws.columns = [{ width: 28 }, { width: 16 }, ...results.map(() => ({ width: 20 }))];
 
   const kwRows = c.kw.map((v, i) => v ? [`P${i + 1}`, v] : null).filter(Boolean) as [string, number][];
   const enRows = c.en.map((v, i) => v ? [`P${i + 1}`, v] : null).filter(Boolean) as [string, number][];
 
-  const wsC = XLSX.utils.aoa_to_sheet([
+  const wsC = wb.addWorksheet('Datos cliente');
+  wsC.addRows([
     ['Datos del cliente'], [],
-    ['Nombre', c.nombre], ['CUPS', c.cups], ['Dirección', c.dir],
-    ['Lectura anterior', c.f1], ['Lectura actual', c.f2], ['Días', c.dias],
+    ['Nombre', c.nombre], ['CUPS', c.cups], ['Direccion', c.dir],
+    ['Lectura anterior', c.f1], ['Lectura actual', c.f2], ['Dias', c.dias],
     [], ['POTENCIA (kW)'],
     ...kwRows,
     [], ['CONSUMO (kWh)'],
     ...enRows,
-    [], ['Factura actual (€)', c.factura], ['Alquiler (€)', c.alquiler],
+    [], ['Factura actual (EUR)', c.factura], ['Alquiler (EUR)', c.alquiler],
   ]);
-  wsC['!cols'] = [{ wch: 24 }, { wch: 30 }];
-  XLSX.utils.book_append_sheet(wb, wsC, 'Datos cliente');
+  wsC.columns = [{ width: 24 }, { width: 30 }];
 
-  XLSX.writeFile(wb, `Comparativa_Naturgy_${segLabel.replace(/\s/g, '_')}.xlsx`);
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Comparativa_Naturgy_${segLabel.replace(/\s/g, '_')}.xlsx`;
+  link.click();
+  URL.revokeObjectURL(url);
 }

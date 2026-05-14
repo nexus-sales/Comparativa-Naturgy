@@ -311,18 +311,23 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       if (isSaving) return;
       try {
         setIsSaving(true);
-        const sEsc = (s: unknown) => typeof s === "string" ? s.replace(/[<>"{}$%]/g,"").trim() : s;
+        const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g,"").trim() : "";
         const { error } = await supabase.from("client_comparisons").insert({
           user_id: user.id,
           client_name: sEsc(c.nombre) || "S/N",
+          client_address: sEsc(c.dir),
           target_tariff: best.t.nombre,
           target_segment: segDef.label,
           calculation_data: {
+            segment: segDef.label,
+            tax_model: taxModel,
+            pot_prices: potP,
             best_tariff: best.t.nombre,
             total_cost: best.r.total,
             saving: bestAh,
             current_invoice: c.factura,
-            client_data: {...c, nombre: sEsc(c.nombre), cups: sEsc(c.cups), dir: sEsc(c.dir)}
+            client_data: {...c, nombre: sEsc(c.nombre), cups: sEsc(c.cups), dir: sEsc(c.dir)},
+            available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === best.t.id }))
           }
         });
         if (error) throw error;

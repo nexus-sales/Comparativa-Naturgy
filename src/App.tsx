@@ -35,7 +35,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile" | "history">("comparator");
   const [showAppHelp, setShowAppHelp] = useState(false);
 
-  const canLoadData = !!user && !authLoading && (isAdmin || profile?.is_approved === true);
+  const isBlocked = profile?.is_blocked === true;
+  const canLoadData = !!user && !authLoading && !isBlocked && (isAdmin || profile?.is_approved === true);
 
   useEffect(() => {
     if (!canLoadData) return;
@@ -72,7 +73,7 @@ function App() {
 
   if (!user) return <AuthStatus />;
 
-  if (!isAdmin && profile?.is_approved === false) return (
+  if (isBlocked || (!isAdmin && profile?.is_approved === false)) return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <header className="bg-[#002855] text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
@@ -89,8 +90,12 @@ function App() {
           <div className="flex items-start gap-4">
             <div className="bg-amber-100 p-2 rounded-lg text-amber-700"><AlertTriangle size={24} /></div>
             <div>
-              <h2 className="text-xl font-bold text-[#002855]">Cuenta pendiente de aprobación</h2>
-              <p className="text-slate-600 mt-2">Tu usuario ya ha iniciado sesión, pero todavía no tiene permiso para ver las tarifas. Cuando un administrador apruebe la cuenta, se activará el acceso.</p>
+              <h2 className="text-xl font-bold text-[#002855]">{isBlocked ? "Cuenta bloqueada" : "Cuenta pendiente de aprobacion"}</h2>
+              <p className="text-slate-600 mt-2">
+                {isBlocked
+                  ? "Tu usuario no tiene acceso activo. Contacta con el administrador."
+                  : "Tu usuario ya ha iniciado sesion, pero todavia no tiene permiso para ver las tarifas. Cuando un administrador apruebe la cuenta, se activara el acceso."}
+              </p>
             </div>
           </div>
         </div>
