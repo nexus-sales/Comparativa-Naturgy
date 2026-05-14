@@ -69,6 +69,9 @@ function App() {
   useEffect(() => {
     if (user && !isAdmin && (!profile || !profile.full_name) && activeTab === "comparator") {
       setActiveTab("profile");
+    } else if (user && profile?.full_name && activeTab === "profile") {
+      // Redirigir a comercial si ya tiene nombre y está en perfil (p.js. al entrar)
+      setActiveTab("comparator");
     }
   }, [user, profile, activeTab, isAdmin]);
 
@@ -338,9 +341,23 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
             <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
               <span className="bg-orange-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">4</span>
-              Genera la Comparativa
+              Exportación y Compartición
             </h3>
-            <p>En la pestaña "Comparativa" verás un gráfico con los resultados. Puedes exportar esta información a PDF o Excel para entregársela al cliente.</p>
+            <p>En la pestaña "Comparativa" verás los resultados. Haz clic en <strong>"Generar PDF"</strong> o <strong>"Exportar Excel"</strong> para descargar la oferta formal lista para el cliente.</p>
+          </div>
+
+          <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+            <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+              <Pencil size={16} /> Perfil y Miembro
+            </h3>
+            <p className="text-blue-800/80">Asegúrate de configurar tu <strong>Nombre y Teléfono</strong> en la pestaña "Usuario". Estos datos aparecerán en los documentos PDF que generes.</p>
+          </div>
+
+          <div className="p-4 bg-purple-50/50 rounded-xl border border-purple-100 text-purple-900">
+            <h3 className="font-bold mb-2 flex items-center gap-2">
+              <Clock size={16} /> Historial
+            </h3>
+            <p className="text-purple-800/80">Consulta comparativas pasadas en la pestaña "Historial" para recuperar cálculos o ver la actividad reciente.</p>
           </div>
         </div>
 
