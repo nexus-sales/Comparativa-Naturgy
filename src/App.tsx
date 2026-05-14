@@ -1615,6 +1615,10 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
   const [filterSegment, setFilterSegment] = useState<string>("all");
+  
+  // Nuevos estados para filtros historial admin
+  const [historyFilterTariff, setHistoryFilterTariff] = useState<string>("");
+  const [historyFilterSegment, setHistoryFilterSegment] = useState<string>("");
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -1669,6 +1673,16 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
   };
 
   const closeForm = () => { setShowTariffForm(false); setEditingTariff(null); };
+
+  // Filtrado de Historial para Admin
+  const filteredHistory = history.filter(item => {
+    const tariffMatch = !historyFilterTariff || item.target_tariff === historyFilterTariff || item.calculation_data?.best_tariff === historyFilterTariff;
+    const segmentMatch = !historyFilterSegment || item.target_segment === historyFilterSegment || item.calculation_data?.segment === historyFilterSegment;
+    return tariffMatch && segmentMatch;
+  });
+
+  const uniqueHistoryTariffs = Array.from(new Set(history.map(item => item.target_tariff || item.calculation_data?.best_tariff).filter(Boolean)));
+  const uniqueHistorySegments = Array.from(new Set(history.map(item => item.target_segment || item.calculation_data?.segment).filter(Boolean)));
 
   return (
     <div className="p-6 bg-white rounded-2xl shadow-sm border border-slate-200">
@@ -1740,16 +1754,52 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
         <div className="space-y-6">
           {/* Admin KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total Global" value={history.length} icon={<FileText className="text-blue-500" size={20} />} />
-            <KPICard title="Ahorro Acumulado" value={fmtEur(history.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
-            <KPICard title="Ahorro Promedio" value={fmtEur(history.length ? history.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0) / history.length : 0)} icon={<div className="text-emerald-500 font-bold">⌀</div>} />
+            <KPICard title="Total Global" value={filteredHistory.length} icon={<FileText className="text-blue-500" size={20} />} />
+            <KPICard title="Ahorro Acumulado" value={fmtEur(filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
+            <KPICard title="Ahorro Promedio" value={filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data?.saving || 0), 0) / filteredHistory.length : 0} icon={<div className="text-emerald-500 font-bold">⌀</div>} />
             <KPICard title="Top Comercial" value={
-              Object.entries(history.reduce((acc: any, curr) => {
+              Object.entries(filteredHistory.reduce((acc: any, curr) => {
                 const name = curr.profiles?.email?.split('@')[0] || 'Desconocido';
                 acc[name] = (acc[name] || 0) + 1;
                 return acc;
               }, {})).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || "-"
             } icon={<Users className="text-orange-500" size={20} />} />
+          </div>
+
+          {/* Filtros Historial Admin */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase">Tarifa:</span>
+              <select 
+                title="Filtrar por Tarifa"
+                value={historyFilterTariff} 
+                onChange={(e) => setHistoryFilterTariff(e.target.value)}
+                className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+              >
+                <option value="">Todas</option>
+                {uniqueHistoryTariffs.map(t => <option key={t as string} value={t as string}>{t as string}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase">Sector:</span>
+              <select 
+                title="Filtrar por Sector"
+                value={historyFilterSegment} 
+                onChange={(e) => setHistoryFilterSegment(e.target.value)}
+                className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+              >
+                <option value="">Todos</option>
+                {uniqueHistorySegments.map(s => <option key={s as string} value={s as string}>{s as string}</option>)}
+              </select>
+            </div>
+            {(historyFilterTariff || historyFilterSegment) && (
+              <button 
+                onClick={() => { setHistoryFilterTariff(""); setHistoryFilterSegment(""); }}
+                className="text-xs font-bold text-orange-600 hover:text-orange-700 underline"
+              >
+                Limpiar Filtros
+              </button>
+            )}
           </div>
 
           <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
@@ -1765,7 +1815,7 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {history.map(item => (
+                  {filteredHistory.map(item => (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
                         {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -1787,8 +1837,10 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
                 </tbody>
               </table>
             </div>
-            {!history.length && (
-              <div className="p-12 text-center text-slate-400 italic">No hay registros aún en el sistema.</div>
+            {!filteredHistory.length && (
+              <div className="p-12 text-center text-slate-400 italic bg-slate-50/30">
+                {history.length ? "No hay resultados para los filtros seleccionados." : "No hay registros aún en el sistema."}
+              </div>
             )}
           </div>
         </div>
