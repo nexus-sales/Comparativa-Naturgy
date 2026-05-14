@@ -1830,8 +1830,15 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   });
 
   const save = async () => {
-    const r_pot = form.r_pot.map(v => parseFloat(v as string) || 0);
-    const r_en = form.r_en.map(v => parseFloat(v as string) || 0);
+    // Función helper para limpiar el input: cambiar comas por puntos antes de parsear
+    const cleanNum = (v: string | number) => {
+      if (typeof v === "number") return v;
+      const s = String(v || "0").replace(",", ".");
+      return parseFloat(s) || 0;
+    };
+
+    const r_pot = form.r_pot.map(v => cleanNum(v));
+    const r_en = form.r_en.map(v => cleanNum(v));
 
     const payload = {
       segment_id: form.segment_id,
@@ -1840,7 +1847,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
       pot_unit: form.pot_unit,
       r_pot: form.type === "hex" ? r_pot.slice(0, 6) : r_pot.slice(0, 2),
       r_en:  form.type === "hex" ? r_en.slice(0, 6) : (form.type === "tri" ? r_en.slice(0, 3) : r_en.slice(0, 1)),
-      sva: parseFloat(form.sva) || 0,
+      sva: cleanNum(form.sva),
       requires_auth: form.requires_auth,
     };
     const { error } = isEdit
