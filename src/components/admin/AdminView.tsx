@@ -182,7 +182,11 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <KPICard title="Total Global" value={filteredHistory.length} icon={<FileText className="text-blue-500" size={20} />} />
             <KPICard title="Ahorro Acumulado" value={fmtEur(filteredHistory.reduce((acc, curr) => acc + (((curr.calculation_data as Record<string, unknown>)?.saving as number) || 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
-            <KPICard title="Ahorro Promedio" value={filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (((curr.calculation_data as Record<string, unknown>)?.saving as number) || 0), 0) / filteredHistory.length : 0} icon={<div className="text-emerald-500 font-bold">⌀</div>} />
+            <KPICard 
+              title="Ahorro Promedio" 
+              value={fmtEur(filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (((curr.calculation_data as Record<string, unknown>)?.saving as number) || 0), 0) / filteredHistory.length : 0)} 
+              icon={<div className="text-emerald-500 font-bold">⌀</div>} 
+            />
             <KPICard title="Top Comercial" value={
               Object.entries(filteredHistory.reduce<Record<string, number>>((acc, curr) => {
                 const name = curr.profiles?.email?.split('@')[0] || 'Desconocido';
