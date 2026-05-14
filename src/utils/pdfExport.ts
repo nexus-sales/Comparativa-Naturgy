@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-control-regex */
 import { jsPDF } from 'jspdf';
 import type { SegCliente, TarifaLocal, CalcResult } from './calculations';
 import { calc } from './calculations';

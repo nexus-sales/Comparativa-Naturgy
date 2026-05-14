@@ -27,7 +27,7 @@ function writeCache(segments: Segment[], tariffs: Tariff[]) {
   try {
     const payload: CachePayload = { segments, tariffs, ts: Date.now() };
     localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
-  } catch {}
+  } catch { /* localStorage not available */ }
 }
 
 interface AppStore {
@@ -78,11 +78,11 @@ export const useAppStore = create<AppStore>((set) => ({
         set({ segments: segResult.data, tariffs: tarResult.data });
         writeCache(segResult.data, tarResult.data);
       }
-    } catch {}
+    } catch { /* silent refresh failure */ }
   },
 
   reset: () => {
-    try { localStorage.removeItem(CACHE_KEY); } catch {}
+    try { localStorage.removeItem(CACHE_KEY); } catch { /* localStorage not available */ }
     set({ segments: [], tariffs: [], loading: false, error: null });
   },
 }));

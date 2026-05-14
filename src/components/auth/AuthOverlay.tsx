@@ -50,8 +50,8 @@ export const AuthStatus = () => {
           throw error;
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Error en la autenticación');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error en la autenticación');
     } finally {
       setLoading(false);
     }

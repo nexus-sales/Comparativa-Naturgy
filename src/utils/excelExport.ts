@@ -52,8 +52,8 @@ export function exportExcel(
       lbl,
       key === 'alquiler' ? +c.alquiler : null,
       ...results.map(x => {
-        const val = (x.r as any)[key];
-        return val !== undefined ? +val : null;
+        const val = (x.r as Record<string, unknown>)[key as string];
+        return val !== undefined ? +(val as number) : null;
       }),
     ]),
     ['TOTAL ESTIMADO', +c.factura, ...results.map(x => +x.r.total)],

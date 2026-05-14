@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { Users } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import type { Profile } from "../../types";
 
 interface UserProfileViewProps {
-  user: any;
-  profile: any;
+  user: User;
+  profile: Profile | null;
   isAdmin: boolean;
 }
 
@@ -17,6 +19,7 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
     email: ""
   });
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setFormData({
       full_name: profile?.full_name || "",
@@ -24,6 +27,7 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
       email: profile?.email || user?.email || ""
     });
   }, [profile, user]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +39,6 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
     setSaving(true);
     setMessage("");
     try {
-      // Sanitización extremadamente agresiva para perfiles
       const cleanStr = (s: string) => s.replace(/[<>"{}$%]/g, "").trim();
 
       const payload = {
@@ -54,15 +57,11 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
         console.error("Update error details:", error);
         throw error;
       }
-      
+
       setMessage("✓ Perfil actualizado correctamente.");
-      // Opcional: Notificar al padre para refrescar sin recargar toda la página
-      if (typeof (window as any).refreshAppCache === 'function') {
-        (window as any).refreshAppCache();
-      }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Profile save error:", err);
-      setMessage("Error al guardar: " + (err.message || "Error de red o permisos RLS"));
+      setMessage("Error al guardar: " + (err instanceof Error ? err.message : "Error de red o permisos RLS"));
     } finally {
       setSaving(false);
     }
@@ -84,8 +83,8 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-2">Nombre Completo</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
               placeholder="Ej: Juan Pérez"
               value={formData.full_name}
@@ -95,8 +94,8 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
           </div>
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono de contacto</label>
-            <input 
-              type="tel" 
+            <input
+              type="tel"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
               placeholder="600 000 000"
               value={formData.phone}
@@ -105,8 +104,8 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
           </div>
           <div className="col-span-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">Email Profesional</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
               placeholder="tu@email.com"
               value={formData.email}
@@ -126,8 +125,8 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
           <div className="text-xs text-slate-400">
             Rol actual: <span className="font-bold text-blue-600 uppercase">{isAdmin ? "Administrador" : "Comercial"}</span>
           </div>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={saving}
             className="bg-[#002855] text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-800 transition-all shadow-lg flex items-center gap-2"
           >

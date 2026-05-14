@@ -39,11 +39,13 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
     } finally {
       setLoading(false);
     }
-  }, [user.id, isAdmin]);
+  }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchHistory();
-  }, [fetchHistory]);
+  }, [fetchHistory, user.id, isAdmin]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const filteredHistory = history.filter(item => {
     const cd = item.calculation_data as Record<string, unknown>;

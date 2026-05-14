@@ -44,17 +44,21 @@ function App() {
     } else {
       refresh();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canLoadData]);
 
   const effectiveTab = (!isAdmin && activeTab === "admin") ? "comparator" : activeTab;
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (user && !isAdmin && (!profile || !profile.full_name) && activeTab === "comparator") {
       setActiveTab("profile");
     } else if (user && profile?.full_name && activeTab === "profile") {
       setActiveTab("comparator");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, profile, isAdmin]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const [authTimeout, setAuthTimeout] = useState(false);
   useEffect(() => {

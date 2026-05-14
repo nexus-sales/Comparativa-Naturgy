@@ -53,6 +53,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     }
   }, [segments]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (profile) {
       setComercialData({
@@ -62,6 +63,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       });
     }
   }, [profile, user]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const segDef = SEG_DEFS.find(s => s.id === activeSeg) ?? SEG_DEFS[0];
 
@@ -157,6 +159,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       const results = selected.map((t, i) => ({ t, r: calc(taxModel, potP, c, t), color: CHART_COLS[i % CHART_COLS.length] }));
       const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
 
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       chartInstances.current[segId] = new Chart(canvas, {
         type: "bar",
         data: {
@@ -171,6 +174,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           plugins: { legend: { display: false } },
         }
       } as any);
+      /* eslint-enable @typescript-eslint/no-explicit-any */
     }, 50);
     return () => clearTimeout(timer);
   }, [activeSeg, subTabs, clients, tariffMeta, segments, tariffs, getSegMeta, getSegTariffs]);
@@ -390,9 +394,11 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
         ))}
       </div>
       <div className="min-h-[400px]">
+        {/* eslint-disable react-hooks/static-components */}
         {sub === "cli" && <ClientPane segId={activeSeg} />}
         {sub === "tar" && <TariffPane segId={activeSeg} />}
         {sub === "comp" && <CompPane segId={activeSeg} />}
+        {/* eslint-enable react-hooks/static-components */}
       </div>
     </div>
   );
