@@ -1909,6 +1909,17 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
     const r_pot = form.r_pot.map(v => cleanNum(v));
     const r_en = form.r_en.map(v => cleanNum(v));
 
+    console.log("Attempting to save tariff...", { isEdit, tariffId: tariff?.id, payload: {
+      segment_id: form.segment_id,
+      name: form.name.trim(),
+      type: form.type,
+      pot_unit: form.pot_unit,
+      r_pot,
+      r_en,
+      sva: cleanNum(form.sva),
+      requires_auth: form.requires_auth,
+    }});
+
     const payload = {
       segment_id: form.segment_id,
       name: form.name.trim(),
@@ -1922,8 +1933,16 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
     const { error } = isEdit
       ? await supabase.from("tariffs").update(payload).eq("id", tariff!.id)
       : await supabase.from("tariffs").insert([payload]);
-    if (error) alert("Error: " + error.message);
-    else { onClose(); window.location.reload(); }
+
+    console.log("Save Tariff Result:", { error, payload });
+
+    if (error) {
+      alert("Error al guardar en base de datos: " + error.message);
+    } else { 
+      alert("Tarifa guardada correctamente");
+      onClose(); 
+      window.location.reload(); 
+    }
   };
 
   return (
