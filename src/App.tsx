@@ -1511,9 +1511,16 @@ function AdminView({ segments, tariffs }: { segments: Segment[]; tariffs: Tariff
   const [filterSegment, setFilterSegment] = useState<string>("all");
 
   useEffect(() => {
-    supabase.from("profiles").select("*").order("email").then(({ data }) => {
-      if (data) setProfiles(data);
-    });
+    const fetchProfiles = async () => {
+      const { data, error } = await supabase.from("profiles").select("*").order("email");
+      if (error) {
+        console.error("Error loading profiles:", error);
+      } else if (data) {
+        setProfiles(data);
+      }
+    };
+
+    fetchProfiles();
     
     const fetchAdminHistory = async () => {
       // Intentamos primero con el join de profiles (usando la relación que esperamos)
