@@ -6,6 +6,7 @@
   }
   .scrollbar-hide {
     -ms-overflow-style: none;
+    /* @cc_on @if (@_jscript_version >= 9) scrollbar-width: none; @end @*/
     scrollbar-width: none;
   }
 }

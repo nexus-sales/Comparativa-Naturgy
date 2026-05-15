@@ -7,6 +7,7 @@ import { AdminView } from "./components/admin/AdminView";
 import { UserHistoryView } from "./components/history/UserHistoryView";
 import { UserProfileView } from "./components/profile/UserProfileView";
 import { AuthStatus } from "./components/auth/AuthOverlay";
+import { InstallPWA } from "./components/InstallPWA";
 import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X } from "lucide-react";
 
 import {
@@ -154,6 +155,7 @@ function App() {
           </>
         )}
       </main>
+      <InstallPWA />
       {showAppHelp && <AppHelpModal onClose={() => setShowAppHelp(false)} />}
     </div>
   );

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { Shield, Trash2, Pencil, Plus, FileText, Users, X } from "lucide-react";
 import { KPICard } from "../KPICard";
-import { fmtEur, SEG_DEFS } from "../../utils/calculations";
+import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
 import type { Segment, Tariff, ClientComparison, Profile } from "../../types";
 
@@ -137,7 +137,11 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                   onClick={() => setFilterSegment(seg.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === seg.id ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
                 >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: (SEG_DEFS.find(s => s.id === seg.id)?.color || '#cbd5e1') }}></span>
+                  <span className={`w-2 h-2 rounded-full ${
+                    seg.id === 'res' ? 'bg-orange-500' : 
+                    seg.id === 'pyme361' ? 'bg-purple-600' : 
+                    'bg-blue-600'
+                  }`}></span>
                   {seg.label}
                 </button>
               ))}
