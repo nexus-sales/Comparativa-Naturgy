@@ -50,6 +50,7 @@ function App() {
   }, [canLoadData]);
 
   const effectiveTab = (!isAdmin && activeTab === "admin") ? "comparator" : activeTab;
+  const isProfileIncomplete = !!user && (!profile || !profile.full_name || !profile.phone);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -133,6 +134,25 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {isProfileIncomplete && effectiveTab === "comparator" && (
+          <div className="mb-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-6 shadow-lg text-white flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                <Pencil size={24} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">Personaliza tus ofertas</h3>
+                <p className="text-orange-100 text-sm">Añade tus datos aquí para que aparezcan en los informes PDF que generes.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setActiveTab("profile")}
+              className="bg-white text-orange-600 px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:bg-orange-50 transition-colors whitespace-nowrap"
+            >
+              Completar mi perfil
+            </button>
+          </div>
+        )}
         {dataError && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-800 rounded-2xl p-6 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-4">
