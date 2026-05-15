@@ -82,6 +82,26 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
     setProfiles(profiles.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true, is_blocked: false } : p));
   };
 
+  const deleteUser = async (id: string, email: string) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar permanentemente al usuario ${email}? Esta acción no se puede deshacer.`)) return;
+    
+    // Primero intentamos borrar el perfil (que debería borrar en cascada o simplemente el registro de la tabla profiles)
+    // Nota: Para borrar del Auth de Supabase se requiere una Service Role Key o llamar a una Edge Function,
+    // pero aquí borraremos el perfil de la base de datos que es lo que gestiona el acceso en la app.
+    const { error } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert("Error al eliminar usuario: " + error.message);
+      return;
+    }
+
+    setProfiles(profiles.filter(p => p.id !== id));
+    alert("Usuario eliminado correctamente de la base de datos.");
+  };
+
   const deleteTariff = async (id: string) => {
     if (!confirm("¿Seguro que quieres borrar esta tarifa?")) return;
     const { error } = await supabase.from("tariffs").delete().eq("id", id);
@@ -286,18 +306,27 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {profiles.map(p => (
             <div key={p.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-bold text-slate-800 text-sm">{p.email}</p>
                   <p className="text-xs text-slate-400">{p.is_admin ? "Administrador" : "Comercial"}</p>
                 </div>
-                <button
-                  onClick={() => toggleAdmin(p.id, p.is_admin)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
-                  title={p.is_admin ? "Quitar admin" : "Hacer admin"}
-                >
-                  {p.is_admin ? "Admin ✓" : "Hacer admin"}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleAdmin(p.id, p.is_admin)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
+                    title={p.is_admin ? "Quitar admin" : "Hacer admin"}
+                  >
+                    {p.is_admin ? "Admin ✓" : "Hacer admin"}
+                  </button>
+                  <button
+                    onClick={() => deleteUser(p.id, p.email)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Eliminar usuario"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               {!p.is_admin && (
                 <button
