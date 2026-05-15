@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { fmtEur } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
-import { exportPDF } from "../../utils/pdfExport";
+import { toSectorFilter } from "../../utils/sectors";
 import { Trash2, Clock, FileText, Users, RefreshCw } from "lucide-react";
 import { KPICard } from "../KPICard";
 import type { User } from "@supabase/supabase-js";
@@ -51,7 +51,8 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   const filteredHistory = history.filter(item => {
     const cd = item.calculation_data as Record<string, unknown>;
     const tariffMatch = !filterTariff || item.target_tariff === filterTariff || cd?.best_tariff === filterTariff;
-    const segmentMatch = !filterSegment || item.target_segment === filterSegment || cd?.segment === filterSegment;
+    const sector = toSectorFilter(item.target_segment || cd?.segment);
+    const segmentMatch = !filterSegment || sector === filterSegment;
     return tariffMatch && segmentMatch;
   });
 
@@ -63,7 +64,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
 
   const countBySegment = filteredHistory.reduce<Record<string, number>>((acc, curr) => {
     const cd = curr.calculation_data as Record<string, unknown>;
-    const seg = curr.target_segment || (cd?.segment as string) || "Otro";
+    const seg = toSectorFilter(curr.target_segment || cd?.segment) || "Otro";
     acc[seg] = (acc[seg] || 0) + 1;
     return acc;
   }, {});
@@ -75,7 +76,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
 
   const uniqueSegments = Array.from(new Set(history.map(item => {
     const cd = item.calculation_data as Record<string, unknown>;
-    return item.target_segment || (cd?.segment as string);
+    return toSectorFilter(item.target_segment || cd?.segment);
   }).filter(Boolean)));
 
   return (
@@ -185,7 +186,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                          {item.target_segment || (cd?.segment as string)}
+                          {toSectorFilter(item.target_segment || cd?.segment) || "Otro"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -200,7 +201,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               if (!cd) return alert("No hay datos de cálculo disponibles.");
 
                               const segLabel = (cd.segment as string) || "Residencial";
@@ -229,6 +230,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                                 email: item.profiles?.email || ""
                               };
 
+                              const { exportPDF } = await import("../../utils/pdfExport");
                               exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
                             }}
                             className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"

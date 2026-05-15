@@ -10,23 +10,42 @@ import { AuthStatus } from "./components/auth/AuthOverlay";
 import { InstallPWA } from "./components/InstallPWA";
 import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X } from "lucide-react";
 
-import {
-  Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip
-} from "chart.js";
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
+function clearAppStorage() {
+  const clearKnownKeys = (storage: Storage) => {
+    const keys = Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter((key): key is string => !!key);
+    keys.forEach((key) => {
+      if (key.startsWith("naturgy_") || /^sb-.+-auth-token$/.test(key)) {
+        storage.removeItem(key);
+      }
+    });
+  };
+
+  clearKnownKeys(localStorage);
+  clearKnownKeys(sessionStorage);
+}
 
 async function signOutAndReset(resetStore: () => void) {
-  try {
-    localStorage.clear();
-    sessionStorage.clear();
-    resetStore();
-    const { error } = await supabase.auth.signOut();
-    if (error) console.warn("Supabase signOut error:", error);
+  const redirectToLogin = () => {
     window.location.href = window.location.origin + window.location.pathname + "?t=" + Date.now();
+  };
+
+  try {
+    const signOut = supabase.auth.signOut();
+    const timeout = new Promise<{ error: Error }>((resolve) => {
+      window.setTimeout(() => resolve({ error: new Error("Sign out timeout") }), 3000);
+    });
+    const { error } = await Promise.race([signOut, timeout]);
+    if (error) console.warn("Supabase signOut error:", error);
   } catch (err) {
-    console.error("Error crítico en signOutAndReset:", err);
-    localStorage.clear();
-    window.location.href = "/";
+    console.error("Error critico en signOutAndReset:", err);
+  } finally {
+    try {
+      clearAppStorage();
+      resetStore();
+    } catch (storageErr) {
+      console.warn("Error clearing local app state:", storageErr);
+    }
+    redirectToLogin();
   }
 }
 

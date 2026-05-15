@@ -1,6 +1,10 @@
 -- ============================================================
--- NATURGY COMPARATIVA — SCHEMA DEFINITIVO v2
+-- NATURGY COMPARATIVA — RESET DESTRUCTIVO / SCHEMA v2
 -- Fecha: 2026-05-14
+-- ============================================================
+-- ATENCIÓN: este script elimina tablas operativas antes de recrearlas.
+-- No ejecutarlo en producción sin backup verificado y ventana de mantenimiento.
+-- Para cambios incrementales, crear migraciones no destructivas separadas.
 -- ============================================================
 -- PRERREQUISITO: Ejecutar PASO_1_backup_antes_de_reset.sql
 -- y guardar los resultados ANTES de ejecutar este script.

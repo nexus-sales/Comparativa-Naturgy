@@ -4,6 +4,7 @@ import { Shield, Trash2, Pencil, Plus, FileText, Users, X } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
+import { toSectorFilter } from "../../utils/sectors";
 import type { Segment, Tariff, ClientComparison, Profile } from "../../types";
 
 interface AdminViewProps {
@@ -83,11 +84,8 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   };
 
   const deleteUser = async (id: string, email: string) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar permanentemente al usuario ${email}? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Eliminar el perfil de acceso de ${email}? La cuenta de Supabase Auth seguirá existiendo; para borrarla por completo hace falta una Edge Function o Service Role.`)) return;
     
-    // Primero intentamos borrar el perfil (que debería borrar en cascada o simplemente el registro de la tabla profiles)
-    // Nota: Para borrar del Auth de Supabase se requiere una Service Role Key o llamar a una Edge Function,
-    // pero aquí borraremos el perfil de la base de datos que es lo que gestiona el acceso en la app.
     const { error } = await supabase
       .from("profiles")
       .delete()
@@ -99,7 +97,7 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
     }
 
     setProfiles(profiles.filter(p => p.id !== id));
-    alert("Usuario eliminado correctamente de la base de datos.");
+    alert("Perfil de acceso eliminado. La identidad Auth debe eliminarse desde Supabase o mediante una función segura.");
   };
 
   const deleteTariff = async (id: string) => {
@@ -118,7 +116,8 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   const filteredHistory = history.filter(item => {
     const cd = item.calculation_data as Record<string, unknown>;
     const tariffMatch = !historyFilterTariff || item.target_tariff === historyFilterTariff || cd?.best_tariff === historyFilterTariff;
-    const segmentMatch = !historyFilterSegment || item.target_segment === historyFilterSegment || cd?.segment === historyFilterSegment;
+    const sector = toSectorFilter(item.target_segment || cd?.segment);
+    const segmentMatch = !historyFilterSegment || sector === historyFilterSegment;
     return tariffMatch && segmentMatch;
   });
 
@@ -128,7 +127,7 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   }).filter(Boolean)));
   const uniqueHistorySegments = Array.from(new Set(history.map(item => {
     const cd = item.calculation_data as Record<string, unknown>;
-    return item.target_segment || (cd?.segment as string);
+    return toSectorFilter(item.target_segment || cd?.segment);
   }).filter(Boolean)));
 
   return (
@@ -281,7 +280,7 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                         <td className="px-6 py-4 font-medium text-slate-800">{item.client_name}</td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                            {item.target_segment || (cd?.segment as string)}
+                            {toSectorFilter(item.target_segment || cd?.segment) || "Otro"}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-black text-green-600 text-right whitespace-nowrap">

@@ -100,7 +100,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
     igicRed: +igicRed.toFixed(4),
     igic7: +igic7.toFixed(4),
     bonoSocial: +bono.toFixed(4),
-    total: +(subtotal + impElec + igicRed + igic7).toFixed(4),
+    total: +(subtotal + impElec + igicRed + igic7 + bono).toFixed(4),
   };
 }
 

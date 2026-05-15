@@ -2,11 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
-import { exportPDF } from "../../utils/pdfExport";
 import type { ComercialData } from "../../utils/pdfExport";
-import { exportExcel } from "../../utils/excelExport";
 import { Trash2, AlertTriangle, Shield } from "lucide-react";
-import { Chart } from "chart.js";
+import type { Chart as ChartInstance } from "chart.js";
 import type { Segment, Tariff, Profile } from "../../types";
 import type { User } from "@supabase/supabase-js";
 
@@ -26,7 +24,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
-  const chartInstances = useRef<Record<string, Chart>>({});
+  const chartInstances = useRef<Record<string, ChartInstance>>({});
 
   const [comercialData, setComercialData] = useState<ComercialData>({
     nombre: profile?.full_name || "Comercial",
@@ -143,7 +141,20 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     const sub = subTabs[activeSeg];
     if (sub !== "comp") return;
 
-    const timer = setTimeout(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const {
+        Chart,
+        BarController,
+        BarElement,
+        CategoryScale,
+        LinearScale,
+        Tooltip,
+      } = await import("chart.js");
+
+      if (cancelled) return;
+      Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
+
       const segId = activeSeg;
       const canvas = document.getElementById(`compChart_${segId}`) as HTMLCanvasElement | null;
       if (!canvas) return;
@@ -176,7 +187,10 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       } as any);
       /* eslint-enable @typescript-eslint/no-explicit-any */
     }, 50);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [activeSeg, subTabs, clients, tariffMeta, segments, tariffs, getSegMeta, getSegTariffs]);
 
   const AuthWarning = () => activeSeg !== "pyme20one" ? null : (
@@ -342,15 +356,21 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
 
     const handlePDF = async () => {
       if (isSaving) return;
+      const { exportPDF } = await import("../../utils/pdfExport");
       exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
       await saveComp("PDF");
+    };
+
+    const handleExcel = async () => {
+      const { exportExcel } = await import("../../utils/excelExport");
+      exportExcel(segDef.label, taxModel, potP, c, segTariffs);
     };
 
     return (
       <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex gap-2">
           <button onClick={handlePDF} disabled={isSaving} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">PDF INFORME</button>
-          <button onClick={() => exportExcel(segDef.label, taxModel, potP, c, segTariffs)} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
+          <button onClick={handleExcel} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
           <button onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">{isSaving?"...":"GUARDAR"}</button>
         </div>
         <div className="grid grid-cols-2 gap-3">

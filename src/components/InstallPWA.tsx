@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Download, X, Smartphone, Monitor } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -16,6 +16,7 @@ export function InstallPWA() {
 
   useEffect(() => {
     const handler = (e: Event) => {
+      if (window.matchMedia("(display-mode: standalone)").matches) return;
       // Evitar que el navegador muestre el prompt automático
       e.preventDefault();
       // Guardar el evento para dispararlo más tarde
@@ -25,11 +26,6 @@ export function InstallPWA() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-
-    // Detectar si ya está instalada
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setShowBanner(false);
-    }
 
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
