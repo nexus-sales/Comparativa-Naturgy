@@ -4,7 +4,7 @@ import { fmtEur } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
 import { exportPDF } from "../../utils/pdfExport";
 import { toSectorFilter } from "../../utils/sectors";
-import { Trash2, Clock, FileText, Users, RefreshCw } from "lucide-react";
+import { Trash2, Clock, FileText, Users, RefreshCw, AlertCircle } from "lucide-react";
 import { KPICard } from "../KPICard";
 import type { User } from "@supabase/supabase-js";
 import type { ClientComparison } from "../../types";
@@ -17,39 +17,59 @@ interface UserHistoryViewProps {
 export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   const [history, setHistory] = useState<ClientComparison[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [filterTariff, setFilterTariff] = useState("");
   const [filterSegment, setFilterSegment] = useState("");
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const { data, error } = await supabase
         .from("client_comparisons")
-        .select("*, profiles(email, full_name, phone)")
+        .select("*")
         .neq("deleted_by_user", true)
         .order("created_at", { ascending: false })
         .limit(200);
 
       if (error) throw error;
-      if (data) setHistory(data as ClientComparison[]);
-    } catch {
-      const { data: simpleData } = await supabase
-        .from("client_comparisons")
-        .select("*")
-        .neq("deleted_by_user", true)
-        .order("created_at", { ascending: false });
-      if (simpleData) setHistory(simpleData as ClientComparison[]);
+
+      const comparisons = (data ?? []) as ClientComparison[];
+
+      if (isAdmin && comparisons.length > 0) {
+        const userIds = [...new Set(comparisons.map(c => c.user_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, email, full_name, phone")
+          .in("id", userIds);
+
+        if (profilesData) {
+          const pm = Object.fromEntries(
+            (profilesData as Array<{ id: string; email: string | null; full_name: string | null; phone: string | null }>)
+              .map(p => [p.id, p])
+          );
+          setHistory(comparisons.map(c => ({
+            ...c,
+            profiles: pm[c.user_id]
+              ? { email: pm[c.user_id].email, full_name: pm[c.user_id].full_name, phone: pm[c.user_id].phone }
+              : null,
+          })));
+          return;
+        }
+      }
+
+      setHistory(comparisons);
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchHistory();
-  }, [fetchHistory, user.id, isAdmin]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [fetchHistory, user.id]);
 
   const filteredHistory = history.filter(item => {
     const cd = item.calculation_data as Record<string, unknown>;
@@ -153,6 +173,14 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
           </button>
         )}
       </div>
+
+      {fetchError && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm">
+          <AlertCircle size={18} className="shrink-0" />
+          <span><strong>Error al cargar historial:</strong> {fetchError}</span>
+          <button type="button" onClick={fetchHistory} className="ml-auto text-xs font-bold underline">Reintentar</button>
+        </div>
+      )}
 
       <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
         {loading ? (
