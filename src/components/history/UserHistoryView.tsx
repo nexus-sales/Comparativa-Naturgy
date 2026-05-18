@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { fmtEur } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
+import { exportPDF } from "../../utils/pdfExport";
 import { toSectorFilter } from "../../utils/sectors";
 import { Trash2, Clock, FileText, Users, RefreshCw } from "lucide-react";
 import { KPICard } from "../KPICard";
@@ -230,7 +231,6 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                                 email: item.profiles?.email || ""
                               };
 
-                              const { exportPDF } = await import("../../utils/pdfExport");
                               exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
                             }}
                             className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"
