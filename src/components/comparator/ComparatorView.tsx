@@ -24,7 +24,9 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "cli", pyme20: "cli", pyme20one: "cli", pyme361: "cli" });
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [saveMsg, setSaveMsg] = useState('');
+  const isSaving = saveStatus === 'saving';
   const chartInstances = useRef<Record<string, ChartInstance>>({});
 
   const [comercialData, setComercialData] = useState<ComercialData>({
@@ -261,11 +263,17 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     const best = results.reduce((a,b)=>b.r.total<a.r.total?b:a,results[0]);
     const bestAh = +(c.factura - best.r.total).toFixed(2);
 
+    const showSaveResult = (status: 'success' | 'error', msg: string) => {
+      setSaveStatus(status);
+      setSaveMsg(msg);
+      setTimeout(() => setSaveStatus('idle'), status === 'success' ? 3000 : 5000);
+    };
+
     const saveComp = async (act: "SAVE" | "PDF") => {
       if (isSaving || !user) return;
+      setSaveStatus('saving');
+      const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g,"").trim() : "";
       try {
-        setIsSaving(true);
-        const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g,"").trim() : "";
         const { error } = await supabase.from("client_comparisons").insert({
           user_id: user.id,
           client_name: sEsc(c.nombre) || "S/N",
@@ -284,15 +292,11 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === best.t.id }))
           }
         });
-        if (error) {
-          alert("Error al guardar: " + error.message);
-          return;
-        }
-        if (act === "SAVE") alert("✓ Guardado correctamente.");
+        if (error) { showSaveResult('error', error.message); return; }
+        if (act === "SAVE") showSaveResult('success', 'Guardado correctamente');
+        else setSaveStatus('idle');
       } catch (err: unknown) {
-        console.error("Error silencioso en saveComp:", err);
-      } finally {
-        setIsSaving(false);
+        showSaveResult('error', err instanceof Error ? err.message : 'Error desconocido');
       }
     };
 
@@ -301,7 +305,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       try {
         exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
       } catch (e) {
-        alert('Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
+        showSaveResult('error', 'Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
         return;
       }
       await saveComp("PDF");
@@ -311,7 +315,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       try {
         await exportExcel(segDef.label, taxModel, potP, c, segTariffs);
       } catch (e) {
-        alert('Error al generar Excel: ' + (e instanceof Error ? e.message : String(e)));
+        showSaveResult('error', 'Error al generar Excel: ' + (e instanceof Error ? e.message : String(e)));
       }
     };
 
@@ -320,8 +324,18 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
         <div className="flex gap-2">
           <button onClick={handlePDF} disabled={isSaving} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">PDF INFORME</button>
           <button onClick={handleExcel} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
-          <button onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">{isSaving?"...":"GUARDAR"}</button>
+          <button onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">{isSaving ? "Guardando..." : "GUARDAR"}</button>
         </div>
+        {saveStatus === 'success' && (
+          <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-2 text-sm text-center font-bold animate-in fade-in duration-300">
+            ✓ {saveMsg}
+          </div>
+        )}
+        {saveStatus === 'error' && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2 text-sm text-center animate-in fade-in duration-300">
+            ✗ {saveMsg}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white p-4 rounded-2xl border border-slate-200">
             <p className="text-[10px] font-black text-slate-400 uppercase">FACTURA ACTUAL</p>
