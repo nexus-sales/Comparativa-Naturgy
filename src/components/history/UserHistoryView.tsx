@@ -218,14 +218,14 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                   <th className="px-6 py-4">Cliente</th>
                   <th className="px-6 py-4">Sector</th>
                   <th className="px-6 py-4 text-right">Ahorro</th>
-                  <th className="px-6 py-4 text-center">Acciones</th>
+                  <th className="px-4 py-4 text-center sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredHistory.map(item => {
                   const cd = item.calculation_data as Record<string, unknown>;
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
                         {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
@@ -251,7 +251,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                           Tarifa: {item.target_tariff || (cd?.best_tariff as string)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 py-4 text-center sticky right-0 bg-white border-l border-slate-100 shadow-[-4px_0_6px_rgba(0,0,0,0.04)] group-hover:bg-slate-50/50">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
