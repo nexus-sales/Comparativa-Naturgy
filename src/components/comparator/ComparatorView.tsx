@@ -300,15 +300,13 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       }
     };
 
-    const handlePDF = async () => {
+    const handlePDF = () => {
       if (isSaving) return;
       try {
         exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
       } catch (e) {
         showSaveResult('error', 'Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
-        return;
       }
-      await saveComp("PDF");
     };
 
     const handleExcel = async () => {
@@ -322,9 +320,9 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     return (
       <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex gap-2">
-          <button onClick={handlePDF} disabled={isSaving} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">PDF INFORME</button>
-          <button onClick={handleExcel} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
-          <button onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">{isSaving ? "Guardando..." : "GUARDAR"}</button>
+          <button type="button" onClick={handlePDF} disabled={isSaving} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">PDF INFORME</button>
+          <button type="button" onClick={handleExcel} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
+          <button type="button" onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">{isSaving ? "Guardando..." : "GUARDAR"}</button>
         </div>
         {saveStatus === 'success' && (
           <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-2 text-sm text-center font-bold animate-in fade-in duration-300">

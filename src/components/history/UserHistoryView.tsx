@@ -18,6 +18,8 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   const [history, setHistory] = useState<ClientComparison[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [filterTariff, setFilterTariff] = useState("");
   const [filterSegment, setFilterSegment] = useState("");
@@ -181,6 +183,13 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
           <button type="button" onClick={fetchHistory} className="ml-auto text-xs font-bold underline">Reintentar</button>
         </div>
       )}
+      {actionError && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm">
+          <AlertCircle size={18} className="shrink-0" />
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="ml-auto text-xs font-bold underline">Cerrar</button>
+        </div>
+      )}
 
       <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
         {loading ? (
@@ -232,9 +241,8 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
-                            onClick={async () => {
-                              if (!cd) return alert("No hay datos de cálculo disponibles.");
-
+                            onClick={() => {
+                              if (!cd) { setActionError("No hay datos de cálculo disponibles."); return; }
                               const segLabel = (cd.segment as string) || "Residencial";
                               const taxModel = (cd.tax_model as string) || "Canarias";
                               const potP = typeof cd.pot_prices === "number" ? cd.pot_prices : 2;
@@ -258,32 +266,21 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                                 taxIGICRed: rawClient?.taxIGICRed || 0,
                                 taxIGIC7: rawClient?.taxIGIC7 || 0,
                               };
-
                               const segTariffs = ((cd.available_tariffs as unknown[]) || []).map((t: unknown) => {
                                 const tariff = t as Record<string, unknown>;
                                 const tariffName = tariff.nombre ?? tariff.name;
-                                const isBest = String(tariffName).trim() === String(cd.best_tariff).trim();
-                                return { ...tariff, selected: isBest };
+                                return { ...tariff, selected: String(tariffName).trim() === String(cd.best_tariff).trim() };
                               }) as TarifaLocal[];
-
-                              if (segTariffs.length > 0 && !segTariffs.some(t => t.selected)) {
-                                segTariffs[0].selected = true;
-                              }
-
-                              if (segTariffs.length === 0) {
-                                return alert("Error: No hay tarifas guardadas en esta comparativa.");
-                              }
-
-                              const comercial = {
-                                nombre: item.profiles?.full_name || "Comercial Naturgy",
-                                telefono: item.profiles?.phone || "",
-                                email: item.profiles?.email || ""
-                              };
-
+                              if (segTariffs.length > 0 && !segTariffs.some(t => t.selected)) segTariffs[0].selected = true;
+                              if (!segTariffs.length) { setActionError("No hay tarifas guardadas en esta comparativa."); return; }
                               try {
-                                exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
+                                exportPDF(segLabel, taxModel, potP, c, segTariffs, {
+                                  nombre: item.profiles?.full_name || "Comercial Naturgy",
+                                  telefono: item.profiles?.phone || "",
+                                  email: item.profiles?.email || "",
+                                });
                               } catch (e) {
-                                alert('Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
+                                setActionError('Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
                               }
                             }}
                             className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"
@@ -292,27 +289,45 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                             <FileText size={18} />
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!confirm("¿Seguro que quieres borrar esta comparativa de tu historial?")) return;
-
-                              const { error } = await supabase
-                                .from("client_comparisons")
-                                .update({ deleted_by_user: true })
-                                .eq("id", item.id);
-
-                              if (error) {
-                                alert("Error al borrar: " + error.message);
-                              } else {
-                                setHistory(prev => prev.filter(h => h.id !== item.id));
-                              }
-                            }}
-                            className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all"
-                            title="Borrar comparativa"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {pendingDeleteId === item.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const { error } = await supabase
+                                    .from("client_comparisons")
+                                    .update({ deleted_by_user: true })
+                                    .eq("id", item.id);
+                                  if (error) {
+                                    setActionError("Error al borrar: " + error.message);
+                                    setTimeout(() => setActionError(null), 5000);
+                                  } else {
+                                    setHistory(prev => prev.filter(h => h.id !== item.id));
+                                  }
+                                  setPendingDeleteId(null);
+                                }}
+                                className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-[10px] font-black transition-colors"
+                              >
+                                Borrar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingDeleteId(null)}
+                                className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg text-[10px] font-black transition-colors"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setPendingDeleteId(item.id)}
+                              className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-all"
+                              title="Borrar comparativa"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
