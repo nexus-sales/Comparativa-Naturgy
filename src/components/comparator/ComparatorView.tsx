@@ -39,7 +39,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
         init[s.id] = {
           ...makeDefaultClient(s.id),
           bonoRate: s.bono_rate,
-          excedente_rate: s.excedente_rate,
+          excedenteRate: s.excedente_rate,
           taxImpElec: s.tax_imp_elec,
           taxIGIC: s.tax_igic,
           taxIGICRed: s.tax_igic_red,
