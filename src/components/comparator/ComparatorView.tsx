@@ -451,8 +451,8 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             )}
           </div>
         )}
-        {sub === "tar" && <TariffPane segId={activeSeg} />}
-        {sub === "comp" && <CompPane segId={activeSeg} />}
+        {sub === "tar" && TariffPane({ segId: activeSeg })}
+        {sub === "comp" && CompPane({ segId: activeSeg })}
       </div>
     </div>
   );
