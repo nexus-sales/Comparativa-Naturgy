@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
-import type { ComercialData } from "../../utils/pdfExport";
+import { exportPDF, type ComercialData } from "../../utils/pdfExport";
+import { exportExcel } from "../../utils/excelExport";
 import { Trash2, AlertTriangle, Shield } from "lucide-react";
 import type { Chart as ChartInstance } from "chart.js";
 import type { Segment, Tariff, Profile } from "../../types";
@@ -296,13 +297,11 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
 
     const handlePDF = async () => {
       if (isSaving) return;
-      const { exportPDF } = await import("../../utils/pdfExport");
       exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
       await saveComp("PDF");
     };
 
     const handleExcel = async () => {
-      const { exportExcel } = await import("../../utils/excelExport");
       exportExcel(segDef.label, taxModel, potP, c, segTariffs);
     };
 
