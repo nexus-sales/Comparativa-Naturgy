@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { Shield, Trash2, Pencil, Plus, FileText, Users, X } from "lucide-react";
+import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
@@ -83,21 +83,21 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
     setProfiles(profiles.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true, is_blocked: false } : p));
   };
 
-  const deleteUser = async (id: string, email: string) => {
-    if (!confirm(`¿Eliminar el perfil de acceso de ${email}? La cuenta de Supabase Auth seguirá existiendo; para borrarla por completo hace falta una Edge Function o Service Role.`)) return;
+  const deactivateUser = async (id: string, email: string) => {
+    if (!confirm(`¿Dar de baja el acceso de ${email}? Su historial se conservará visible para Admin.`)) return;
     
     const { error } = await supabase
       .from("profiles")
-      .delete()
+      .update({ is_approved: false, is_blocked: true })
       .eq("id", id);
 
     if (error) {
-      alert("Error al eliminar usuario: " + error.message);
+      alert("Error al dar de baja el acceso: " + error.message);
       return;
     }
 
-    setProfiles(profiles.filter(p => p.id !== id));
-    alert("Perfil de acceso eliminado. La identidad Auth debe eliminarse desde Supabase o mediante una función segura.");
+    setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: false, is_blocked: true } : p));
+    alert("Acceso dado de baja. El historial de ofertas se conserva para Admin.");
   };
 
   const deleteTariff = async (id: string) => {
@@ -319,11 +319,11 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                     {p.is_admin ? "Admin ✓" : "Hacer admin"}
                   </button>
                   <button
-                    onClick={() => deleteUser(p.id, p.email)}
+                    onClick={() => deactivateUser(p.id, p.email)}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Eliminar usuario"
+                    title="Dar de baja acceso"
                   >
-                    <Trash2 size={16} />
+                    <UserX size={16} />
                   </button>
                 </div>
               </div>
