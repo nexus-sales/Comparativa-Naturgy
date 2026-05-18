@@ -39,7 +39,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
         init[s.id] = {
           ...makeDefaultClient(s.id),
           bonoRate: s.bono_rate,
-          excedenteRate: s.excedente_rate,
+          excedente_rate: s.excedente_rate,
           taxImpElec: s.tax_imp_elec,
           taxIGIC: s.tax_igic,
           taxIGICRed: s.tax_igic_red,
@@ -203,67 +203,6 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     </div>
   );
 
-  const ClientPane = ({ segId }: { segId: string }) => {
-    const c = clients[segId];
-    if (!c) return null;
-    const { taxModel, potP } = getSegMeta(segId);
-    const isPyme = taxModel !== "res";
-
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <AuthWarning />
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-[#002855]">Datos del cliente</h3>
-          <button onClick={() => clearClient(segId)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div><label htmlFor={`${segId}-nombre`} className="block text-xs font-bold text-slate-500 mb-1">Nombre</label><input id={`${segId}-nombre`} placeholder="Ej: Juan Pérez" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.nombre} onChange={e => upClient(segId,"nombre",e.target.value)} /></div>
-          <div><label htmlFor={`${segId}-cups`} className="block text-xs font-bold text-slate-500 mb-1">CUPS</label><input id={`${segId}-cups`} placeholder="ES0000..." className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm font-mono" value={c.cups} onChange={e => upClient(segId,"cups",e.target.value.toUpperCase())} /></div>
-        </div>
-        <div className="mb-4"><label htmlFor={`${segId}-dir`} className="block text-xs font-bold text-slate-500 mb-1">Dirección</label><input id={`${segId}-dir`} placeholder="Calle, Número, Ciudad" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.dir} onChange={e => upClient(segId, "dir", e.target.value)} /></div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
-          <div><label htmlFor={`${segId}-f1`} className="block text-xs font-bold text-slate-500 mb-1">Inicio</label><input id={`${segId}-f1`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.f1} onChange={e => upDate(segId,"f1",e.target.value)} /></div>
-          <div><label htmlFor={`${segId}-f2`} className="block text-xs font-bold text-slate-500 mb-1">Fin</label><input id={`${segId}-f2`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={c.f2} onChange={e => upDate(segId,"f2",e.target.value)} /></div>
-          <div className="col-span-2 sm:col-span-1"><label htmlFor={`${segId}-dias`} className="block text-xs font-bold text-slate-500 mb-1">Días</label><input id={`${segId}-dias`} placeholder="0" type="text" className="w-full p-2.5 bg-orange-50 border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={inputValues[`${segId}-dias`] ?? c.dias} onChange={e => { const v = e.target.value; setInputValues(p=>({...p,[`${segId}-dias`]:v})); const n = parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"dias",n); }} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-dias`]; return n;})}/></div>
-        </div>
-        <div className="border-t border-slate-100 my-4"></div>
-        <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-orange-500 pl-2">Potencia (kW)</p>
-        <div className={`grid gap-3 mb-4 ${potP === 6 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2"}`}>
-          {Array.from({length:potP},(_,i)=>(
-            <div key={i}><label htmlFor={`${segId}-kw-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
-            <input id={`${segId}-kw-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${segId}-kw-${i}`] ?? fmtRaw(c.kw[i],3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-kw-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(segId,"kw",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-kw-${i}`]; return n;})}/></div>
-          ))}
-        </div>
-        <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-blue-500 pl-2">Energía (kWh)</p>
-        <div className={`grid gap-3 mb-4 ${potP === 6 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-3"}`}>
-          {Array.from({length: (potP===6?6:3)},(_,i)=>(
-            <div key={i}><label htmlFor={`${segId}-en-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
-            <input id={`${segId}-en-${i}`} placeholder="0" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${segId}-en-${i}`] ?? fmtRaw(c.en[i],2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-en-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(segId,"en",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-en-${i}`]; return n;})}/></div>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div><label htmlFor={`${segId}-alq`} className="block text-xs font-bold text-slate-500 mb-1">Alquiler (€)</label><input id={`${segId}-alq`} placeholder="0,00" type="text" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={inputValues[`${segId}-alq`] ?? fmtRaw(c.alquiler,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-alq`]:v})); const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"alquiler",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-alq`]; return n;})}/></div>
-          <div><label htmlFor={`${segId}-exc`} className="block text-xs font-bold text-green-600 mb-1">Excedentes kWh</label><input id={`${segId}-exc`} placeholder="0" type="text" className="w-full p-2.5 bg-green-50 border-green-200 rounded-lg text-sm font-bold" value={inputValues[`${segId}-exc`] ?? c.enExc} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-exc`]:v})); const n=parseFloat(v.replace(",",".")); if(!isNaN(n)) upClient(segId,"enExc",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-exc`]; return n;})}/></div>
-        </div>
-        <div className="mb-4"><label htmlFor={`${segId}-fac`} className="block text-xs font-bold text-blue-700 mb-1">Factura Actual (€)</label><input id={`${segId}-fac`} placeholder="0,00" type="text" className="w-full p-2.5 bg-blue-50 border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={inputValues[`${segId}-fac`] ?? fmtRaw(c.factura,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${segId}-fac`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(segId,"factura",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${segId}-fac`]; return n;})}/></div>
-        {isAdmin && (
-          <div className="mt-6 pt-4 border-t border-red-100 bg-red-50/50 p-4 rounded-xl">
-            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={12}/> Configuración Fiscal (Admin)</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <div><label htmlFor={`${segId}-tax-imp`} className="text-[10px] text-slate-500">Imp. Elec %</label><input id={`${segId}-tax-imp`} type="number" step="0.001" className="w-full p-2 text-xs border rounded" value={c.taxImpElec} onChange={e=>upClient(segId,"taxImpElec",+e.target.value)}/></div>
-              <div><label htmlFor={`${segId}-tax-bono`} className="text-[10px] text-slate-500">Bono Social €/d</label><input id={`${segId}-tax-bono`} type="number" step="0.000001" className="w-full p-2 text-xs border rounded" value={c.bonoRate} onChange={e=>upClient(segId,"bonoRate",+e.target.value)}/></div>
-              {isPyme ? <>
-                <div><label htmlFor={`${segId}-tax-igic-red`} className="text-[10px] text-slate-500">IGIC Red %</label><input id={`${segId}-tax-igic-red`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGICRed} onChange={e=>upClient(segId,"taxIGICRed",+e.target.value)}/></div>
-                <div><label htmlFor={`${segId}-tax-igic-7`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${segId}-tax-igic-7`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGIC7} onChange={e=>upClient(segId,"taxIGIC7",+e.target.value)}/></div>
-              </> : <div><label htmlFor={`${segId}-tax-igic`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${segId}-tax-igic`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={c.taxIGIC} onChange={e=>upClient(segId,"taxIGIC",+e.target.value)}/></div>}
-            </div>
-            <button onClick={()=>saveFiscalConfig(segId)} className="w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-2 rounded shadow-sm transition-colors">GUARDAR FISCALIDAD PARA ESTE SEGMENTO</button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const TariffPane = ({ segId }: { segId: string }) => {
     const { taxModel, potP } = getSegMeta(segId);
     const segTariffs = getSegTariffs(segId);
@@ -419,11 +358,61 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
         ))}
       </div>
       <div className="min-h-[400px]">
-        {/* eslint-disable react-hooks/static-components */}
-        {sub === "cli" && <ClientPane segId={activeSeg} />}
+        {sub === "cli" && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <AuthWarning />
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-bold text-[#002855]">Datos del cliente</h3>
+              <button onClick={() => clearClient(activeSeg)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div><label htmlFor={`${activeSeg}-nombre`} className="block text-xs font-bold text-slate-500 mb-1">Nombre</label><input id={`${activeSeg}-nombre`} placeholder="Ej: Juan Pérez" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm text-slate-900" value={clients[activeSeg]?.nombre || ""} onChange={e => upClient(activeSeg,"nombre",e.target.value)} /></div>
+              <div><label htmlFor={`${activeSeg}-cups`} className="block text-xs font-bold text-slate-500 mb-1">CUPS</label><input id={`${activeSeg}-cups`} placeholder="ES0000..." className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm font-mono text-slate-900" value={clients[activeSeg]?.cups || ""} onChange={e => upClient(activeSeg,"cups",e.target.value.toUpperCase())} /></div>
+            </div>
+            <div className="mb-4"><label htmlFor={`${activeSeg}-dir`} className="block text-xs font-bold text-slate-500 mb-1">Dirección</label><input id={`${activeSeg}-dir`} placeholder="Calle, Número, Ciudad" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm text-slate-900" value={clients[activeSeg]?.dir || ""} onChange={e => upClient(activeSeg, "dir", e.target.value)} /></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+              <div><label htmlFor={`${activeSeg}-f1`} className="block text-xs font-bold text-slate-500 mb-1">Inicio</label><input id={`${activeSeg}-f1`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={clients[activeSeg]?.f1 || ""} onChange={e => upDate(activeSeg,"f1",e.target.value)} /></div>
+              <div><label htmlFor={`${activeSeg}-f2`} className="block text-xs font-bold text-slate-500 mb-1">Fin</label><input id={`${activeSeg}-f2`} type="date" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={clients[activeSeg]?.f2 || ""} onChange={e => upDate(activeSeg,"f2",e.target.value)} /></div>
+              <div className="col-span-2 sm:col-span-1"><label htmlFor={`${activeSeg}-dias`} className="block text-xs font-bold text-slate-500 mb-1">Días</label><input id={`${activeSeg}-dias`} placeholder="0" type="text" className="w-full p-2.5 bg-orange-50 border-orange-200 rounded-lg text-sm font-bold text-orange-700" value={inputValues[`${activeSeg}-dias`] ?? (clients[activeSeg]?.dias || 0)} onChange={e => { const v = e.target.value; setInputValues(p=>({...p,[`${activeSeg}-dias`]:v})); const n = parseInt(v.replace(/\D/g,"")); if(!isNaN(n)) upClient(activeSeg,"dias",n); }} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-dias`]; return n;})}/></div>
+            </div>
+            <div className="border-t border-slate-100 my-4"></div>
+            <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-orange-500 pl-2">Potencia (kW)</p>
+            <div className={`grid gap-3 mb-4 ${getSegMeta(activeSeg).potP === 6 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2"}`}>
+              {Array.from({length:getSegMeta(activeSeg).potP},(_,i)=>(
+                <div key={i}><label htmlFor={`${activeSeg}-kw-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
+                <input id={`${activeSeg}-kw-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-kw-${i}`] ?? fmtRaw(clients[activeSeg]?.kw[i],3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-kw-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"kw",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-kw-${i}`]; return n;})}/></div>
+              ))}
+            </div>
+            <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-blue-500 pl-2">Energía (kWh)</p>
+            <div className={`grid gap-3 mb-4 ${getSegMeta(activeSeg).potP === 6 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-3"}`}>
+              {Array.from({length: (getSegMeta(activeSeg).potP===6?6:3)},(_,i)=>(
+                <div key={i}><label htmlFor={`${activeSeg}-en-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
+                <input id={`${activeSeg}-en-${i}`} placeholder="0" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-en-${i}`] ?? fmtRaw(clients[activeSeg]?.en[i],2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-en-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"en",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-en-${i}`]; return n;})}/></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div><label htmlFor={`${activeSeg}-alq`} className="block text-xs font-bold text-slate-500 mb-1">Alquiler (€)</label><input id={`${activeSeg}-alq`} placeholder="0,00" type="text" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={inputValues[`${activeSeg}-alq`] ?? fmtRaw(clients[activeSeg]?.alquiler,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-alq`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"alquiler",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-alq`]; return n;})}/></div>
+              <div><label htmlFor={`${activeSeg}-exc`} className="block text-xs font-bold text-green-600 mb-1">Excedentes kWh</label><input id={`${activeSeg}-exc`} placeholder="0" type="text" className="w-full p-2.5 bg-green-50 border-green-200 rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-exc`] ?? fmtRaw(clients[activeSeg]?.enExc,0)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-exc`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"enExc",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-exc`]; return n;})}/></div>
+            </div>
+            <div className="mb-4"><label htmlFor={`${activeSeg}-fac`} className="block text-xs font-bold text-blue-700 mb-1">Factura Actual (€)</label><input id={`${activeSeg}-fac`} placeholder="0,00" type="text" className="w-full p-2.5 bg-blue-50 border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={inputValues[`${activeSeg}-fac`] ?? fmtRaw(clients[activeSeg]?.factura,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-fac`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"factura",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-fac`]; return n;})}/></div>
+            {isAdmin && (
+              <div className="mt-6 pt-4 border-t border-red-100 bg-red-50/50 p-4 rounded-xl">
+                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={12}/> Configuración Fiscal (Admin)</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div><label htmlFor={`${activeSeg}-tax-imp`} className="text-[10px] text-slate-500">Imp. Elec %</label><input id={`${activeSeg}-tax-imp`} type="number" step="0.001" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.taxImpElec || 0} onChange={e=>upClient(activeSeg,"taxImpElec",+e.target.value)}/></div>
+                  <div><label htmlFor={`${activeSeg}-tax-bono`} className="text-[10px] text-slate-500">Bono Social €/d</label><input id={`${activeSeg}-tax-bono`} type="number" step="0.000001" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.bonoRate || 0} onChange={e=>upClient(activeSeg,"bonoRate",+e.target.value)}/></div>
+                  {getSegMeta(activeSeg).taxModel !== "res" ? <>
+                    <div><label htmlFor={`${activeSeg}-tax-igic-red`} className="text-[10px] text-slate-500">IGIC Red %</label><input id={`${activeSeg}-tax-igic-red`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.taxIGICRed || 0} onChange={e=>upClient(activeSeg,"taxIGICRed",+e.target.value)}/></div>
+                    <div><label htmlFor={`${activeSeg}-tax-igic-7`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${activeSeg}-tax-igic-7`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.taxIGIC7 || 0} onChange={e=>upClient(activeSeg,"taxIGIC7",+e.target.value)}/></div>
+                  </> : <div><label htmlFor={`${activeSeg}-tax-igic`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${activeSeg}-tax-igic`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.taxIGIC || 0} onChange={e=>upClient(activeSeg,"taxIGIC",+e.target.value)}/></div>}
+                </div>
+                <button onClick={()=>saveFiscalConfig(activeSeg)} className="w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-2 rounded shadow-sm transition-colors">GUARDAR FISCALIDAD PARA ESTE SEGMENTO</button>
+              </div>
+            )}
+          </div>
+        )}
         {sub === "tar" && <TariffPane segId={activeSeg} />}
         {sub === "comp" && <CompPane segId={activeSeg} />}
-        {/* eslint-enable react-hooks/static-components */}
       </div>
     </div>
   );
