@@ -285,7 +285,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           }
         });
         if (error) {
-          if (act === "SAVE") alert("Error al guardar: " + error.message);
+          alert("Error al guardar: " + error.message);
           return;
         }
         if (act === "SAVE") alert("✓ Guardado correctamente.");
@@ -332,16 +332,34 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             <p className={`text-xl font-black ${activeSeg==="res"?"text-orange-500":"text-blue-600"}`}>{fmtEur(best.r.total)}</p>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-          <table className="w-full text-[11px]">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
+          <table className="w-full text-[11px] min-w-max">
             <thead className="bg-slate-50 border-b">
-              <tr><th className="p-3 text-left">Periodo</th><th className="p-3 text-right">Actual</th><th className="p-3 text-right text-orange-500">{best.t.nombre}</th></tr>
+              <tr>
+                <th className="p-3 text-left">Componente</th>
+                <th className="p-3 text-right text-slate-500">Actual</th>
+                {results.map(({t}) => (
+                  <th key={t.id} className={`p-3 text-right ${t.id === best.t.id ? (activeSeg==="res"?"text-orange-500":"text-blue-600") : "text-slate-700"}`}>
+                    {t.nombre}{t.id === best.t.id ? " ★" : ""}
+                  </th>
+                ))}
+              </tr>
             </thead>
             <tbody>
-              <tr className="border-b"><td className="p-3">Potencia</td><td className="text-right p-3">—</td><td className="text-right p-3 font-bold">{fmtEur(best.r.potencia)}</td></tr>
-              <tr className="border-b"><td className="p-3">Energía</td><td className="text-right p-3">—</td><td className="text-right p-3 font-bold">{fmtEur(best.r.energia)}</td></tr>
-              <tr className="border-b"><td className="p-3">Impuestos</td><td className="text-right p-3">—</td><td className="text-right p-3 font-bold">{fmtEur((best.r.igic??0)+(best.r.igicRed??0)+(best.r.igic7??0)+best.r.impElec)}</td></tr>
-              <tr className="bg-orange-50/30 font-black text-sm"><td className="p-3">TOTAL</td><td className="text-right p-3">{fmtEur(c.factura)}</td><td className="text-right p-3 text-orange-500">{fmtEur(best.r.total)}</td></tr>
+              <tr className="border-b"><td className="p-3">Potencia</td><td className="text-right p-3">—</td>{results.map(({t,r})=><td key={t.id} className={`text-right p-3 font-bold ${t.id===best.t.id?(activeSeg==="res"?"text-orange-600":"text-blue-700"):""}`}>{fmtEur(r.potencia)}</td>)}</tr>
+              <tr className="border-b"><td className="p-3">Energía</td><td className="text-right p-3">—</td>{results.map(({t,r})=><td key={t.id} className={`text-right p-3 font-bold ${t.id===best.t.id?(activeSeg==="res"?"text-orange-600":"text-blue-700"):""}`}>{fmtEur(r.energia)}</td>)}</tr>
+              <tr className="border-b"><td className="p-3">Impuestos</td><td className="text-right p-3">—</td>{results.map(({t,r})=><td key={t.id} className={`text-right p-3 font-bold ${t.id===best.t.id?(activeSeg==="res"?"text-orange-600":"text-blue-700"):""}`}>{fmtEur((r.igic??0)+(r.igicRed??0)+(r.igic7??0)+r.impElec)}</td>)}</tr>
+              <tr className="bg-orange-50/30 font-black text-sm">
+                <td className="p-3">TOTAL</td>
+                <td className="text-right p-3">{fmtEur(c.factura)}</td>
+                {results.map(({t,r})=>{
+                  const ah = c.factura - r.total;
+                  return <td key={t.id} className={`text-right p-3 ${t.id===best.t.id?(activeSeg==="res"?"text-orange-500":"text-blue-600"):"text-slate-700"}`}>
+                    {fmtEur(r.total)}
+                    {ah > 0.01 && <span className="block text-[9px] font-normal text-green-600">-{fmtEur(ah)}</span>}
+                  </td>;
+                })}
+              </tr>
             </tbody>
           </table>
         </div>
