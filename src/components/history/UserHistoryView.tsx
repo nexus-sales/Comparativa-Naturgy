@@ -27,13 +27,16 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
       const { data, error } = await supabase
         .from("client_comparisons")
         .select("*")
         .neq("deleted_by_user", true)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(200)
+        .abortSignal(controller.signal);
 
       if (error) throw error;
 
@@ -63,8 +66,13 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
 
       setHistory(comparisons);
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : String(err));
+      if (err instanceof Error && err.name === 'AbortError') {
+        setFetchError('Tiempo de espera agotado. Pulsa "Actualizar" para reintentar.');
+      } else {
+        setFetchError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }, [isAdmin]);
@@ -72,6 +80,12 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory, user.id]);
+
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchHistory(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [fetchHistory]);
 
   const filteredHistory = history.filter(item => {
     const cd = item.calculation_data as Record<string, unknown>;

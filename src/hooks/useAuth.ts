@@ -26,7 +26,7 @@ export function useAuth() {
   useEffect(() => {
     let cancelled = false;
 
-    async function checkAdminStatus(authUser: User) {
+    async function checkAdminStatus(authUser: User, attempt = 0) {
       try {
         const { data } = await supabase
           .from('profiles')
@@ -34,14 +34,23 @@ export function useAuth() {
           .eq('id', authUser.id)
           .maybeSingle();
 
-        if (!cancelled && data) {
+        if (cancelled) return;
+
+        if (data) {
           setProfile(data as Profile);
           setIsAdmin((data.is_admin ?? false) && !(data.is_blocked ?? false));
-        } else if (!cancelled) {
+        } else {
           setProfile(fallbackProfile(authUser));
+          // Retry once after 2s — network may be reconnecting after sleep
+          if (attempt === 0) {
+            setTimeout(() => { if (!cancelled) checkAdminStatus(authUser, 1); }, 2000);
+          }
         }
       } catch (err) {
         console.error("Error checking profile:", err);
+        if (attempt === 0 && !cancelled) {
+          setTimeout(() => { if (!cancelled) checkAdminStatus(authUser, 1); }, 2000);
+        }
       }
     }
 
@@ -63,21 +72,52 @@ export function useAuth() {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
 
-      if (session?.user) {
-        setUser(session.user);
-        await checkAdminStatus(session.user);
-      } else {
+      // On actual sign-out reset everything; on token refresh just update
+      if (!session?.user) {
         setUser(null);
         setProfile(null);
         setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      setUser(session.user);
+      // Only re-check profile on meaningful events, not every token refresh noise
+      if (event !== 'TOKEN_REFRESHED') {
+        await checkAdminStatus(session.user);
       }
       setLoading(false);
     });
 
-    return () => { cancelled = true; subscription.unsubscribe(); };
+    // Re-check auth when the tab becomes visible again after being hidden/idle
+    const onVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible' || cancelled) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (session?.user) {
+          setUser(session.user);
+          await checkAdminStatus(session.user);
+        } else if (user) {
+          // Session was lost while idle
+          setUser(null);
+          setProfile(null);
+          setIsAdmin(false);
+        }
+      } catch { /* ignore — will retry on next interaction */ }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { user, loading, isAdmin, profile };
