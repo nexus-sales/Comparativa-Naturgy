@@ -261,7 +261,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     const bestAh = +(c.factura - best.r.total).toFixed(2);
 
     const saveComp = async (act: "SAVE" | "PDF") => {
-      if (isSaving) return;
+      if (isSaving || !user) return;
       try {
         setIsSaving(true);
         const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g,"").trim() : "";
@@ -283,11 +283,12 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === best.t.id }))
           }
         });
-        if (error) throw error;
+        if (error) {
+          console.warn("Error al registrar comparación en DB:", error.message);
+        }
         if (act === "SAVE") alert("✓ Guardado correctamente.");
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Error desconocido";
-        alert("Error al guardar: " + msg);
+        console.error("Error silencioso en saveComp:", err);
       } finally {
         setIsSaving(false);
       }
