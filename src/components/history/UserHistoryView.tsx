@@ -27,6 +27,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
       const { data, error } = await supabase
         .from("client_comparisons")
         .select("*, profiles(email, full_name, phone)")
+        .eq("deleted_by_user", false)
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -36,6 +37,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
       const { data: simpleData } = await supabase
         .from("client_comparisons")
         .select("*")
+        .eq("deleted_by_user", false)
         .order("created_at", { ascending: false });
       if (simpleData) setHistory(simpleData as ClientComparison[]);
     } finally {

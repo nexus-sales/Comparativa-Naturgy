@@ -285,7 +285,8 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           }
         });
         if (error) {
-          console.warn("Error al registrar comparación en DB:", error.message);
+          if (act === "SAVE") alert("Error al guardar: " + error.message);
+          return;
         }
         if (act === "SAVE") alert("✓ Guardado correctamente.");
       } catch (err: unknown) {
