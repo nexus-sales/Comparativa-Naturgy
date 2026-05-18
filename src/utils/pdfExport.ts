@@ -32,7 +32,15 @@ export function exportPDF(
     const r = calc(taxModel, potP, cliente, t);
     pdfPage(doc, potP, cliente, t, r, isPyme, comercial);
   });
-  doc.save(`Propuesta_Naturgy_${(cliente.nombre || 'cliente').replace(/\s+/g, '_')}.pdf`);
+  const blob = doc.output('blob');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Propuesta_Naturgy_${(cliente.nombre || 'cliente').replace(/\s+/g, '_')}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function pdfPage(
@@ -112,8 +120,11 @@ function pdfPage(
   tx('Días', L + 47, y + 4);
   y += 6;
 
+  const safeKw = Array.isArray(c.kw) ? c.kw : [0, 0, 0, 0, 0, 0];
+  const safeEn = Array.isArray(c.en) ? c.en : [0, 0, 0, 0, 0, 0];
+
   for (let i = 0; i < potP; i++) {
-    const rate = tar.rPot[i] || 0, kw = c.kw[i] || 0;
+    const rate = tar.rPot[i] || 0, kw = safeKw[i] || 0;
     if (!rate && !kw) continue;
     box(L, y, CW, rh, i % 2 ? altGr : wh); vl(L + 45, y, rh); vl(L + 65, y, rh); vl(L + 110, y, rh);
     color([30, 30, 30] as any); norm(7); tx(fmt(rate, 6), L + 2, y + 4.5); tx(fmt(c.dias || 0, 0), L + 47, y + 4.5);
@@ -124,7 +135,7 @@ function pdfPage(
   const dias = c.dias || 1;
   const periods: [string, number][] = potP === 2 ? [['PUNTA', 0], ['VALLE', 1]] : lbs.slice(0, potP).map((lb, i) => [lb, i] as [string, number]);
   periods.forEach(([lbl, i]) => {
-    const rate = tar.rPot[i] || 0, kw = c.kw[i] || 0;
+    const rate = tar.rPot[i] || 0, kw = safeKw[i] || 0;
     if (!rate || !kw) return;
     const cost = tar.potUnit === 'dia' ? rate * kw * dias : (rate / 365) * kw * dias;
     const unitCost = tar.potUnit === 'dia' ? rate * kw : (rate / 365) * kw;
@@ -157,7 +168,7 @@ function pdfPage(
 
   const nEn = { uni: 1, tri: 3, hex: 6 }[tar.tipo] || 1;
   for (let i = 0; i < nEn; i++) {
-    const kwh = tar.tipo === 'uni' ? c.en.reduce((a, v) => a + (+v || 0), 0) : (c.en[i] || 0);
+    const kwh = tar.tipo === 'uni' ? safeEn.reduce((a, v) => a + (+v || 0), 0) : (safeEn[i] || 0);
     const rate = tar.rEn[i] || 0;
     if (!kwh && i > 0) continue;
     box(L, y, CW, rh, i % 2 ? altGr : wh);

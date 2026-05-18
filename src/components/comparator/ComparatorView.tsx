@@ -297,12 +297,21 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
 
     const handlePDF = async () => {
       if (isSaving) return;
-      exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
+      try {
+        exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
+      } catch (e) {
+        alert('Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
+        return;
+      }
       await saveComp("PDF");
     };
 
     const handleExcel = async () => {
-      exportExcel(segDef.label, taxModel, potP, c, segTariffs);
+      try {
+        await exportExcel(segDef.label, taxModel, potP, c, segTariffs);
+      } catch (e) {
+        alert('Error al generar Excel: ' + (e instanceof Error ? e.message : String(e)));
+      }
     };
 
     return (

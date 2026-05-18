@@ -1,17 +1,7 @@
 import type { CalcResult, SegCliente, TarifaLocal } from './calculations';
 import { calc, fmtRaw } from './calculations';
 
-export function exportExcel(
-  segLabel: string,
-  taxModel: string,
-  potP: number,
-  cliente: SegCliente,
-  tariffs: TarifaLocal[]
-): void {
-  void exportExcelAsync(segLabel, taxModel, potP, cliente, tariffs);
-}
-
-async function exportExcelAsync(
+export async function exportExcel(
   segLabel: string,
   taxModel: string,
   potP: number,
@@ -68,7 +58,10 @@ async function exportExcelAsync(
     ['Mejor opcion:', best.t.nombre, `Total: ${fmtRaw(best.r.total)} EUR`],
   ];
 
-  const { default: ExcelJS } = await import('exceljs');
+  const mod = await import('exceljs');
+  // CJS interop: Rolldown may expose as default or as named exports
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ExcelJS = ((mod as any).default?.Workbook ? (mod as any).default : mod) as typeof import('exceljs');
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Naturgy Comparativa';
   wb.created = new Date();
@@ -101,6 +94,8 @@ async function exportExcelAsync(
   const link = document.createElement('a');
   link.href = url;
   link.download = `Comparativa_Naturgy_${segLabel.replace(/\s/g, '_')}.xlsx`;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -208,7 +208,26 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                               const segLabel = (cd.segment as string) || "Residencial";
                               const taxModel = (cd.tax_model as string) || "Canarias";
                               const potP = typeof cd.pot_prices === "number" ? cd.pot_prices : 2;
-                              const c = (cd.client_data as SegCliente) || {};
+                              const rawClient = cd.client_data as Partial<SegCliente> | undefined;
+                              const c: SegCliente = {
+                                nombre: rawClient?.nombre || "",
+                                cups: rawClient?.cups || "",
+                                dir: rawClient?.dir || "",
+                                f1: rawClient?.f1 || "",
+                                f2: rawClient?.f2 || "",
+                                dias: rawClient?.dias || 30,
+                                kw: Array.isArray(rawClient?.kw) ? rawClient.kw : [0, 0, 0, 0, 0, 0],
+                                en: Array.isArray(rawClient?.en) ? rawClient.en : [0, 0, 0, 0, 0, 0],
+                                factura: rawClient?.factura || 0,
+                                alquiler: rawClient?.alquiler || 0,
+                                enExc: rawClient?.enExc || 0,
+                                excedenteRate: rawClient?.excedenteRate || 0,
+                                bonoRate: rawClient?.bonoRate || 0,
+                                taxImpElec: rawClient?.taxImpElec || 0,
+                                taxIGIC: rawClient?.taxIGIC || 0,
+                                taxIGICRed: rawClient?.taxIGICRed || 0,
+                                taxIGIC7: rawClient?.taxIGIC7 || 0,
+                              };
 
                               const segTariffs = ((cd.available_tariffs as unknown[]) || []).map((t: unknown) => {
                                 const tariff = t as Record<string, unknown>;
@@ -231,7 +250,11 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                                 email: item.profiles?.email || ""
                               };
 
-                              exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
+                              try {
+                                exportPDF(segLabel, taxModel, potP, c, segTariffs, comercial);
+                              } catch (e) {
+                                alert('Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
+                              }
                             }}
                             className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-all"
                             title="Re-generar PDF"
