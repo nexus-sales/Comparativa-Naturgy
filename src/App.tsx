@@ -68,7 +68,8 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canLoadData]);
 
-  const effectiveTab = (!isAdmin && activeTab === "admin") ? "comparator" : activeTab;
+  // Don't drop admin tab during transient auth re-checks (isAdmin might briefly be false)
+  const effectiveTab = (!isAdmin && !authLoading && activeTab === "admin") ? "comparator" : activeTab;
   const isProfileIncomplete = !!user && (!profile || !profile.full_name || !profile.phone);
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -189,8 +190,12 @@ function App() {
           <>
             {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} />}
             {effectiveTab === "profile"    && <UserProfileView user={user} profile={profile} isAdmin={isAdmin} />}
-            {effectiveTab === "admin"      && <AdminView segments={segments} tariffs={tariffs} />}
             {effectiveTab === "history"    && <UserHistoryView user={user} isAdmin={isAdmin} />}
+            {isAdmin && (
+              <div className={effectiveTab === "admin" ? "" : "hidden"}>
+                <AdminView segments={segments} tariffs={tariffs} />
+              </div>
+            )}
           </>
         )}
       </main>

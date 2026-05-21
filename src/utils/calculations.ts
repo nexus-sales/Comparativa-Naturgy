@@ -127,21 +127,24 @@ export const SEG_COLORS: Record<string, string> = {
   res: '#185FA5',
   pyme20: '#0F6E56',
   pyme20one: '#B45309',
-  pyme361: '#6D28D9',
+  pyme30: '#6D28D9',
+  pyme61: '#7C3AED',
 };
 
 export const SEG_DEFAULTS: Record<string, Partial<SegCliente>> = {
   res:       { alquiler: 0.86, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 7, taxIGICRed: 0, taxIGIC7: 0 },
   pyme20:    { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
   pyme20one: { alquiler: 0.75, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
-  pyme361:   { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  pyme30:    { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  pyme61:    { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
 };
 
 export const SEG_DEFS = [
-  { id: "res",       label: "Residencial",      color: "#185FA5" },
-  { id: "pyme20",    label: "Pyme 2.0TD",       color: "#0F6E56" },
-  { id: "pyme20one", label: "Pyme ONE 2.0TD",   color: "#B45309" },
-  { id: "pyme361",   label: "Pyme 3.0/6.1TD",   color: "#6D28D9" },
+  { id: "res",       label: "Residencial",    color: "#185FA5" },
+  { id: "pyme20",    label: "Pyme 2.0TD",     color: "#0F6E56" },
+  { id: "pyme20one", label: "Pyme ONE 2.0TD", color: "#B45309" },
+  { id: "pyme30",    label: "Pyme 3.0TD",     color: "#6D28D9" },
+  { id: "pyme61",    label: "Pyme 6.1TD",     color: "#7C3AED" },
 ];
 
 export function makeDefaultClient(segId: string): SegCliente {

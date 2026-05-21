@@ -20,7 +20,18 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
   const [filterSegment, setFilterSegment] = useState<string>("all");
-  
+  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  type PendingConfirm =
+    | { action: 'toggleAdmin'; id: string; current: boolean }
+    | { action: 'deactivate'; id: string; email: string }
+    | { action: 'deleteTariff'; id: string };
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+
+  const showMsg = (type: 'success' | 'error', text: string) => {
+    setActionMsg({ type, text });
+    setTimeout(() => setActionMsg(null), type === 'success' ? 3000 : 5000);
+  };
+
   // Filtros historial admin
   const [historyFilterTariff, setHistoryFilterTariff] = useState<string>("");
   const [historyFilterSegment, setHistoryFilterSegment] = useState<string>("");
@@ -63,50 +74,38 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
       .from("profiles")
       .update({ is_approved: nextApproved, is_blocked: !nextApproved })
       .eq("id", id);
-    if (error) {
-      alert("Error al actualizar usuario: " + error.message);
-      return;
-    }
+    if (error) { showMsg('error', "Error al actualizar usuario: " + error.message); return; }
     setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: nextApproved, is_blocked: !nextApproved } : p));
   };
 
   const toggleAdmin = async (id: string, current: boolean) => {
-    if (!confirm(`¿${current ? "Quitar" : "Dar"} permisos de administrador a este usuario?`)) return;
+    setPendingConfirm(null);
     const { error } = await supabase
       .from("profiles")
       .update({ is_admin: !current, is_approved: true, is_blocked: false })
       .eq("id", id);
-    if (error) {
-      alert("Error al actualizar permisos: " + error.message);
-      return;
-    }
+    if (error) { showMsg('error', "Error al actualizar permisos: " + error.message); return; }
     setProfiles(profiles.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true, is_blocked: false } : p));
   };
 
-  const deactivateUser = async (id: string, email: string) => {
-    if (!confirm(`¿Dar de baja el acceso de ${email}? Su historial se conservará visible para Admin.`)) return;
-    
+  const deactivateUser = async (id: string) => {
+    setPendingConfirm(null);
     const { error } = await supabase
       .from("profiles")
       .update({ is_approved: false, is_blocked: true })
       .eq("id", id);
-
-    if (error) {
-      alert("Error al dar de baja el acceso: " + error.message);
-      return;
-    }
-
+    if (error) { showMsg('error', "Error al dar de baja el acceso: " + error.message); return; }
     setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: false, is_blocked: true } : p));
-    alert("Acceso dado de baja. El historial de ofertas se conserva para Admin.");
+    showMsg('success', "Acceso dado de baja. El historial se conserva para Admin.");
   };
 
   const deleteTariff = async (id: string) => {
-    if (!confirm("¿Seguro que quieres borrar esta tarifa?")) return;
+    setPendingConfirm(null);
     const { error } = await supabase.from("tariffs").delete().eq("id", id);
     if (error) {
-      alert("Error al borrar: " + error.message);
+      showMsg('error', "Error al borrar: " + error.message);
     } else {
-      alert("Tarifa eliminada");
+      showMsg('success', "Tarifa eliminada");
       void refreshStore();
     }
   };
@@ -140,6 +139,12 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
           <button onClick={() => setView("users")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "users" ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
         </div>
       </div>
+      {actionMsg && (
+        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-bold text-center animate-in fade-in duration-300 ${actionMsg.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+          {actionMsg.type === 'success' ? '✓' : '✗'} {actionMsg.text}
+        </div>
+      )}
+
       {view === "tariffs" && (
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-4">
@@ -157,8 +162,9 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === seg.id ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   <span className={`w-2 h-2 rounded-full ${
-                    seg.id === 'res' ? 'bg-orange-500' : 
-                    seg.id === 'pyme361' ? 'bg-purple-600' : 
+                    seg.id === 'res' ? 'bg-orange-500' :
+                    seg.id === 'pyme20one' ? 'bg-amber-600' :
+                    (seg.id === 'pyme30' || seg.id === 'pyme61') ? 'bg-purple-600' :
                     'bg-blue-600'
                   }`}></span>
                   {seg.label}
@@ -188,10 +194,18 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setEditingTariff(t)} className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50" title="Editar tarifa"><Pencil size={16} /></button>
-                <button onClick={() => deleteTariff(t.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50" title="Borrar tarifa"><Trash2 size={16} /></button>
-              </div>
+              {pendingConfirm?.action === 'deleteTariff' && pendingConfirm.id === t.id ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-600 font-bold">¿Borrar?</span>
+                  <button onClick={() => deleteTariff(t.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
+                  <button onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditingTariff(t)} className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50" title="Editar tarifa"><Pencil size={16} /></button>
+                  <button onClick={() => setPendingConfirm({ action: 'deleteTariff', id: t.id })} className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50" title="Borrar tarifa"><Trash2 size={16} /></button>
+                </div>
+              )}
             </div>
           ))}
           {(showTariffForm || editingTariff) && (
@@ -310,22 +324,36 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                   <p className="font-bold text-slate-800 text-sm">{p.email}</p>
                   <p className="text-xs text-slate-400">{p.is_admin ? "Administrador" : "Comercial"}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => toggleAdmin(p.id, p.is_admin)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
-                    title={p.is_admin ? "Quitar admin" : "Hacer admin"}
-                  >
-                    {p.is_admin ? "Admin ✓" : "Hacer admin"}
-                  </button>
-                  <button
-                    onClick={() => deactivateUser(p.id, p.email)}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Dar de baja acceso"
-                  >
-                    <UserX size={16} />
-                  </button>
-                </div>
+                {pendingConfirm?.action === 'toggleAdmin' && pendingConfirm.id === p.id ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-purple-700 font-bold">{pendingConfirm.current ? "¿Quitar admin?" : "¿Hacer admin?"}</span>
+                    <button onClick={() => toggleAdmin(p.id, pendingConfirm.current)} className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">Sí</button>
+                    <button onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                  </div>
+                ) : pendingConfirm?.action === 'deactivate' && pendingConfirm.id === p.id ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-red-600 font-bold">¿Dar de baja?</span>
+                    <button onClick={() => deactivateUser(p.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
+                    <button onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPendingConfirm({ action: 'toggleAdmin', id: p.id, current: p.is_admin })}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
+                      title={p.is_admin ? "Quitar admin" : "Hacer admin"}
+                    >
+                      {p.is_admin ? "Admin ✓" : "Hacer admin"}
+                    </button>
+                    <button
+                      onClick={() => setPendingConfirm({ action: 'deactivate', id: p.id, email: p.email })}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Dar de baja acceso"
+                    >
+                      <UserX size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
               {!p.is_admin && (
                 <button
@@ -343,12 +371,18 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   );
 }
 
+function defaultTypeForSegment(segId: string): string {
+  return (segId === 'pyme30' || segId === 'pyme61') ? 'hex' : 'uni';
+}
+
 function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClose: () => void; tariff?: Tariff }) {
   const isEdit = !!tariff;
+  const initialSegId = tariff?.segment_id ?? segments[0]?.id ?? "";
+  const [formMsg, setFormMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState({
-    segment_id: tariff?.segment_id ?? segments[0]?.id ?? "",
+    segment_id: initialSegId,
     name: tariff?.name ?? "",
-    type: tariff?.type ?? "uni",
+    type: tariff?.type ?? defaultTypeForSegment(initialSegId),
     pot_unit: tariff?.pot_unit ?? "dia",
     r_pot: tariff ? [...tariff.r_pot.map(v => v === 0 ? "" : String(v)), ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
     r_en:  tariff ? [...tariff.r_en.map(v => v === 0 ? "" : String(v)),  ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
@@ -394,11 +428,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
       : await supabase.from("tariffs").insert([payload]);
 
     if (error) {
-      alert("Error al guardar: " + error.message);
+      setFormMsg({ type: 'error', text: "Error al guardar: " + error.message });
     } else {
-      alert("Tarifa guardada correctamente");
-      onClose();
-      void useAppStore.getState().refresh();
+      setFormMsg({ type: 'success', text: isEdit ? "Cambios guardados correctamente" : "Tarifa creada correctamente" });
+      setTimeout(() => { onClose(); void useAppStore.getState().refresh(); }, 1200);
     }
   };
 
@@ -416,7 +449,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
           </div>
           <div>
             <label htmlFor="tf-segment" className="text-xs font-bold text-slate-400">Segmento</label>
-            <select id="tf-segment" title="Segmento" className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={form.segment_id} onChange={e => setForm({ ...form, segment_id: e.target.value })}>
+            <select id="tf-segment" title="Segmento" className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={form.segment_id} onChange={e => {
+              const newSegId = e.target.value;
+              setForm({ ...form, segment_id: newSegId, ...(!isEdit && { type: defaultTypeForSegment(newSegId) }) });
+            }}>
               {segments.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </div>
@@ -469,7 +505,12 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
             <span className="text-sm font-semibold text-amber-700">Requiere autorización previa</span>
           </label>
         </div>
-        <button onClick={save} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg">
+        {formMsg && (
+          <div className={`px-4 py-3 rounded-xl text-sm font-bold text-center animate-in fade-in duration-300 ${formMsg.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+            {formMsg.type === 'success' ? '✓' : '✗'} {formMsg.text}
+          </div>
+        )}
+        <button onClick={save} disabled={formMsg?.type === 'success'} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60">
           {isEdit ? "Guardar cambios" : "Crear tarifa"}
         </button>
       </div>

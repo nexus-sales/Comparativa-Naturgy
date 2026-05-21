@@ -21,7 +21,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const [clients, setClients] = useState<Record<string, SegCliente>>({});
   const hasInitializedClients = useRef(false);
   const [activeSeg, setActiveSeg] = useState("res");
-  const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "cli", pyme20: "cli", pyme20one: "cli", pyme361: "cli" });
+  const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "cli", pyme20: "cli", pyme20one: "cli", pyme30: "cli", pyme61: "cli" });
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -334,7 +334,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             ✗ {saveMsg}
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white p-4 rounded-2xl border border-slate-200">
             <p className="text-[10px] font-black text-slate-400 uppercase">FACTURA ACTUAL</p>
             <p className="text-xl font-black text-slate-700">{fmtEur(c.factura)}</p>
@@ -342,6 +342,14 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           <div className={`bg-white p-4 rounded-2xl border-2 ${activeSeg==="res"?"border-orange-500":"border-blue-600"}`}>
             <p className="text-[10px] font-black text-slate-400 uppercase">MEJOR OPCIÓN</p>
             <p className={`text-xl font-black ${activeSeg==="res"?"text-orange-500":"text-blue-600"}`}>{fmtEur(best.r.total)}</p>
+          </div>
+          <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
+            <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO MENSUAL</p>
+            <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh) : "—"}</p>
+          </div>
+          <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
+            <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO ANUAL</p>
+            <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(+(bestAh * 12).toFixed(2)) : "—"}</p>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
@@ -389,7 +397,10 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     <div className="max-w-4xl mx-auto">
       <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl overflow-x-auto mb-4 no-scrollbar">
         {SEG_DEFS.map(seg => (
-          <button key={seg.id} onClick={() => setActiveSeg(seg.id)} className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex-1 whitespace-nowrap ${activeSeg === seg.id ? (seg.id === 'res' ? 'bg-orange-500 text-white shadow-md' : (seg.id === 'pyme361' ? 'bg-purple-600 text-white shadow-md' : 'bg-blue-600 text-white shadow-md')) : 'text-slate-400 hover:text-slate-600'}`}>{seg.label.toUpperCase()}</button>
+          <button key={seg.id} onClick={() => setActiveSeg(seg.id)}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex-1 whitespace-nowrap ${activeSeg === seg.id ? 'text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+            style={activeSeg === seg.id ? { backgroundColor: seg.color } : undefined}
+          >{seg.label.toUpperCase()}</button>
         ))}
       </div>
         <div className="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar whitespace-nowrap">
