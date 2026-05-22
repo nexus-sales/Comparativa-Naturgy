@@ -36,6 +36,8 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
 
     setSaving(true);
     setMessage("");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
       const cleanStr = (s: string) => s.replace(/[<>"{}$%]/g, "").trim();
 
@@ -48,7 +50,10 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
       const { error } = await supabase
         .from('profiles')
         .update(payload)
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
 
       if (error) {
         console.error("Update error details:", error);
@@ -57,8 +62,13 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
 
       setMessage("✓ Perfil actualizado correctamente.");
     } catch (err: unknown) {
+      clearTimeout(timeoutId);
       console.error("Profile save error:", err);
-      setMessage("Error al guardar: " + (err instanceof Error ? err.message : "Error de red o permisos RLS"));
+      if (err instanceof Error && err.name === 'AbortError') {
+        setMessage("Error al guardar: Tiempo de espera agotado. Revisa tu conexión.");
+      } else {
+        setMessage("Error al guardar: " + (err instanceof Error ? err.message : "Error de red o permisos RLS"));
+      }
     } finally {
       setSaving(false);
     }

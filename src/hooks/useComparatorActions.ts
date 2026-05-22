@@ -45,6 +45,8 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
   const saveComp = async (act: "SAVE" | "PDF") => {
     if (isSaving || !user) return;
     setSaveStatus('saving');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g, "").trim() : "";
     try {
       const { error } = await supabase.from("client_comparisons").insert({
@@ -64,17 +66,24 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
           client_data: { ...c, nombre: sEsc(c.nombre), cups: sEsc(c.cups), dir: sEsc(c.dir) },
           available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === best.t.id }))
         }
-      });
+      }).abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
+
       if (error) { showResult('error', error.message); return; }
       if (act === "SAVE") showResult('success', 'Guardado correctamente');
       else setSaveStatus('idle');
     } catch (err: unknown) {
-      showResult('error', err instanceof Error ? err.message : 'Error desconocido');
+      clearTimeout(timeoutId);
+      if (err instanceof Error && err.name === 'AbortError') {
+        showResult('error', 'Tiempo de espera agotado al guardar. Revisa tu conexión.');
+      } else {
+        showResult('error', err instanceof Error ? err.message : 'Error desconocido');
+      }
     }
   };
 
   const handlePDF = () => {
-    if (isSaving) return;
     try {
       exportPDF(segLabel, taxModel, potP, c, segTariffs, comercialData);
     } catch (e) {
