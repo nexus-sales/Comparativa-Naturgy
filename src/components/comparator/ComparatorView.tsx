@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
-import { exportPDF, type ComercialData } from "../../utils/pdfExport";
-import { exportExcel } from "../../utils/excelExport";
+import type { ComercialData } from "../../utils/pdfExport";
+import { CompPane } from "./CompPane";
 import { Trash2, AlertTriangle, Shield } from "lucide-react";
 import type { Chart as ChartInstance } from "chart.js";
 import type { Segment, Tariff, Profile } from "../../types";
@@ -24,9 +24,6 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "cli", pyme20: "cli", pyme20one: "cli", pyme30: "cli", pyme61: "cli" });
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [saveMsg, setSaveMsg] = useState('');
-  const isSaving = saveStatus === 'saving';
   const chartInstances = useRef<Record<string, ChartInstance>>({});
 
   const [comercialData, setComercialData] = useState<ComercialData>({
@@ -252,144 +249,6 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     );
   };
 
-  const CompPane = ({ segId }: { segId: string }) => {
-    const c = clients[segId];
-    if (!c || (!+c.factura && c.en.every(v=>!+v))) return <div className="p-12 text-center text-slate-400">Introduce datos del cliente para comparar.</div>;
-    const { taxModel, potP } = getSegMeta(segId);
-    const segTariffs = getSegTariffs(segId).filter(t=>t.selected);
-    if (!segTariffs.length) return <div className="p-12 text-center text-slate-400">Selecciona al menos una tarifa.</div>;
-
-    const results = segTariffs.map((t,i)=>({t, r:calc(taxModel,potP,c,t), color: CHART_COLS[i%CHART_COLS.length]}));
-    const best = results.reduce((a,b)=>b.r.total<a.r.total?b:a,results[0]);
-    const bestAh = +(c.factura - best.r.total).toFixed(2);
-
-    const showSaveResult = (status: 'success' | 'error', msg: string) => {
-      setSaveStatus(status);
-      setSaveMsg(msg);
-      setTimeout(() => setSaveStatus('idle'), status === 'success' ? 3000 : 5000);
-    };
-
-    const saveComp = async (act: "SAVE" | "PDF") => {
-      if (isSaving || !user) return;
-      setSaveStatus('saving');
-      const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g,"").trim() : "";
-      try {
-        const { error } = await supabase.from("client_comparisons").insert({
-          user_id: user.id,
-          client_name: sEsc(c.nombre) || "S/N",
-          client_address: sEsc(c.dir),
-          target_tariff: best.t.nombre,
-          target_segment: segDef.label,
-          calculation_data: {
-            segment: segDef.label,
-            tax_model: taxModel,
-            pot_prices: potP,
-            best_tariff: best.t.nombre,
-            total_cost: best.r.total,
-            saving: bestAh,
-            current_invoice: c.factura,
-            client_data: {...c, nombre: sEsc(c.nombre), cups: sEsc(c.cups), dir: sEsc(c.dir)},
-            available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === best.t.id }))
-          }
-        });
-        if (error) { showSaveResult('error', error.message); return; }
-        if (act === "SAVE") showSaveResult('success', 'Guardado correctamente');
-        else setSaveStatus('idle');
-      } catch (err: unknown) {
-        showSaveResult('error', err instanceof Error ? err.message : 'Error desconocido');
-      }
-    };
-
-    const handlePDF = () => {
-      if (isSaving) return;
-      try {
-        exportPDF(segDef.label, taxModel, potP, c, segTariffs, comercialData);
-      } catch (e) {
-        showSaveResult('error', 'Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
-      }
-    };
-
-    const handleExcel = async () => {
-      try {
-        await exportExcel(segDef.label, taxModel, potP, c, segTariffs);
-      } catch (e) {
-        showSaveResult('error', 'Error al generar Excel: ' + (e instanceof Error ? e.message : String(e)));
-      }
-    };
-
-    return (
-      <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div className="flex gap-2">
-          <button type="button" onClick={handlePDF} disabled={isSaving} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">PDF INFORME</button>
-          <button type="button" onClick={handleExcel} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
-          <button type="button" onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">{isSaving ? "Guardando..." : "GUARDAR"}</button>
-        </div>
-        {saveStatus === 'success' && (
-          <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-2 text-sm text-center font-bold animate-in fade-in duration-300">
-            ✓ {saveMsg}
-          </div>
-        )}
-        {saveStatus === 'error' && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2 text-sm text-center animate-in fade-in duration-300">
-            ✗ {saveMsg}
-          </div>
-        )}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200">
-            <p className="text-[10px] font-black text-slate-400 uppercase">FACTURA ACTUAL</p>
-            <p className="text-xl font-black text-slate-700">{fmtEur(c.factura)}</p>
-          </div>
-          <div className={`bg-white p-4 rounded-2xl border-2 ${activeSeg==="res"?"border-orange-500":"border-blue-600"}`}>
-            <p className="text-[10px] font-black text-slate-400 uppercase">MEJOR OPCIÓN</p>
-            <p className={`text-xl font-black ${activeSeg==="res"?"text-orange-500":"text-blue-600"}`}>{fmtEur(best.r.total)}</p>
-          </div>
-          <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
-            <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO MENSUAL</p>
-            <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh) : "—"}</p>
-          </div>
-          <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
-            <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO ANUAL</p>
-            <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(+(bestAh * 12).toFixed(2)) : "—"}</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
-          <table className="w-full text-[11px] min-w-max">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="p-3 text-left">Componente</th>
-                <th className="p-3 text-right text-slate-500">Actual</th>
-                {results.map(({t}) => (
-                  <th key={t.id} className={`p-3 text-right ${t.id === best.t.id ? (activeSeg==="res"?"text-orange-500":"text-blue-600") : "text-slate-700"}`}>
-                    {t.nombre}{t.id === best.t.id ? " ★" : ""}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b"><td className="p-3">Potencia</td><td className="text-right p-3">—</td>{results.map(({t,r})=><td key={t.id} className={`text-right p-3 font-bold ${t.id===best.t.id?(activeSeg==="res"?"text-orange-600":"text-blue-700"):""}`}>{fmtEur(r.potencia)}</td>)}</tr>
-              <tr className="border-b"><td className="p-3">Energía</td><td className="text-right p-3">—</td>{results.map(({t,r})=><td key={t.id} className={`text-right p-3 font-bold ${t.id===best.t.id?(activeSeg==="res"?"text-orange-600":"text-blue-700"):""}`}>{fmtEur(r.energia)}</td>)}</tr>
-              <tr className="border-b"><td className="p-3">Impuestos</td><td className="text-right p-3">—</td>{results.map(({t,r})=><td key={t.id} className={`text-right p-3 font-bold ${t.id===best.t.id?(activeSeg==="res"?"text-orange-600":"text-blue-700"):""}`}>{fmtEur((r.igic??0)+(r.igicRed??0)+(r.igic7??0)+r.impElec)}</td>)}</tr>
-              <tr className="bg-orange-50/30 font-black text-sm">
-                <td className="p-3">TOTAL</td>
-                <td className="text-right p-3">{fmtEur(c.factura)}</td>
-                {results.map(({t,r})=>{
-                  const ah = c.factura - r.total;
-                  return <td key={t.id} className={`text-right p-3 ${t.id===best.t.id?(activeSeg==="res"?"text-orange-500":"text-blue-600"):"text-slate-700"}`}>
-                    {fmtEur(r.total)}
-                    {ah > 0.01 && <span className="block text-[9px] font-normal text-green-600">-{fmtEur(ah)}</span>}
-                  </td>;
-                })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase mb-4">GRÁFICO COMPARATIVO</p>
-          <div className="h-[240px] relative"><canvas id={`compChart_${segId}`} title={`Gráfico comparativo para ${segDef.label}`}></canvas></div>
-        </div>
-      </div>
-    );
-  };
 
   const sub = subTabs[activeSeg];
 
@@ -463,7 +322,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           </div>
         )}
         {sub === "tar" && TariffPane({ segId: activeSeg })}
-        {sub === "comp" && CompPane({ segId: activeSeg })}
+        {sub === "comp" && <CompPane segId={activeSeg} activeSeg={activeSeg} c={clients[activeSeg]} taxModel={getSegMeta(activeSeg).taxModel} potP={getSegMeta(activeSeg).potP} segTariffs={getSegTariffs(activeSeg).filter(t => t.selected)} segDef={segDef} segLabel={segDef.label} user={user} comercialData={comercialData} />}
       </div>
     </div>
   );
