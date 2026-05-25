@@ -8,7 +8,8 @@ import { UserHistoryView } from "./components/history/UserHistoryView";
 import { UserProfileView } from "./components/profile/UserProfileView";
 import { AuthStatus } from "./components/auth/AuthOverlay";
 import { InstallPWA } from "./components/InstallPWA";
-import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X } from "lucide-react";
+import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X, Bell } from "lucide-react";
+import { NoticesView } from "./components/notices/NoticesView";
 
 function clearAppStorage() {
   const clearKnownKeys = (storage: Storage) => {
@@ -52,7 +53,7 @@ async function signOutAndReset(resetStore: () => void) {
 function App() {
   const { user, loading: authLoading, isAdmin, profile } = useAuth();
   const { segments, tariffs, loading: dataLoading, error: dataError, load, refresh, reset } = useAppStore();
-  const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile" | "history">("comparator");
+  const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile" | "history" | "notices">("comparator");
   const [showAppHelp, setShowAppHelp] = useState(false);
 
   const isBlocked = profile?.is_blocked === true;
@@ -137,9 +138,10 @@ function App() {
             </div>
           </div>
           <nav className="flex items-center gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto max-w-full">
-            <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />} label="Comercial" />
+            <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />}  label="Comercial" />
             <TabButton active={effectiveTab === "profile"}    onClick={() => setActiveTab("profile")}    icon={<Pencil size={16} />} label="Usuario" />
             <TabButton active={effectiveTab === "history"}    onClick={() => setActiveTab("history")}    icon={<Clock size={16} />}  label="Historial" />
+            <TabButton active={effectiveTab === "notices"}    onClick={() => setActiveTab("notices")}    icon={<Bell size={16} />}   label="Avisos" />
             {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
           <div className="flex items-center gap-4 text-sm">
@@ -191,6 +193,7 @@ function App() {
             {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} />}
             {effectiveTab === "profile"    && <UserProfileView user={user} profile={profile} isAdmin={isAdmin} />}
             {effectiveTab === "history"    && <UserHistoryView user={user} isAdmin={isAdmin} />}
+            {effectiveTab === "notices"    && <NoticesView />}
             {isAdmin && (
               <div className={effectiveTab === "admin" ? "" : "hidden"}>
                 <AdminView segments={segments} tariffs={tariffs} />

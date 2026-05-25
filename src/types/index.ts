@@ -36,6 +36,20 @@ export interface Tariff {
   is_active?: boolean;
 }
 
+export interface Notice {
+  id: string;
+  type: 'tarifa' | 'servicio' | 'noticia';
+  title: string;
+  body: string;
+  effective_date: string | null;
+  expires_at: string | null;
+  is_highlighted: boolean;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ClientComparison {
   id: string;
   user_id: string;

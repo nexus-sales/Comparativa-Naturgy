@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX } from "lucide-react";
+import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
 import { toSectorFilter } from "../../utils/sectors";
-import type { Segment, Tariff, ClientComparison, Profile } from "../../types";
+import type { Segment, Tariff, ClientComparison, Profile, Notice } from "../../types";
 
 interface AdminViewProps {
   segments: Segment[];
@@ -16,7 +16,10 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   const { refresh: refreshStore } = useAppStore();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [history, setHistory] = useState<ClientComparison[]>([]);
-  const [view, setView] = useState<"tariffs" | "users" | "history">("tariffs");
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [showNoticeForm, setShowNoticeForm] = useState(false);
+  const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+  const [view, setView] = useState<"tariffs" | "users" | "history" | "notices">("tariffs");
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
   const [filterSegment, setFilterSegment] = useState<string>("all");
@@ -47,7 +50,17 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
     };
 
     fetchProfiles();
-    
+
+    const fetchNotices = async () => {
+      const { data, error } = await supabase
+        .from('notices')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) console.error('Error loading notices:', error);
+      else if (data) setNotices(data as Notice[]);
+    };
+    fetchNotices();
+
     const fetchAdminHistory = async () => {
       const { data, error } = await supabase.from("client_comparisons")
         .select("*, profiles(email)")
@@ -134,9 +147,17 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
         <h2 className="text-xl font-bold flex items-center gap-2 text-[#002855]"><Shield className="text-orange-500" size={22} /> Panel de Control</h2>
         <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
-          <button onClick={() => setView("tariffs")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "tariffs" ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
-          <button onClick={() => setView("history")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "history" ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
-          <button onClick={() => setView("users")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "users" ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
+          <button onClick={() => setView("tariffs")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "tariffs"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
+          <button onClick={() => setView("history")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "history"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
+          <button onClick={() => setView("users")}   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "users"    ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
+          <button onClick={() => setView("notices")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "notices"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>
+            <Bell size={14} />Avisos
+            {notices.filter(n => n.is_active).length > 0 && (
+              <span className="bg-orange-500 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                {notices.filter(n => n.is_active).length}
+              </span>
+            )}
+          </button>
         </div>
       </div>
       {actionMsg && (
@@ -315,6 +336,114 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
         </div>
       )}
 
+      {view === "notices" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-slate-500">
+              {notices.filter(n => n.is_active).length} activo{notices.filter(n => n.is_active).length !== 1 ? 's' : ''}
+              {notices.filter(n => !n.is_active).length > 0 && ` · ${notices.filter(n => !n.is_active).length} archivado${notices.filter(n => !n.is_active).length !== 1 ? 's' : ''}`}
+            </p>
+            <button
+              onClick={() => setShowNoticeForm(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2"
+            >
+              <Plus size={16} /> Nuevo Aviso
+            </button>
+          </div>
+
+          {notices.length === 0 && (
+            <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-2xl">
+              <Bell size={36} className="mx-auto mb-2 opacity-20" />
+              <p className="font-medium">Aún no hay avisos publicados</p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {notices.map(notice => {
+              const NOTICE_TYPE_CFG = {
+                tarifa:   { label: 'Tarifa',   Icon: Zap,      badgeCls: 'bg-orange-100 text-orange-700', borderCls: 'border-l-orange-400' },
+                servicio: { label: 'Servicio', Icon: Wrench,   badgeCls: 'bg-blue-100 text-blue-700',     borderCls: 'border-l-blue-400'   },
+                noticia:  { label: 'Noticia',  Icon: Newspaper, badgeCls: 'bg-green-100 text-green-700',  borderCls: 'border-l-green-400'  },
+              } as const;
+              const cfg = NOTICE_TYPE_CFG[notice.type];
+              const Icon = cfg.Icon;
+              return (
+                <div
+                  key={notice.id}
+                  className={`bg-white border border-slate-200 rounded-xl p-4 border-l-4 ${cfg.borderCls} flex items-start justify-between gap-4 ${!notice.is_active ? 'opacity-50' : ''}`}
+                >
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${cfg.badgeCls}`}>
+                      <Icon size={15} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${cfg.badgeCls}`}>{cfg.label}</span>
+                        {notice.is_highlighted && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-yellow-100 text-yellow-700 flex items-center gap-1">
+                            <Star size={9} fill="currentColor" /> Relevante
+                          </span>
+                        )}
+                        {!notice.is_active && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-200 text-slate-500 flex items-center gap-1">
+                            <Archive size={9} /> Archivado
+                          </span>
+                        )}
+                        {notice.effective_date && (
+                          <span className="text-[10px] text-slate-400">· {notice.effective_date}</span>
+                        )}
+                        {notice.expires_at && (
+                          <span className="text-[10px] text-slate-400">→ {notice.expires_at}</span>
+                        )}
+                      </div>
+                      <p className="font-bold text-slate-800 text-sm">{notice.title}</p>
+                      {notice.body && <p className="text-xs text-slate-500 mt-0.5 truncate">{notice.body}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => setEditingNotice(notice)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Editar"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const { error } = await supabase.from('notices').update({ is_active: !notice.is_active }).eq('id', notice.id);
+                        if (!error) setNotices(prev => prev.map(n => n.id === notice.id ? { ...n, is_active: !notice.is_active } : n));
+                        else showMsg('error', 'Error al actualizar aviso: ' + error.message);
+                      }}
+                      className={`p-1.5 rounded-lg transition-colors ${notice.is_active ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-green-600 hover:bg-green-50'}`}
+                      title={notice.is_active ? 'Archivar' : 'Restaurar'}
+                    >
+                      {notice.is_active ? <Archive size={15} /> : <RotateCcw size={15} />}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {(showNoticeForm || editingNotice) && (
+            <NoticeForm
+              notice={editingNotice ?? undefined}
+              onClose={() => { setShowNoticeForm(false); setEditingNotice(null); }}
+              onSaved={(saved) => {
+                setNotices(prev => {
+                  const idx = prev.findIndex(n => n.id === saved.id);
+                  return idx >= 0 ? prev.map(n => n.id === saved.id ? saved : n) : [saved, ...prev];
+                });
+                setShowNoticeForm(false);
+                setEditingNotice(null);
+                showMsg('success', editingNotice ? 'Aviso actualizado' : 'Aviso publicado');
+              }}
+            />
+          )}
+        </div>
+      )}
+
       {view === "users" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {profiles.map(p => (
@@ -367,6 +496,167 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: () => void; onSaved: (n: Notice) => void }) {
+  const isEdit = !!notice;
+  const [form, setForm] = useState({
+    type:           notice?.type           ?? 'tarifa' as 'tarifa' | 'servicio' | 'noticia',
+    title:          notice?.title          ?? '',
+    body:           notice?.body           ?? '',
+    effective_date: notice?.effective_date ?? '',
+    expires_at:     notice?.expires_at     ?? '',
+    is_highlighted: notice?.is_highlighted ?? false,
+    is_active:      notice?.is_active      ?? true,
+  });
+  const [formMsg, setFormMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!form.title.trim()) {
+      setFormMsg({ type: 'error', text: 'El título es obligatorio.' });
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      type:           form.type,
+      title:          form.title.trim(),
+      body:           form.body.trim(),
+      effective_date: form.effective_date || null,
+      expires_at:     form.expires_at     || null,
+      is_highlighted: form.type === 'noticia' ? form.is_highlighted : false,
+      is_active:      form.is_active,
+    };
+
+    if (isEdit) {
+      const { data, error } = await supabase.from('notices').update(payload).eq('id', notice!.id).select().single();
+      setSaving(false);
+      if (error) { setFormMsg({ type: 'error', text: 'Error al guardar: ' + error.message }); return; }
+      onSaved(data as Notice);
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.from('notices').insert([{ ...payload, created_by: user?.id ?? null }]).select().single();
+      setSaving(false);
+      if (error) { setFormMsg({ type: 'error', text: 'Error al crear: ' + error.message }); return; }
+      onSaved(data as Notice);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-[#002855]">{isEdit ? 'Editar Aviso' : 'Nuevo Aviso'}</h2>
+          <button type="button" aria-label="Cerrar" onClick={onClose} className="text-slate-400 hover:text-slate-700"><X /></button>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-400">Tipo</label>
+          <div className="flex gap-2 mt-1">
+            {(['tarifa', 'servicio', 'noticia'] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setForm({ ...form, type: t })}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all border ${form.type === t ? 'border-[#002855] bg-[#002855] text-white' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              >
+                {t === 'tarifa' ? '⚡ Tarifa' : t === 'servicio' ? '🔧 Servicio' : '📰 Noticia'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="nf-title" className="text-xs font-bold text-slate-400">Título</label>
+          <input
+            id="nf-title"
+            className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm"
+            placeholder="Ej: Actualización de precios Plan Fijo Luz"
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="nf-body" className="text-xs font-bold text-slate-400">Descripción</label>
+          <textarea
+            id="nf-body"
+            rows={3}
+            className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm resize-none"
+            placeholder="Detalle del aviso, cambio o noticia..."
+            value={form.body}
+            onChange={e => setForm({ ...form, body: e.target.value })}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="nf-effdate" className="text-xs font-bold text-slate-400">
+              {form.type === 'tarifa' ? 'Vigente desde' : 'Fecha de vigencia'}
+            </label>
+            <input
+              id="nf-effdate"
+              type="date"
+              className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm"
+              value={form.effective_date}
+              onChange={e => setForm({ ...form, effective_date: e.target.value })}
+            />
+          </div>
+          <div>
+            <label htmlFor="nf-expires" className="text-xs font-bold text-slate-400">Caduca el</label>
+            <input
+              id="nf-expires"
+              type="date"
+              className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm"
+              value={form.expires_at}
+              onChange={e => setForm({ ...form, expires_at: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          {form.type === 'noticia' && (
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded accent-yellow-500"
+                checked={form.is_highlighted}
+                onChange={e => setForm({ ...form, is_highlighted: e.target.checked })}
+              />
+              <span className="text-sm font-semibold text-yellow-700 flex items-center gap-1">
+                <Star size={14} fill="currentColor" /> Marcar como relevante
+              </span>
+            </label>
+          )}
+          {isEdit && (
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded accent-slate-600"
+                checked={form.is_active}
+                onChange={e => setForm({ ...form, is_active: e.target.checked })}
+              />
+              <span className="text-sm font-semibold text-slate-600">Activo (visible)</span>
+            </label>
+          )}
+        </div>
+
+        {formMsg && (
+          <div className={`px-4 py-3 rounded-xl text-sm font-bold text-center ${formMsg.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+            {formMsg.type === 'success' ? '✓' : '✗'} {formMsg.text}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60"
+        >
+          {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Publicar aviso'}
+        </button>
+      </div>
     </div>
   );
 }
