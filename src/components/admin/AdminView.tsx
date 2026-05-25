@@ -536,8 +536,8 @@ function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: ()
       if (error) { setFormMsg({ type: 'error', text: 'Error al guardar: ' + error.message }); return; }
       onSaved(data as Notice);
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase.from('notices').insert([{ ...payload, created_by: user?.id ?? null }]).select().single();
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.from('notices').insert([{ ...payload, created_by: session?.user?.id ?? null }]).select().single();
       setSaving(false);
       if (error) { setFormMsg({ type: 'error', text: 'Error al crear: ' + error.message }); return; }
       onSaved(data as Notice);

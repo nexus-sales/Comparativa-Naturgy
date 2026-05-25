@@ -7,4 +7,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL and Anon Key must be provided in .env file')
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '')
+// Custom in-process lock: avoids cross-tab navigator.locks contention that
+// can orphan the auth lock and cause all Supabase calls to hang indefinitely.
+const inProcessLock = async (_name: string, _timeout: number, fn: () => Promise<unknown>) => fn()
+
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
+  auth: { lock: inProcessLock },
+})
