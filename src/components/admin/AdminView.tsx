@@ -669,6 +669,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   const isEdit = !!tariff;
   const initialSegId = tariff?.segment_id ?? segments[0]?.id ?? "";
   const [formMsg, setFormMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     segment_id: initialSegId,
     name: tariff?.name ?? "",
@@ -681,6 +682,8 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   });
 
   const save = async () => {
+    setSaving(true);
+    setFormMsg(null);
     const cleanNum = (v: string | number) => {
       if (typeof v === "number") return v;
       const s = String(v || "0").replace(/[^\d,.+-]/g, "").replace(",", ".");
@@ -688,40 +691,45 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
       return isNaN(res) ? 0 : res;
     };
 
-    // Ajustar arrays según el tipo antes de guardar
-    let final_r_en = form.r_en.map(v => cleanNum(v));
-    let final_r_pot = form.r_pot.map(v => cleanNum(v));
+    try {
+      let final_r_en = form.r_en.map(v => cleanNum(v));
+      let final_r_pot = form.r_pot.map(v => cleanNum(v));
 
-    if (form.type === 'uni') {
-      final_r_en = final_r_en.slice(0, 1);
-      final_r_pot = final_r_pot.slice(0, 2);
-    } else if (form.type === 'tri') {
-      final_r_en = final_r_en.slice(0, 3);
-      final_r_pot = final_r_pot.slice(0, 2);
-    } else if (form.type === 'hex') {
-      final_r_en = final_r_en.slice(0, 6);
-      final_r_pot = final_r_pot.slice(0, 6);
-    }
+      if (form.type === 'uni') {
+        final_r_en = final_r_en.slice(0, 1);
+        final_r_pot = final_r_pot.slice(0, 2);
+      } else if (form.type === 'tri') {
+        final_r_en = final_r_en.slice(0, 3);
+        final_r_pot = final_r_pot.slice(0, 2);
+      } else if (form.type === 'hex') {
+        final_r_en = final_r_en.slice(0, 6);
+        final_r_pot = final_r_pot.slice(0, 6);
+      }
 
-    const payload = {
-      segment_id: form.segment_id,
-      name: form.name.trim(),
-      type: form.type,
-      pot_unit: form.pot_unit,
-      r_pot: final_r_pot,
-      r_en:  final_r_en,
-      sva: cleanNum(form.sva),
-      requires_auth: form.requires_auth,
-    };
-    const { error } = isEdit
-      ? await supabase.from("tariffs").update(payload).eq("id", tariff!.id)
-      : await supabase.from("tariffs").insert([payload]);
+      const payload = {
+        segment_id: form.segment_id,
+        name: form.name.trim(),
+        type: form.type,
+        pot_unit: form.pot_unit,
+        r_pot: final_r_pot,
+        r_en:  final_r_en,
+        sva: cleanNum(form.sva),
+        requires_auth: form.requires_auth,
+      };
+      const { error } = isEdit
+        ? await supabase.from("tariffs").update(payload).eq("id", tariff!.id)
+        : await supabase.from("tariffs").insert([payload]);
 
-    if (error) {
-      setFormMsg({ type: 'error', text: "Error al guardar: " + error.message });
-    } else {
-      setFormMsg({ type: 'success', text: isEdit ? "Cambios guardados correctamente" : "Tarifa creada correctamente" });
-      setTimeout(() => { onClose(); void useAppStore.getState().refresh(); }, 1200);
+      if (error) {
+        setFormMsg({ type: 'error', text: "Error al guardar: " + error.message });
+      } else {
+        setFormMsg({ type: 'success', text: isEdit ? "Cambios guardados correctamente" : "Tarifa creada correctamente" });
+        setTimeout(() => { onClose(); void useAppStore.getState().refresh(); }, 1200);
+      }
+    } catch (err) {
+      setFormMsg({ type: 'error', text: "Error inesperado: " + (err instanceof Error ? err.message : String(err)) });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -800,8 +808,8 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
             {formMsg.type === 'success' ? '✓' : '✗'} {formMsg.text}
           </div>
         )}
-        <button onClick={save} disabled={formMsg?.type === 'success'} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60">
-          {isEdit ? "Guardar cambios" : "Crear tarifa"}
+        <button type="button" onClick={save} disabled={saving || formMsg?.type === 'success'} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60">
+          {saving ? 'Guardando...' : isEdit ? "Guardar cambios" : "Crear tarifa"}
         </button>
       </div>
     </div>
