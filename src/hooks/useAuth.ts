@@ -85,11 +85,13 @@ export function useAuth() {
       }
 
       setUser(session.user);
-      // Only re-check profile on meaningful events, not every token refresh noise
+      // Only re-check profile on meaningful events, not every token refresh noise.
+      // For TOKEN_REFRESHED, init() is still running and will call setLoading(false)
+      // after checkAdminStatus finishes — calling it here early causes an isAdmin=false flash.
       if (event !== 'TOKEN_REFRESHED') {
         await checkAdminStatus(session.user);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     // Re-check auth when the tab becomes visible again after being hidden/idle

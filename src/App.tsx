@@ -74,11 +74,11 @@ function App() {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (user && !isAdmin && (!profile || !profile.full_name) && activeTab === "comparator") {
+    if (user && !authLoading && !isAdmin && (!profile || !profile.full_name) && activeTab === "comparator") {
       setActiveTab("profile");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile, isAdmin]);
+  }, [user, profile, isAdmin, authLoading]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const [authTimeout, setAuthTimeout] = useState(false);
