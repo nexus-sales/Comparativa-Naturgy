@@ -78,7 +78,14 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   }, [isAdmin]);
 
   useEffect(() => {
-    fetchHistory();
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) void fetchHistory();
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
   }, [fetchHistory, user.id]);
 
   useEffect(() => {

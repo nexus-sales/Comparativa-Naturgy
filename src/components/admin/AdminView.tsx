@@ -661,8 +661,13 @@ function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: ()
   );
 }
 
-function defaultTypeForSegment(segId: string): string {
-  return (segId === 'pyme30' || segId === 'pyme61') ? 'hex' : 'uni';
+function isSixPeriodSegment(segments: Segment[], segId: string): boolean {
+  const segment = segments.find(s => s.id === segId);
+  return segment?.pot_p === 6 || ['pyme30', 'pyme61', 'pyme361'].includes(segId);
+}
+
+function defaultTypeForSegment(segments: Segment[], segId: string): string {
+  return isSixPeriodSegment(segments, segId) ? 'hex' : 'uni';
 }
 
 function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClose: () => void; tariff?: Tariff }) {
@@ -673,7 +678,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   const [form, setForm] = useState({
     segment_id: initialSegId,
     name: tariff?.name ?? "",
-    type: tariff?.type ?? defaultTypeForSegment(initialSegId),
+    type: tariff?.type ?? defaultTypeForSegment(segments, initialSegId),
     pot_unit: tariff?.pot_unit ?? "dia",
     r_pot: tariff ? [...tariff.r_pot.map(v => v === 0 ? "" : String(v)), ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
     r_en:  tariff ? [...tariff.r_en.map(v => v === 0 ? "" : String(v)),  ...Array(6).fill("")].slice(0, 6) : ["", "", "", "", "", ""],
@@ -692,46 +697,68 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
     };
 
     try {
-      let final_r_en = form.r_en.map(v => cleanNum(v));
-      let final_r_pot = form.r_pot.map(v => cleanNum(v));
+      const name = form.name.trim();
+      if (!name) {
+        setFormMsg({ type: 'error', text: "El nombre de la tarifa es obligatorio." });
+        return;
+      }
 
-      if (form.type === 'uni') {
+      const type = isSixPeriodSegment(segments, form.segment_id) ? 'hex' : form.type;
+      const normalizePrices = (values: Array<string | number>, length: number) =>
+        [...values, ...Array(length).fill("0")].slice(0, length).map(v => cleanNum(v));
+
+      let final_r_en = normalizePrices(form.r_en, 6);
+      let final_r_pot = normalizePrices(form.r_pot, 6);
+
+      if (type === 'uni') {
         final_r_en = final_r_en.slice(0, 1);
         final_r_pot = final_r_pot.slice(0, 2);
-      } else if (form.type === 'tri') {
+      } else if (type === 'tri') {
         final_r_en = final_r_en.slice(0, 3);
         final_r_pot = final_r_pot.slice(0, 2);
-      } else if (form.type === 'hex') {
+      } else if (type === 'hex') {
         final_r_en = final_r_en.slice(0, 6);
         final_r_pot = final_r_pot.slice(0, 6);
       }
 
       const payload = {
         segment_id: form.segment_id,
-        name: form.name.trim(),
-        type: form.type,
+        name,
+        type,
         pot_unit: form.pot_unit,
         r_pot: final_r_pot,
         r_en:  final_r_en,
         sva: cleanNum(form.sva),
         requires_auth: form.requires_auth,
       };
-      const { error } = isEdit
-        ? await supabase.from("tariffs").update(payload).eq("id", tariff!.id)
-        : await supabase.from("tariffs").insert([payload]);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
+      const request = isEdit
+        ? supabase.from("tariffs").update(payload).eq("id", tariff!.id).abortSignal(controller.signal).select().single()
+        : supabase.from("tariffs").insert([payload]).abortSignal(controller.signal).select().single();
+      const { error } = await request;
+      window.clearTimeout(timeout);
 
       if (error) {
         setFormMsg({ type: 'error', text: "Error al guardar: " + error.message });
       } else {
         setFormMsg({ type: 'success', text: isEdit ? "Cambios guardados correctamente" : "Tarifa creada correctamente" });
-        setTimeout(() => { onClose(); void useAppStore.getState().refresh(); }, 1200);
+        setTimeout(() => {
+          void useAppStore.getState().refresh().finally(onClose);
+        }, 1200);
       }
     } catch (err) {
-      setFormMsg({ type: 'error', text: "Error inesperado: " + (err instanceof Error ? err.message : String(err)) });
+      const timeoutMsg = err instanceof Error && err.name === 'AbortError'
+        ? "Tiempo de espera agotado al guardar. Revisa la conexion y vuelve a intentarlo."
+        : "Error inesperado: " + (err instanceof Error ? err.message : String(err));
+      setFormMsg({ type: 'error', text: timeoutMsg });
     } finally {
       setSaving(false);
     }
   };
+
+  const isSixPeriod = isSixPeriodSegment(segments, form.segment_id);
+  const selectedType = isSixPeriod ? 'hex' : form.type;
 
   return (
     <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -749,7 +776,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
             <label htmlFor="tf-segment" className="text-xs font-bold text-slate-400">Segmento</label>
             <select id="tf-segment" title="Segmento" className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={form.segment_id} onChange={e => {
               const newSegId = e.target.value;
-              setForm({ ...form, segment_id: newSegId, ...(!isEdit && { type: defaultTypeForSegment(newSegId) }) });
+              setForm({ ...form, segment_id: newSegId, type: isSixPeriodSegment(segments, newSegId) ? 'hex' : (!isEdit ? defaultTypeForSegment(segments, newSegId) : form.type) });
             }}>
               {segments.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
@@ -758,7 +785,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         <div>
           <label className="text-xs font-bold text-slate-400">Tipo / Unidad de Potencia</label>
           <div className="flex gap-4 mt-1">
-            <select title="Tipo de tarifa" className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+            <select title="Tipo de tarifa" className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={selectedType} onChange={e => setForm({ ...form, type: e.target.value })} disabled={isSixPeriod}>
               <option value="uni">Unihoraria (1P)</option>
               <option value="tri">Discriminada (3P)</option>
               <option value="hex">Seis períodos (6P)</option>
@@ -772,10 +799,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="text-xs font-bold text-slate-400">
-              Precios Potencia ({form.type === 'hex' ? 'P1–P6' : 'P1–P2'})
+              Precios Potencia ({selectedType === 'hex' ? 'P1-P6' : 'P1-P2'})
             </label>
             <div className="grid grid-cols-3 gap-2 mt-1">
-              {(form.type === 'hex' ? form.r_pot : form.r_pot.slice(0, 2)).map((v, i) => (
+              {(selectedType === 'hex' ? form.r_pot : form.r_pot.slice(0, 2)).map((v, i) => (
                 <input key={i} className="p-2 text-xs bg-slate-50 rounded border border-slate-200 font-mono" placeholder={`P${i + 1}`} value={v}
                   onChange={e => { const n = [...form.r_pot]; n[i] = e.target.value; setForm({ ...form, r_pot: n }); }} title={`Potencia P${i + 1}`} />
               ))}
@@ -783,10 +810,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
           </div>
           <div>
             <label className="text-xs font-bold text-slate-400">
-              Precios Energía ({form.type === 'uni' ? 'E1' : form.type === 'tri' ? 'E1–E3' : 'E1–E6'})
+              Precios Energía ({selectedType === 'uni' ? 'E1' : selectedType === 'tri' ? 'E1-E3' : 'E1-E6'})
             </label>
             <div className="grid grid-cols-3 gap-2 mt-1">
-              {(form.type === 'uni' ? form.r_en.slice(0, 1) : form.type === 'tri' ? form.r_en.slice(0, 3) : form.r_en).map((v, i) => (
+              {(selectedType === 'uni' ? form.r_en.slice(0, 1) : selectedType === 'tri' ? form.r_en.slice(0, 3) : form.r_en).map((v, i) => (
                 <input key={i} className="p-2 text-xs bg-slate-50 rounded border border-slate-200 font-mono" placeholder={`E${i + 1}`} value={v}
                   onChange={e => { const n = [...form.r_en]; n[i] = e.target.value; setForm({ ...form, r_en: n }); }} title={`Energía E${i + 1}`} />
               ))}

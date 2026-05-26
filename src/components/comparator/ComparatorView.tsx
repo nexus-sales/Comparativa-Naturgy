@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
 import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
@@ -20,11 +20,24 @@ interface ComparatorViewProps {
 export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: ComparatorViewProps) {
   const [clients, setClients] = useState<Record<string, SegCliente>>({});
   const hasInitializedClients = useRef(false);
-  const [activeSeg, setActiveSeg] = useState("res");
+  const [requestedActiveSeg, setActiveSeg] = useState("res");
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "cli", pyme20: "cli", pyme20one: "cli", pyme30: "cli", pyme61: "cli" });
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const chartInstances = useRef<Record<string, ChartInstance>>({});
+  const segmentDefs = useMemo(() => {
+    const fallbackById = Object.fromEntries(SEG_DEFS.map(seg => [seg.id, seg]));
+    const palette = ["#185FA5", "#0F6E56", "#B45309", "#6D28D9", "#7C3AED", "#be185d", "#0e7490"];
+    const source = segments.length ? segments : SEG_DEFS.map(seg => ({ id: seg.id, label: seg.label } as Segment));
+    return source.map((seg, index) => ({
+      id: seg.id,
+      label: seg.label,
+      color: fallbackById[seg.id]?.color ?? palette[index % palette.length],
+    }));
+  }, [segments]);
+  const activeSeg = segmentDefs.some(seg => seg.id === requestedActiveSeg)
+    ? requestedActiveSeg
+    : segmentDefs[0]?.id ?? requestedActiveSeg;
 
   const [comercialData, setComercialData] = useState<ComercialData>({
     nombre: profile?.full_name || "Comercial",
@@ -63,7 +76,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   }, [profile, user]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const segDef = SEG_DEFS.find(s => s.id === activeSeg) ?? SEG_DEFS[0];
+  const segDef = segmentDefs.find(s => s.id === activeSeg) ?? segmentDefs[0] ?? SEG_DEFS[0];
 
   const getSegMeta = useCallback((segId: string) => {
     const seg = segments.find(s => s.id === segId);
@@ -193,7 +206,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     };
   }, [activeSeg, subTabs, clients, tariffMeta, segments, tariffs, getSegMeta, getSegTariffs]);
 
-  const AuthWarning = () => activeSeg !== "pyme20one" ? null : (
+  const renderAuthWarning = () => activeSeg !== "pyme20one" ? null : (
     <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
       <AlertTriangle size={18} className="text-amber-600 mt-0.5" />
       <div className="text-sm">
@@ -211,7 +224,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
 
     return (
       <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <AuthWarning />
+        {renderAuthWarning()}
         {segTariffs.map(t => {
           const r = calc(taxModel, potP, c, t);
           const ah = +(c.factura - r.total).toFixed(2);
@@ -255,7 +268,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl overflow-x-auto mb-4 no-scrollbar">
-        {SEG_DEFS.map(seg => (
+        {segmentDefs.map(seg => (
           <button key={seg.id} onClick={() => setActiveSeg(seg.id)}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex-1 whitespace-nowrap ${activeSeg === seg.id ? 'text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
             style={activeSeg === seg.id ? { backgroundColor: seg.color } : undefined}
@@ -270,7 +283,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       <div className="min-h-[400px]">
         {sub === "cli" && (
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <AuthWarning />
+            {renderAuthWarning()}
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-[#002855]">Datos del cliente</h3>
               <button onClick={() => clearClient(activeSeg)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>

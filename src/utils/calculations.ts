@@ -129,6 +129,7 @@ export const SEG_COLORS: Record<string, string> = {
   pyme20one: '#B45309',
   pyme30: '#6D28D9',
   pyme61: '#7C3AED',
+  pyme361: '#6D28D9',
 };
 
 export const SEG_DEFAULTS: Record<string, Partial<SegCliente>> = {
@@ -137,6 +138,7 @@ export const SEG_DEFAULTS: Record<string, Partial<SegCliente>> = {
   pyme20one: { alquiler: 0.75, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
   pyme30:    { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
   pyme61:    { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
+  pyme361:   { alquiler: 1.68, bonoRate: 0.019121, excedenteRate: 0.06, taxImpElec: 5.1127, taxIGIC: 0, taxIGICRed: 3, taxIGIC7: 7 },
 };
 
 export const SEG_DEFS = [
@@ -145,6 +147,7 @@ export const SEG_DEFS = [
   { id: "pyme20one", label: "Pyme ONE 2.0TD", color: "#B45309" },
   { id: "pyme30",    label: "Pyme 3.0TD",     color: "#6D28D9" },
   { id: "pyme61",    label: "Pyme 6.1TD",     color: "#7C3AED" },
+  { id: "pyme361",   label: "Pyme 3.0/6.1TD", color: "#6D28D9" },
 ];
 
 export function makeDefaultClient(segId: string): SegCliente {

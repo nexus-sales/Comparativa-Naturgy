@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Custom in-process lock: avoids cross-tab navigator.locks contention that
 // can orphan the auth lock and cause all Supabase calls to hang indefinitely.
-const inProcessLock = async (_name: string, _timeout: number, fn: () => Promise<unknown>) => fn()
+const inProcessLock = async <R>(_name: string, _timeout: number, fn: () => Promise<R>): Promise<R> => fn()
 
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: { lock: inProcessLock },
