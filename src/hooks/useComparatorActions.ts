@@ -49,7 +49,7 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g, "").trim() : "";
     try {
-      const { error } = await supabase.from("client_comparisons").insert({
+      const request = supabase.from("client_comparisons").insert({
         user_id: user.id,
         client_name: sEsc(c.nombre) || "S/N",
         client_address: sEsc(c.dir),
@@ -68,7 +68,16 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
         }
       }).abortSignal(controller.signal);
 
-      clearTimeout(timeoutId);
+      const { error } = await Promise.race([
+        request,
+        new Promise<{error: any}>((_, reject) => {
+          const timeout = window.setTimeout(() => reject(new DOMException("Timeout", "AbortError")), 15000);
+          controller.signal.addEventListener("abort", () => {
+            clearTimeout(timeout);
+            reject(new DOMException("Timeout", "AbortError"));
+          });
+        })
+      ]);
 
       if (error) { showResult('error', error.message); return; }
       if (act === "SAVE") showResult('success', 'Guardado correctamente');

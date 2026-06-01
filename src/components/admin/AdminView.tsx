@@ -732,12 +732,21 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         requires_auth: form.requires_auth,
       };
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 15000);
       const request = isEdit
         ? supabase.from("tariffs").update(payload).eq("id", tariff!.id).abortSignal(controller.signal).select().single()
         : supabase.from("tariffs").insert([payload]).abortSignal(controller.signal).select().single();
-      const { error } = await request;
-      window.clearTimeout(timeout);
+      
+      const { error } = await Promise.race([
+        request,
+        new Promise<{error: any}>((_, reject) => {
+          const timeout = window.setTimeout(() => reject(new DOMException("Timeout", "AbortError")), 15000);
+          controller.signal.addEventListener("abort", () => {
+            clearTimeout(timeout);
+            reject(new DOMException("Timeout", "AbortError"));
+          });
+        })
+      ]);
+
 
       if (error) {
         setFormMsg({ type: 'error', text: "Error al guardar: " + error.message });
