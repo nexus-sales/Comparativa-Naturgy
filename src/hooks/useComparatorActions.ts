@@ -70,7 +70,7 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
 
       const { error } = await Promise.race([
         request,
-        new Promise<{error: any}>((_, reject) => {
+        new Promise<never>((_, reject) => {
           const timeout = window.setTimeout(() => reject(new DOMException("Timeout", "AbortError")), 15000);
           controller.signal.addEventListener("abort", () => {
             clearTimeout(timeout);
@@ -83,12 +83,13 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
       if (act === "SAVE") showResult('success', 'Guardado correctamente');
       else setSaveStatus('idle');
     } catch (err: unknown) {
-      clearTimeout(timeoutId);
       if (err instanceof Error && err.name === 'AbortError') {
         showResult('error', 'Tiempo de espera agotado al guardar. Revisa tu conexión.');
       } else {
         showResult('error', err instanceof Error ? err.message : 'Error desconocido');
       }
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 

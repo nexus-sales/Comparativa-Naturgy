@@ -515,11 +515,16 @@ function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: ()
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
+    // Validate BEFORE entering the saving state, so an early return can never
+    // leave the button stuck on "Guardando...".
     if (!form.title.trim()) {
       setFormMsg({ type: 'error', text: 'El título es obligatorio.' });
       return;
     }
+
     setSaving(true);
+    setFormMsg(null);
+
     const payload = {
       type:           form.type,
       title:          form.title.trim(),
@@ -530,17 +535,39 @@ function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: ()
       is_active:      form.is_active,
     };
 
-    if (isEdit) {
-      const { data, error } = await supabase.from('notices').update(payload).eq('id', notice!.id).select().single();
+    // 15s timeout so a hung request surfaces as an error instead of spinning forever.
+    const controller = new AbortController();
+    const withTimeout = <T,>(req: PromiseLike<T>) => Promise.race([
+      req,
+      new Promise<T>((_, reject) => {
+        const t = window.setTimeout(() => reject(new DOMException('Timeout', 'AbortError')), 15000);
+        controller.signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Timeout', 'AbortError')); });
+      }),
+    ]);
+
+    try {
+      if (isEdit) {
+        const { data, error } = await withTimeout(
+          supabase.from('notices').update(payload).eq('id', notice!.id).abortSignal(controller.signal).select().maybeSingle()
+        );
+        if (error) { setFormMsg({ type: 'error', text: 'Error al guardar: ' + error.message }); return; }
+        if (data) onSaved(data as Notice);
+        else onSaved({ ...notice!, ...payload } as Notice); // RLS may block read-back; use local copy
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data, error } = await withTimeout(
+          supabase.from('notices').insert([{ ...payload, created_by: session?.user?.id ?? null }]).abortSignal(controller.signal).select().maybeSingle()
+        );
+        if (error) { setFormMsg({ type: 'error', text: 'Error al crear: ' + error.message }); return; }
+        if (data) onSaved(data as Notice);
+      }
+    } catch (err) {
+      const msg = err instanceof Error && err.name === 'AbortError'
+        ? 'Tiempo de espera agotado al guardar. Revisa la conexión y vuelve a intentarlo.'
+        : 'Error inesperado: ' + (err instanceof Error ? err.message : String(err));
+      setFormMsg({ type: 'error', text: msg });
+    } finally {
       setSaving(false);
-      if (error) { setFormMsg({ type: 'error', text: 'Error al guardar: ' + error.message }); return; }
-      onSaved(data as Notice);
-    } else {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.from('notices').insert([{ ...payload, created_by: session?.user?.id ?? null }]).select().single();
-      setSaving(false);
-      if (error) { setFormMsg({ type: 'error', text: 'Error al crear: ' + error.message }); return; }
-      onSaved(data as Notice);
     }
   };
 
@@ -687,8 +714,6 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   });
 
   const save = async () => {
-    setSaving(true);
-    setFormMsg(null);
     const cleanNum = (v: string | number) => {
       if (typeof v === "number") return v;
       const s = String(v || "0").replace(/[^\d,.+-]/g, "").replace(",", ".");
@@ -696,12 +721,17 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
       return isNaN(res) ? 0 : res;
     };
 
+    // Validate BEFORE entering the saving state, so we never get stuck on "Guardando..."
+    const name = form.name.trim();
+    if (!name) {
+      setFormMsg({ type: 'error', text: "El nombre de la tarifa es obligatorio." });
+      return;
+    }
+
+    setSaving(true);
+    setFormMsg(null);
+
     try {
-      const name = form.name.trim();
-      if (!name) {
-        setFormMsg({ type: 'error', text: "El nombre de la tarifa es obligatorio." });
-        return;
-      }
 
       const type = isSixPeriodSegment(segments, form.segment_id) ? 'hex' : form.type;
       const normalizePrices = (values: Array<string | number>, length: number) =>
@@ -732,13 +762,15 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         requires_auth: form.requires_auth,
       };
       const controller = new AbortController();
+      // No .select().single() — we only need the error; .single() can throw PGRST116
+      // when RLS allows the write but not the read-back, which would falsely look like a failure.
       const request = isEdit
-        ? supabase.from("tariffs").update(payload).eq("id", tariff!.id).abortSignal(controller.signal).select().single()
-        : supabase.from("tariffs").insert([payload]).abortSignal(controller.signal).select().single();
+        ? supabase.from("tariffs").update(payload).eq("id", tariff!.id).abortSignal(controller.signal)
+        : supabase.from("tariffs").insert([payload]).abortSignal(controller.signal);
       
       const { error } = await Promise.race([
         request,
-        new Promise<{error: any}>((_, reject) => {
+        new Promise<never>((_, reject) => {
           const timeout = window.setTimeout(() => reject(new DOMException("Timeout", "AbortError")), 15000);
           controller.signal.addEventListener("abort", () => {
             clearTimeout(timeout);
@@ -750,18 +782,19 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
 
       if (error) {
         setFormMsg({ type: 'error', text: "Error al guardar: " + error.message });
+        setSaving(false);
       } else {
         setFormMsg({ type: 'success', text: isEdit ? "Cambios guardados correctamente" : "Tarifa creada correctamente" });
-        setTimeout(() => {
-          void useAppStore.getState().refresh().finally(onClose);
-        }, 1200);
+        setSaving(false);
+        // Refresh store in background — if it fails, still close the form
+        try { await useAppStore.getState().refresh(); } catch { /* ignore */ }
+        onClose();
       }
     } catch (err) {
       const timeoutMsg = err instanceof Error && err.name === 'AbortError'
         ? "Tiempo de espera agotado al guardar. Revisa la conexion y vuelve a intentarlo."
         : "Error inesperado: " + (err instanceof Error ? err.message : String(err));
       setFormMsg({ type: 'error', text: timeoutMsg });
-    } finally {
       setSaving(false);
     }
   };
@@ -844,7 +877,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
             {formMsg.type === 'success' ? '✓' : '✗'} {formMsg.text}
           </div>
         )}
-        <button type="button" onClick={save} disabled={saving || formMsg?.type === 'success'} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60">
+        <button type="button" onClick={save} disabled={saving} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60">
           {saving ? 'Guardando...' : isEdit ? "Guardar cambios" : "Crear tarifa"}
         </button>
       </div>

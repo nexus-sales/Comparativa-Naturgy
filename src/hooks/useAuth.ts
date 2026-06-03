@@ -17,6 +17,16 @@ function fallbackProfile(user: User): Profile {
   };
 }
 
+// Catches AuthApiError 400 for "Refresh Token Not Found" and variants.
+// The SDK message format is "Invalid Refresh Token: <reason>", status 400.
+function isRefreshTokenError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { status?: number; message?: string };
+  return e.status === 400 &&
+    typeof e.message === 'string' &&
+    /refresh.token/i.test(e.message);
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,10 +64,26 @@ export function useAuth() {
       }
     }
 
+    // Clears the local Supabase session and resets all auth state.
+    // Uses scope:'local' so we don't attempt a server call with a broken token.
+    async function signOutAndReset() {
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      if (cancelled) return;
+      setUser(null);
+      setProfile(null);
+      setIsAdmin(false);
+      setLoading(false);
+    }
+
     async function init() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (cancelled) return;
+
+        if (error && isRefreshTokenError(error)) {
+          await signOutAndReset();
+          return;
+        }
 
         if (session?.user) {
           setUser(session.user);
@@ -75,7 +101,6 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
 
-      // On actual sign-out reset everything; on token refresh just update
       if (!session?.user) {
         setUser(null);
         setProfile(null);
@@ -94,13 +119,40 @@ export function useAuth() {
       }
     });
 
-    // Re-check auth when the tab becomes visible again after being hidden/idle
+    // Re-check auth when the tab becomes visible again after being hidden/idle.
+    // If the access token is expired, force a refresh; sign out cleanly on failure.
     const onVisibilityChange = async () => {
       if (document.visibilityState !== 'visible' || cancelled) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (cancelled) return;
+
+        if (error && isRefreshTokenError(error)) {
+          await signOutAndReset();
+          return;
+        }
+
         if (session?.user) {
+          // Access token expired? Force a refresh now rather than waiting for the bg timer.
+          const expiresAt = (session.expires_at ?? 0) * 1000;
+          if (Date.now() > expiresAt) {
+            const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+            if (cancelled) return;
+            if (refreshError) {
+              // Only sign out for invalid-token errors. Network / 5xx errors are
+              // transient — leave the session intact and retry on next interaction.
+              if (isRefreshTokenError(refreshError)) await signOutAndReset();
+              return;
+            }
+            if (!refreshed.session?.user) {
+              await signOutAndReset();
+              return;
+            }
+            setUser(refreshed.session.user);
+            await checkAdminStatus(refreshed.session.user);
+            return;
+          }
+
           setUser(session.user);
           await checkAdminStatus(session.user);
         } else if (user) {

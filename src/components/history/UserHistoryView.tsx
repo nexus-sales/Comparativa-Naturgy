@@ -30,10 +30,14 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from("client_comparisons")
         .select("*")
-        .neq("deleted_by_user", true)
+        .neq("deleted_by_user", true);
+
+      if (!isAdmin) query.eq("user_id", user.id);
+
+      const { data, error } = await query
         .order("created_at", { ascending: false })
         .limit(200)
         .abortSignal(controller.signal);
@@ -230,6 +234,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredHistory.map(item => {
+                  try {
                   const cd = item.calculation_data as Record<string, unknown>;
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -353,6 +358,10 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                       </td>
                     </tr>
                   );
+                  } catch (e) {
+                    console.error('Error rendering history row', item.id, e);
+                    return null;
+                  }
                 })}
               </tbody>
             </table>
