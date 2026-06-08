@@ -45,7 +45,7 @@ const authLock = async <R>(_name: string, timeout: number, fn: () => Promise<R>)
 
     await new Promise<void>((resolve, reject) => {
       const attempt = () => {
-        let expiry = 0;
+        let expiry: number;
         try {
           expiry = Number(localStorage.getItem(CROSS_TAB_LOCK_KEY) ?? '0');
         } catch {

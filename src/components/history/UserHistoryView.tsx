@@ -79,7 +79,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
       clearTimeout(timeout);
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, user.id]);
 
   useEffect(() => {
     let cancelled = false;
