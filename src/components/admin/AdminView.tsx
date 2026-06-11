@@ -1005,13 +1005,23 @@ function TariffImporter({
 
       const parsed: ImportRow[] = [];
       let currentPlan = '';
+      const debugRows: string[] = []; // first 20 non-empty rows for diagnostics
 
-      ws.eachRow(row => {
-        // Detect plan header: first non-empty cell in cols 1-4 that contains PLAN + LUZ, not GAS
-        for (let c = 1; c <= 4; c++) {
+      ws.eachRow((row, rowNum) => {
+        // Collect debug info for the first 20 rows
+        if (rowNum <= 20) {
+          const cells = [];
+          for (let c = 1; c <= 6; c++) {
+            const t = getText(row.getCell(c));
+            if (t) cells.push(`C${c}:"${t}"`);
+          }
+          if (cells.length) debugRows.push(`R${rowNum}: ${cells.join(' ')}`);
+        }
+
+        // Detect plan header: any cell in cols 1-8 that contains PLAN + LUZ (not GAS)
+        for (let c = 1; c <= 8; c++) {
           const t = getText(row.getCell(c)).toUpperCase();
           if (t.includes('PLAN') && t.includes('LUZ') && !t.includes('GAS')) {
-            // Title-case normalisation
             currentPlan = getText(row.getCell(c))
               .toLowerCase()
               .replace(/\bplan\b/i, 'Plan')
@@ -1021,20 +1031,23 @@ function TariffImporter({
         }
         if (!currentPlan) return;
 
-        // Detect access-type row: first non-empty cell in cols 1-4 matches XXtd / XXTD
-        for (let c = 1; c <= 4; c++) {
+        // Detect access-type row: any cell in cols 1-8 that contains XTD / X.XTD
+        // Handles: 20TD, 2.0TD, 30TD, 3.0TD, 61TD, 6.1TD (with or without spaces)
+        for (let c = 1; c <= 8; c++) {
           const t = getText(row.getCell(c)).toUpperCase().replace(/\s/g, '');
-          const m = t.match(/^(\d+)TD$/);
+          const m = t.match(/^([\d.]+)TD/);
           if (!m) continue;
 
-          const accessCode = m[1]; // '20', '30', '61'
+          // Normalise "2.0"→"20", "3.0"→"30", "6.1"→"61"
+          const digits = m[1].replace('.', '');
+          const accessCode = digits; // '20', '30', '61'
+          const accessLabel = digits === '20' ? '2.0' : digits === '30' ? '3.0' : '6.1';
           const meta = resolvePlanMeta(currentPlan, accessCode);
           if (!meta) break;
 
           const { type, segment_id } = meta;
           const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
           const potN = segment_id === 'pyme361' ? 6 : 2;
-          const accessLabel = accessCode === '20' ? '2.0' : accessCode === '30' ? '3.0' : '6.1';
 
           // Potencia: cols 6-11 (1-based), shared across all 3 variants
           const r_pot: number[] = [];
@@ -1104,10 +1117,15 @@ function TariffImporter({
               Acepta el JSON de referencia <code className="bg-slate-100 px-1 rounded text-xs">Tarifas pyme 36 · JSON</code> o
               el Excel <code className="bg-slate-100 px-1 rounded text-xs">NC-Productos-Captacion-PYMES-*.xlsx</code> (hoja <code className="bg-slate-100 px-1 rounded text-xs">JUN26_3_VP</code>).
             </p>
+            <label className="block text-xs font-bold text-slate-400 mb-1" htmlFor="tariff-import-file">
+              Archivo (.xlsx / .json)
+            </label>
             <input
+              id="tariff-import-file"
               type="file"
               accept=".xlsx,.xlsm,.json"
               onChange={handleFile}
+              title="Selecciona el archivo Excel o JSON de tarifas PYME"
               className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
           </div>
@@ -1134,7 +1152,7 @@ function TariffImporter({
                     <th className="text-center p-2">Tipo</th>
                     <th className="text-left p-2">Potencia €/kW·año</th>
                     <th className="text-left p-2">Energía €/kWh</th>
-                    <th className="text-center p-2"></th>
+                    <th className="text-center p-2">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
