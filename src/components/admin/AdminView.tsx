@@ -946,6 +946,32 @@ function TariffImporter({
     setMsg(null);
     setRows(null);
     try {
+      // ── JSON path: import directly from the reference JSON ──────────────
+      if (file.name.toLowerCase().endsWith('.json')) {
+        const data = JSON.parse(await file.text()) as Array<Record<string, unknown>>;
+        if (!Array.isArray(data) || !data.length) {
+          setMsg('El JSON está vacío o no tiene el formato esperado.');
+          return;
+        }
+        const parsed: ImportRow[] = data.map(t => {
+          const existing = existingTariffs.find(x => x.name === String(t.name ?? '') && x.segment_id === String(t.segment_id ?? ''));
+          return {
+            name:          String(t.name         ?? ''),
+            segment_id:    String(t.segment_id   ?? ''),
+            type:          String(t.type         ?? 'uni'),
+            pot_unit:      (t.pot_unit === 'anio' ? 'anio' : 'dia') as 'dia' | 'anio',
+            r_pot:         Array.isArray(t.r_pot) ? (t.r_pot as number[]) : [],
+            r_en:          Array.isArray(t.r_en)  ? (t.r_en  as number[]) : [],
+            sva:           Number(t.sva           ?? 0),
+            requires_auth: Boolean(t.requires_auth ?? false),
+            existingId:    existing?.id ?? null,
+          };
+        });
+        setRows(parsed);
+        return;
+      }
+
+      // ── Excel path: parse NC-Productos-Captacion-PYMES-*.xlsx ───────────
       const mod = await import('exceljs');
       const ExcelJS = ((mod as unknown as { default: { Workbook: unknown } }).default?.Workbook
         ? (mod as unknown as { default: typeof import('exceljs') }).default
@@ -1023,7 +1049,7 @@ function TariffImporter({
             for (let i = enOffsets[v]; i < enOffsets[v] + enN; i++) r_en.push(getNum(row.getCell(i)));
             const name = `${currentPlan} ${accessLabel}${variantSuffixes[v]}`.replace(/\s+/g, ' ').trim();
             const existing = existingTariffs.find(t => t.name === name && t.segment_id === segment_id);
-            parsed.push({ name, segment_id, type, pot_unit: 'anio', r_pot, r_en, sva: 0, requires_auth: false, existingId: existing?.id ?? null });
+            parsed.push({ name, segment_id, type, pot_unit: 'dia', r_pot, r_en, sva: 0, requires_auth: false, existingId: existing?.id ?? null });
           }
           break;
         }
@@ -1075,13 +1101,12 @@ function TariffImporter({
         {!rows && (
           <div className="space-y-3">
             <p className="text-sm text-slate-500">
-              Selecciona <code className="bg-slate-100 px-1 rounded text-xs">NC-Productos-Captacion-PYMES-*.xlsx</code>.
-              Se leerá la hoja <code className="bg-slate-100 px-1 rounded text-xs">JUN26_3_VP</code>.
-              Potencia en columnas 6-11, energía base 12-17, ONE 19-24, SUPRA 26-31.
+              Acepta el JSON de referencia <code className="bg-slate-100 px-1 rounded text-xs">Tarifas pyme 36 · JSON</code> o
+              el Excel <code className="bg-slate-100 px-1 rounded text-xs">NC-Productos-Captacion-PYMES-*.xlsx</code> (hoja <code className="bg-slate-100 px-1 rounded text-xs">JUN26_3_VP</code>).
             </p>
             <input
               type="file"
-              accept=".xlsx,.xlsm"
+              accept=".xlsx,.xlsm,.json"
               onChange={handleFile}
               className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
