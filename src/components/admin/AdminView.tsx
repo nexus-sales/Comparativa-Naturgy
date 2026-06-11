@@ -917,7 +917,7 @@ function resolvePlanMeta(planName: string, accessCode: string): { type: string; 
   const up = planName.toUpperCase();
   const is20 = accessCode.startsWith('20');
   const is30 = accessCode.startsWith('30');
-  const segment_id = is20 ? 'pyme20' : 'pyme361';
+  const segment_id = is20 ? 'pyme20' : is30 ? 'pyme30' : 'pyme61';
   // accessLabel: Variable 6.1TD uses commercial name "6X", others use "2.0"/"3.0"/"6.1"
   const stdLabel = is20 ? '2.0' : is30 ? '3.0' : '6.1';
 
@@ -946,6 +946,7 @@ function TariffImporter({
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [replaceSegments, setReplaceSegments] = useState(true);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -954,7 +955,9 @@ function TariffImporter({
     setRows(null);
     try {
       // ── JSON path: import directly from the reference JSON ──────────────
-      if (file.name.toLowerCase().endsWith('.json')) {
+      // Match .json extension OR files with no extension (like "Tarifas pyme 36 · JSON")
+      const isExcel = /\.(xlsx?|xlsm)$/i.test(file.name);
+      if (!isExcel) {
         const data = JSON.parse(await file.text()) as Array<Record<string, unknown>>;
         if (!Array.isArray(data) || !data.length) {
           setMsg('El JSON está vacío o no tiene el formato esperado.');
@@ -1025,16 +1028,16 @@ function TariffImporter({
         if (!baseName.toLowerCase().startsWith('plan')) return;
 
         const digits     = accessMatch[1].replace('.', ''); // "20", "30", "61"
-        const segment_id = digits === '20' ? 'pyme20' : 'pyme361';
+        const segment_id = digits === '20' ? 'pyme20' : digits === '30' ? 'pyme30' : 'pyme61';
         const meta       = resolvePlanMeta(baseName, digits);
         if (!meta) return; // GAS or unrecognised plan
 
         const { type } = meta;
         const enN  = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
-        const potN = segment_id === 'pyme361' ? 6 : 2;
+        const potN = segment_id !== 'pyme20' ? 6 : 2;
 
-        // Log first 3 data rows with all non-zero columns for price column verification
-        if (dataRowsLogged < 3) {
+        // Log first 12 data rows with all non-zero columns for price column verification
+        if (dataRowsLogged < 12) {
           dataRowsLogged++;
           const cols: string[] = [];
           for (let ci = 5; ci <= 35; ci++) {
@@ -1048,8 +1051,10 @@ function TariffImporter({
         const r_pot: number[] = [];
         for (let i = 6; i < 6 + potN; i++) r_pot.push(getNum(row.getCell(i)));
 
-        // ── Energía: base C12-17, ONE C19-24, SUPRA C26-31 ──────────────
-        const enOffsets       = [12, 19, 26] as const;
+        // ── Energía: base/ONE/SUPRA start columns ─────────────────────────
+        // tri6 rows (Variable pyme30/pyme61) have energy shifted +2 vs standard layout:
+        // confirmed by console: C14-16 base, C21-23 ONE, C28-30 SUPRA
+        const enOffsets = (type === 'tri6' ? [14, 21, 28] : [12, 19, 26]) as [number, number, number];
         const variantSuffixes = ['', ' ONE', ' SUPRA'] as const;
 
         for (let v = 0; v < 3; v++) {
@@ -1068,23 +1073,40 @@ function TariffImporter({
     }
   };
 
+  const affectedSegments  = [...new Set(rows?.map(r => r.segment_id) ?? [])];
+  const updatedIds        = new Set(rows?.filter(r => r.existingId).map(r => r.existingId));
+  const toDeactivate      = existingTariffs.filter(
+    t => affectedSegments.includes(t.segment_id) && !updatedIds.has(t.id),
+  );
+
   const confirm = async () => {
     if (!rows) return;
     setSaving(true);
     setMsg(null);
     try {
-      const toUpdate = rows.filter(r => r.existingId);
-      const toInsert = rows.filter(r => !r.existingId);
+      // 1. Deactivate old tariffs in the same segments that are not being updated
+      if (replaceSegments && toDeactivate.length) {
+        const { error } = await supabase.from('tariffs')
+          .update({ is_active: false })
+          .in('id', toDeactivate.map(t => t.id));
+        if (error) throw new Error(error.message);
+      }
 
+      // 2. Update matching tariffs (same name + segment)
+      const toUpdate = rows.filter(r => r.existingId);
       for (const r of toUpdate) {
         const { existingId, ...payload } = r;
         const { error } = await supabase.from('tariffs').update(payload).eq('id', existingId!);
         if (error) throw new Error(error.message);
       }
+
+      // 3. Insert new tariffs
+      const toInsert = rows.filter(r => !r.existingId);
       if (toInsert.length) {
         const { error } = await supabase.from('tariffs').insert(toInsert.map(({ existingId: _, ...p }) => p));
         if (error) throw new Error(error.message);
       }
+
       await useAppStore.getState().refresh();
       onDone();
     } catch (err) {
@@ -1093,8 +1115,9 @@ function TariffImporter({
     }
   };
 
-  const newCount    = rows?.filter(r => !r.existingId).length ?? 0;
-  const updateCount = rows?.filter(r =>  r.existingId).length ?? 0;
+  const newCount        = rows?.filter(r => !r.existingId).length ?? 0;
+  const updateCount     = rows?.filter(r =>  r.existingId).length ?? 0;
+  const deactivateCount = replaceSegments ? toDeactivate.length : 0;
 
   return (
     <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -1107,7 +1130,7 @@ function TariffImporter({
         {!rows && (
           <div className="space-y-3">
             <p className="text-sm text-slate-500">
-              Acepta el JSON de referencia <code className="bg-slate-100 px-1 rounded text-xs">Tarifas pyme 36 · JSON</code> o
+              Acepta el JSON de referencia <code className="bg-slate-100 px-1 rounded text-xs">Tarifas pyme 36.json</code> o
               el Excel <code className="bg-slate-100 px-1 rounded text-xs">NC-Productos-Captacion-PYMES-*.xlsx</code> (hoja <code className="bg-slate-100 px-1 rounded text-xs">JUN26_3_VP</code>).
             </p>
             <label className="block text-xs font-bold text-slate-400 mb-1" htmlFor="tariff-import-file">
@@ -1132,9 +1155,30 @@ function TariffImporter({
 
         {rows && (
           <>
-            <div className="text-sm font-semibold text-slate-600 bg-slate-50 px-4 py-2 rounded-xl">
-              Se crearán <span className="text-green-700">{newCount} nuevas</span> y se actualizarán{' '}
-              <span className="text-blue-700">{updateCount} existentes</span> (clave: nombre + segmento).
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-slate-600 bg-slate-50 px-4 py-2 rounded-xl">
+                Se crearán <span className="text-green-700">{newCount} nuevas</span> y se actualizarán{' '}
+                <span className="text-blue-700">{updateCount} existentes</span> (clave: nombre + segmento).
+                {deactivateCount > 0 && (
+                  <span className="ml-1">
+                    Se <span className="text-amber-700">desactivarán {deactivateCount} tarifas anteriores</span> de los mismos segmentos.
+                  </span>
+                )}
+              </div>
+              {toDeactivate.length > 0 && (
+                <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded accent-amber-600"
+                    checked={replaceSegments}
+                    onChange={e => setReplaceSegments(e.target.checked)}
+                  />
+                  <span className="text-sm text-slate-700">
+                    Desactivar las {toDeactivate.length} tarifas anteriores de{' '}
+                    {affectedSegments.join(' y ')} (recomendado para evitar duplicados)
+                  </span>
+                </label>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">

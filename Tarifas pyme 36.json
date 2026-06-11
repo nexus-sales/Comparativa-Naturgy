@@ -1,0 +1,764 @@
+[
+    {
+        "name": "Plan Fijo Luz 24h 2.0",
+        "segment_id": "pyme20",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.1422
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 2.0 ONE",
+        "segment_id": "pyme20",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.1279
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 2.0 SUPRA",
+        "segment_id": "pyme20",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.159
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 3.0",
+        "segment_id": "pyme30",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.061253,
+            0.034515,
+            0.017703,
+            0.016073,
+            0.012313,
+            0.009377
+        ],
+        "r_en": [
+            0.1463
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 3.0 ONE",
+        "segment_id": "pyme30",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.061253,
+            0.034515,
+            0.017703,
+            0.016073,
+            0.012313,
+            0.009377
+        ],
+        "r_en": [
+            0.1337
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 3.0 SUPRA",
+        "segment_id": "pyme30",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.061253,
+            0.034515,
+            0.017703,
+            0.016073,
+            0.012313,
+            0.009377
+        ],
+        "r_en": [
+            0.1657
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 6.1",
+        "segment_id": "pyme61",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.085268,
+            0.046691,
+            0.02282,
+            0.018962,
+            0.010007,
+            0.006936
+        ],
+        "r_en": [
+            0.1309
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 6.1 ONE",
+        "segment_id": "pyme61",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.085268,
+            0.046691,
+            0.02282,
+            0.018962,
+            0.010007,
+            0.006936
+        ],
+        "r_en": [
+            0.119
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 24h 6.1 SUPRA",
+        "segment_id": "pyme61",
+        "type": "uni",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.085268,
+            0.046691,
+            0.02282,
+            0.018962,
+            0.010007,
+            0.006936
+        ],
+        "r_en": [
+            0.1506
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 2.0 TRIHORARIO",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.2135,
+            0.1399,
+            0.1033
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 2.0 TRIHORARIO ONE",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.1992,
+            0.1256,
+            0.0891
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 2.0 TRIHORARIO SUPRA",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.2302,
+            0.1567,
+            0.1201
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 3.0",
+        "segment_id": "pyme30",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.057928,
+            0.03119,
+            0.014379,
+            0.012748,
+            0.008988,
+            0.006052
+        ],
+        "r_en": [
+            0.2051,
+            0.1799,
+            0.1564,
+            0.1424,
+            0.1359,
+            0.1269
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 3.0 ONE",
+        "segment_id": "pyme30",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.057928,
+            0.03119,
+            0.014379,
+            0.012748,
+            0.008988,
+            0.006052
+        ],
+        "r_en": [
+            0.1925,
+            0.1673,
+            0.1438,
+            0.1298,
+            0.1233,
+            0.1143
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 3.0 SUPRA",
+        "segment_id": "pyme30",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.057928,
+            0.03119,
+            0.014379,
+            0.012748,
+            0.008988,
+            0.006052
+        ],
+        "r_en": [
+            0.2244,
+            0.1992,
+            0.1757,
+            0.1617,
+            0.1552,
+            0.1461
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 6.1",
+        "segment_id": "pyme61",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.1787,
+            0.1579,
+            0.1422,
+            0.132,
+            0.1253,
+            0.118
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 6.1 ONE",
+        "segment_id": "pyme61",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.1667,
+            0.1459,
+            0.1302,
+            0.12,
+            0.1133,
+            0.106
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz 6.1 SUPRA",
+        "segment_id": "pyme61",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.1983,
+            0.1775,
+            0.1618,
+            0.1516,
+            0.1449,
+            0.1376
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 2.0 TRIHORARIO",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.21701,
+            0.14341,
+            0.10681
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 2.0 TRIHORARIO ONE",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.20271,
+            0.12911,
+            0.09261
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 2.0 TRIHORARIO SUPRA",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.122973,
+            0.043976
+        ],
+        "r_en": [
+            0.23371,
+            0.16021,
+            0.12361
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 3.0",
+        "segment_id": "pyme30",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.057928,
+            0.03119,
+            0.014379,
+            0.012748,
+            0.008988,
+            0.006052
+        ],
+        "r_en": [
+            0.20861,
+            0.18341,
+            0.15991,
+            0.14591,
+            0.13941,
+            0.13041
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 3.0 ONE",
+        "segment_id": "pyme30",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.057928,
+            0.03119,
+            0.014379,
+            0.012748,
+            0.008988,
+            0.006052
+        ],
+        "r_en": [
+            0.19601,
+            0.17081,
+            0.14731,
+            0.13331,
+            0.12681,
+            0.11781
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 3.0 SUPRA",
+        "segment_id": "pyme30",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.057928,
+            0.03119,
+            0.014379,
+            0.012748,
+            0.008988,
+            0.006052
+        ],
+        "r_en": [
+            0.22791,
+            0.20271,
+            0.17921,
+            0.16521,
+            0.15871,
+            0.14961
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 6.1",
+        "segment_id": "pyme61",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.18221,
+            0.16141,
+            0.14571,
+            0.13551,
+            0.12881,
+            0.12151
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 6.1 ONE",
+        "segment_id": "pyme61",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.17021,
+            0.14941,
+            0.13371,
+            0.12351,
+            0.11681,
+            0.10951
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Fijo Luz ECO 6.1 SUPRA",
+        "segment_id": "pyme61",
+        "type": "hex",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.20181,
+            0.18101,
+            0.16531,
+            0.15511,
+            0.14841,
+            0.14111
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 2.0",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.079327,
+            0.005412
+        ],
+        "r_en": [
+            0.206249,
+            0.140813,
+            0.134435
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 2.0 ONE",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.079327,
+            0.005412
+        ],
+        "r_en": [
+            0.190749,
+            0.125313,
+            0.118935
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 2.0 SUPRA",
+        "segment_id": "pyme20",
+        "type": "tri",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.079327,
+            0.005412
+        ],
+        "r_en": [
+            0.212249,
+            0.146813,
+            0.140435
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 3.0",
+        "segment_id": "pyme30",
+        "type": "tri6",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.056284,
+            0.029546,
+            0.012735,
+            0.011104,
+            0.007344,
+            0.004408
+        ],
+        "r_en": [
+            0.123221,
+            0.119298,
+            0.136977
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 3.0 ONE",
+        "segment_id": "pyme30",
+        "type": "tri6",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.056284,
+            0.029546,
+            0.012735,
+            0.011104,
+            0.007344,
+            0.004408
+        ],
+        "r_en": [
+            0.107721,
+            0.103798,
+            0.121477
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 3.0 SUPRA",
+        "segment_id": "pyme30",
+        "type": "tri6",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.056284,
+            0.029546,
+            0.012735,
+            0.011104,
+            0.007344,
+            0.004408
+        ],
+        "r_en": [
+            0.129221,
+            0.125298,
+            0.142977
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 6X",
+        "segment_id": "pyme61",
+        "type": "tri6",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.112041,
+            0.110433,
+            0.128161
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 6X ONE",
+        "segment_id": "pyme61",
+        "type": "tri6",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.096541,
+            0.094933,
+            0.112661
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    },
+    {
+        "name": "Plan Variable Luz 6X SUPRA",
+        "segment_id": "pyme61",
+        "type": "tri6",
+        "pot_unit": "dia",
+        "r_pot": [
+            0.081083,
+            0.042506,
+            0.018635,
+            0.014778,
+            0.005822,
+            0.002751
+        ],
+        "r_en": [
+            0.118041,
+            0.116433,
+            0.134161
+        ],
+        "sva": 0,
+        "requires_auth": false,
+        "is_active": true
+    }
+]
