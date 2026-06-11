@@ -733,23 +733,17 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
 
     try {
 
-      const type = isSixPeriodSegment(segments, form.segment_id) ? 'hex' : form.type;
+      const type = form.type;
       const normalizePrices = (values: Array<string | number>, length: number) =>
         [...values, ...Array(length).fill("0")].slice(0, length).map(v => cleanNum(v));
 
-      let final_r_en = normalizePrices(form.r_en, 6);
-      let final_r_pot = normalizePrices(form.r_pot, 6);
+      // pot periods come from the segment, not the type
+      const seg = segments.find(s => s.id === form.segment_id);
+      const potN = seg?.pot_p === 6 ? 6 : 2;
+      const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
 
-      if (type === 'uni') {
-        final_r_en = final_r_en.slice(0, 1);
-        final_r_pot = final_r_pot.slice(0, 2);
-      } else if (type === 'tri') {
-        final_r_en = final_r_en.slice(0, 3);
-        final_r_pot = final_r_pot.slice(0, 2);
-      } else if (type === 'hex') {
-        final_r_en = final_r_en.slice(0, 6);
-        final_r_pot = final_r_pot.slice(0, 6);
-      }
+      const final_r_pot = normalizePrices(form.r_pot, potN);
+      const final_r_en  = normalizePrices(form.r_en,  enN);
 
       const payload = {
         segment_id: form.segment_id,
@@ -800,7 +794,9 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   };
 
   const isSixPeriod = isSixPeriodSegment(segments, form.segment_id);
-  const selectedType = isSixPeriod ? 'hex' : form.type;
+  const selectedType = form.type;
+  const potN = (segments.find(s => s.id === form.segment_id)?.pot_p ?? 2) === 6 ? 6 : 2;
+  const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[selectedType] ?? 1;
 
   return (
     <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -818,7 +814,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
             <label htmlFor="tf-segment" className="text-xs font-bold text-slate-400">Segmento</label>
             <select id="tf-segment" title="Segmento" className="w-full mt-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={form.segment_id} onChange={e => {
               const newSegId = e.target.value;
-              setForm({ ...form, segment_id: newSegId, type: isSixPeriodSegment(segments, newSegId) ? 'hex' : (!isEdit ? defaultTypeForSegment(segments, newSegId) : form.type) });
+              setForm({ ...form, segment_id: newSegId, type: !isEdit ? defaultTypeForSegment(segments, newSegId) : form.type });
             }}>
               {segments.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
@@ -827,10 +823,11 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         <div>
           <label className="text-xs font-bold text-slate-400">Tipo / Unidad de Potencia</label>
           <div className="flex gap-4 mt-1">
-            <select title="Tipo de tarifa" className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={selectedType} onChange={e => setForm({ ...form, type: e.target.value })} disabled={isSixPeriod}>
-              <option value="uni">Unihoraria (1P)</option>
-              <option value="tri">Discriminada (3P)</option>
-              <option value="hex">Seis períodos (6P)</option>
+            <select title="Tipo de tarifa" className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={selectedType} onChange={e => setForm({ ...form, type: e.target.value })}>
+              <option value="uni">Precio único 24h</option>
+              {!isSixPeriod && <option value="tri">3 tramos (potencia 2)</option>}
+              {isSixPeriod && <option value="tri6">3 tramos (potencia 6)</option>}
+              <option value="hex">6 tramos</option>
             </select>
             <select title="Unidad de potencia" className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={form.pot_unit} onChange={e => setForm({ ...form, pot_unit: e.target.value })}>
               <option value="dia">€/kW·día</option>
@@ -841,10 +838,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="text-xs font-bold text-slate-400">
-              Precios Potencia ({selectedType === 'hex' ? 'P1-P6' : 'P1-P2'})
+              Precios Potencia ({potN === 6 ? 'P1-P6' : 'P1-P2'})
             </label>
             <div className="grid grid-cols-3 gap-2 mt-1">
-              {(selectedType === 'hex' ? form.r_pot : form.r_pot.slice(0, 2)).map((v, i) => (
+              {form.r_pot.slice(0, potN).map((v, i) => (
                 <input key={i} className="p-2 text-xs bg-slate-50 rounded border border-slate-200 font-mono" placeholder={`P${i + 1}`} value={v}
                   onChange={e => { const n = [...form.r_pot]; n[i] = e.target.value; setForm({ ...form, r_pot: n }); }} title={`Potencia P${i + 1}`} />
               ))}
@@ -852,10 +849,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
           </div>
           <div>
             <label className="text-xs font-bold text-slate-400">
-              Precios Energía ({selectedType === 'uni' ? 'E1' : selectedType === 'tri' ? 'E1-E3' : 'E1-E6'})
+              Precios Energía ({enN === 1 ? 'E1' : enN === 3 ? 'E1-E3' : 'E1-E6'})
             </label>
             <div className="grid grid-cols-3 gap-2 mt-1">
-              {(selectedType === 'uni' ? form.r_en.slice(0, 1) : selectedType === 'tri' ? form.r_en.slice(0, 3) : form.r_en).map((v, i) => (
+              {form.r_en.slice(0, enN).map((v, i) => (
                 <input key={i} className="p-2 text-xs bg-slate-50 rounded border border-slate-200 font-mono" placeholder={`E${i + 1}`} value={v}
                   onChange={e => { const n = [...form.r_en]; n[i] = e.target.value; setForm({ ...form, r_en: n }); }} title={`Energía E${i + 1}`} />
               ))}
