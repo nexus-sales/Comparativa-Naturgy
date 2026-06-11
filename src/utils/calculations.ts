@@ -21,7 +21,7 @@ export interface SegCliente {
 export interface TarifaLocal {
   id: string;
   nombre: string;
-  tipo: 'uni' | 'tri' | 'hex';
+  tipo: 'uni' | 'tri' | 'tri6' | 'hex';
   potUnit: 'dia' | 'anio';
   rPot: number[];
   rEn: number[];
@@ -57,7 +57,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   }
 
   let costEn = 0;
-  const nEnMap: Record<string, number> = { uni: 1, tri: 3, hex: 6 };
+  const nEnMap: Record<string, number> = { uni: 1, tri: 3, tri6: 3, hex: 6 };
   if (t.tipo === 'uni') {
     costEn = (+(t.rEn[0]) || 0) * c.en.reduce((a, v) => a + (+v || 0), 0);
   } else {
