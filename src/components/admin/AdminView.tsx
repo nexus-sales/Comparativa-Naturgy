@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star } from "lucide-react";
+import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star, Upload } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
@@ -22,6 +22,7 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   const [view, setView] = useState<"tariffs" | "users" | "history" | "notices">("tariffs");
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
+  const [showImporter, setShowImporter] = useState(false);
   const [filterSegment, setFilterSegment] = useState<string>("all");
   const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   type PendingConfirm =
@@ -192,9 +193,14 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowTariffForm(true)} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center gap-2">
-              <Plus size={16} /> Nueva Tarifa
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button type="button" onClick={() => setShowImporter(true)} className="flex-1 sm:flex-none bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center gap-2">
+                <Upload size={16} /> Importar Excel
+              </button>
+              <button type="button" onClick={() => setShowTariffForm(true)} className="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center gap-2">
+                <Plus size={16} /> Nueva Tarifa
+              </button>
+            </div>
           </div>
           {tariffs
             .filter(t => filterSegment === "all" || t.segment_id === filterSegment)
@@ -231,6 +237,14 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
           ))}
           {(showTariffForm || editingTariff) && (
             <TariffForm segments={segments} tariff={editingTariff ?? undefined} onClose={closeForm} />
+          )}
+          {showImporter && (
+            <TariffImporter
+              segments={segments}
+              existingTariffs={tariffs}
+              onClose={() => setShowImporter(false)}
+              onDone={() => { setShowImporter(false); refreshStore(); }}
+            />
           )}
         </div>
       )}
@@ -877,6 +891,257 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         <button type="button" onClick={save} disabled={saving} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60">
           {saving ? 'Guardando...' : isEdit ? "Guardar cambios" : "Crear tarifa"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TariffImporter — reads NC-Productos-Captacion-PYMES-*.xlsx, sheet JUN26_3_VP
+// ---------------------------------------------------------------------------
+
+interface ImportRow {
+  name: string;
+  segment_id: string;
+  type: string;
+  pot_unit: 'dia' | 'anio';
+  r_pot: number[];
+  r_en: number[];
+  sva: number;
+  requires_auth: boolean;
+  existingId: string | null;
+}
+
+// Maps plan-name keyword + access type → tariff type and segment
+function resolvePlanMeta(planName: string, accessCode: string): { type: string; segment_id: string } | null {
+  const up = planName.toUpperCase();
+  const is20 = accessCode.startsWith('20');
+  const segment_id = is20 ? 'pyme20' : 'pyme361';
+  if (up.includes('24H') || up.includes('24 H')) return { type: 'uni', segment_id };
+  if (up.includes('VARIABLE'))                    return { type: is20 ? 'tri' : 'tri6', segment_id };
+  if (up.includes('FIJO') || up.includes('ECO') || up.includes('LUZ')) {
+    return { type: is20 ? 'tri' : 'hex', segment_id };
+  }
+  return null;
+}
+
+function TariffImporter({
+  segments,
+  existingTariffs,
+  onClose,
+  onDone,
+}: {
+  segments: Segment[];
+  existingTariffs: Tariff[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [rows, setRows] = useState<ImportRow[] | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMsg(null);
+    setRows(null);
+    try {
+      const mod = await import('exceljs');
+      const ExcelJS = ((mod as unknown as { default: { Workbook: unknown } }).default?.Workbook
+        ? (mod as unknown as { default: typeof import('exceljs') }).default
+        : mod) as typeof import('exceljs');
+
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(await file.arrayBuffer());
+      const ws = wb.getWorksheet('JUN26_3_VP');
+      if (!ws) { setMsg('No se encontró la hoja JUN26_3_VP en el archivo.'); return; }
+
+      // Read a numeric value from a cell, treating errors/blanks as 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const getNum = (cell: any): number => {
+        let v = cell.value;
+        if (v && typeof v === 'object' && 'result' in v) v = v.result;
+        if (v == null || (typeof v === 'object' && 'error' in v)) return 0;
+        if (typeof v === 'number') return v;
+        const n = parseFloat(String(v).replace(',', '.'));
+        return isNaN(n) ? 0 : n;
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const getText = (cell: any): string => {
+        let v = cell.value;
+        if (v && typeof v === 'object' && 'result' in v) v = v.result;
+        if (v == null || (typeof v === 'object' && 'error' in v)) return '';
+        if (typeof v === 'object' && 'richText' in v)
+          return (v.richText as Array<{ text: string }>).map(r => r.text).join('');
+        return String(v).trim();
+      };
+
+      const parsed: ImportRow[] = [];
+      let currentPlan = '';
+
+      ws.eachRow(row => {
+        // Detect plan header: first non-empty cell in cols 1-4 that contains PLAN + LUZ, not GAS
+        for (let c = 1; c <= 4; c++) {
+          const t = getText(row.getCell(c)).toUpperCase();
+          if (t.includes('PLAN') && t.includes('LUZ') && !t.includes('GAS')) {
+            // Title-case normalisation
+            currentPlan = getText(row.getCell(c))
+              .toLowerCase()
+              .replace(/\bplan\b/i, 'Plan')
+              .replace(/\b(fijo|variable|luz|eco|24h)\b/gi, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+            return; // next row
+          }
+        }
+        if (!currentPlan) return;
+
+        // Detect access-type row: first non-empty cell in cols 1-4 matches XXtd / XXTD
+        for (let c = 1; c <= 4; c++) {
+          const t = getText(row.getCell(c)).toUpperCase().replace(/\s/g, '');
+          const m = t.match(/^(\d+)TD$/);
+          if (!m) continue;
+
+          const accessCode = m[1]; // '20', '30', '61'
+          const meta = resolvePlanMeta(currentPlan, accessCode);
+          if (!meta) break;
+
+          const { type, segment_id } = meta;
+          const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
+          const potN = segment_id === 'pyme361' ? 6 : 2;
+          const accessLabel = accessCode === '20' ? '2.0' : accessCode === '30' ? '3.0' : '6.1';
+
+          // Potencia: cols 6-11 (1-based), shared across all 3 variants
+          const r_pot: number[] = [];
+          for (let i = 6; i < 6 + potN; i++) r_pot.push(getNum(row.getCell(i)));
+
+          // Energía columns: base 12-17, ONE 19-24, SUPRA 26-31
+          const enOffsets = [12, 19, 26] as const;
+          const variantSuffixes = ['', ' ONE', ' SUPRA'] as const;
+
+          for (let v = 0; v < 3; v++) {
+            const r_en: number[] = [];
+            for (let i = enOffsets[v]; i < enOffsets[v] + enN; i++) r_en.push(getNum(row.getCell(i)));
+            const name = `${currentPlan} ${accessLabel}${variantSuffixes[v]}`.replace(/\s+/g, ' ').trim();
+            const existing = existingTariffs.find(t => t.name === name && t.segment_id === segment_id);
+            parsed.push({ name, segment_id, type, pot_unit: 'anio', r_pot, r_en, sva: 0, requires_auth: false, existingId: existing?.id ?? null });
+          }
+          break;
+        }
+      });
+
+      if (!parsed.length) { setMsg('No se encontraron tarifas de luz PYME en la hoja.'); return; }
+      setRows(parsed);
+    } catch (err) {
+      setMsg('Error al leer el archivo: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
+  const confirm = async () => {
+    if (!rows) return;
+    setSaving(true);
+    setMsg(null);
+    try {
+      const toUpdate = rows.filter(r => r.existingId);
+      const toInsert = rows.filter(r => !r.existingId);
+
+      for (const r of toUpdate) {
+        const { existingId, ...payload } = r;
+        const { error } = await supabase.from('tariffs').update(payload).eq('id', existingId!);
+        if (error) throw new Error(error.message);
+      }
+      if (toInsert.length) {
+        const { error } = await supabase.from('tariffs').insert(toInsert.map(({ existingId: _, ...p }) => p));
+        if (error) throw new Error(error.message);
+      }
+      await useAppStore.getState().refresh();
+      onDone();
+    } catch (err) {
+      setMsg('Error al importar: ' + (err instanceof Error ? err.message : String(err)));
+      setSaving(false);
+    }
+  };
+
+  const newCount    = rows?.filter(r => !r.existingId).length ?? 0;
+  const updateCount = rows?.filter(r =>  r.existingId).length ?? 0;
+
+  return (
+    <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white w-full max-w-5xl rounded-3xl p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-[#002855]">Importar tarifas PYME desde Excel</h2>
+          <button type="button" aria-label="Cerrar" onClick={onClose} className="text-slate-400 hover:text-slate-700"><X /></button>
+        </div>
+
+        {!rows && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">
+              Selecciona <code className="bg-slate-100 px-1 rounded text-xs">NC-Productos-Captacion-PYMES-*.xlsx</code>.
+              Se leerá la hoja <code className="bg-slate-100 px-1 rounded text-xs">JUN26_3_VP</code>.
+              Potencia en columnas 6-11, energía base 12-17, ONE 19-24, SUPRA 26-31.
+            </p>
+            <input
+              type="file"
+              accept=".xlsx,.xlsm"
+              onChange={handleFile}
+              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+          </div>
+        )}
+
+        {msg && (
+          <div className="px-4 py-3 rounded-xl text-sm font-bold bg-red-50 border border-red-200 text-red-700">
+            ✗ {msg}
+          </div>
+        )}
+
+        {rows && (
+          <>
+            <div className="text-sm font-semibold text-slate-600 bg-slate-50 px-4 py-2 rounded-xl">
+              Se crearán <span className="text-green-700">{newCount} nuevas</span> y se actualizarán{' '}
+              <span className="text-blue-700">{updateCount} existentes</span> (clave: nombre + segmento).
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-500 font-bold">
+                    <th className="text-left p-2">Nombre</th>
+                    <th className="text-left p-2">Segmento</th>
+                    <th className="text-center p-2">Tipo</th>
+                    <th className="text-left p-2">Potencia €/kW·año</th>
+                    <th className="text-left p-2">Energía €/kWh</th>
+                    <th className="text-center p-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={i} className={`border-t border-slate-100 ${!r.existingId ? 'bg-green-50/40' : ''}`}>
+                      <td className="p-2 font-medium text-slate-800 whitespace-nowrap">{r.name}</td>
+                      <td className="p-2 text-slate-500 whitespace-nowrap">{segments.find(s => s.id === r.segment_id)?.label ?? r.segment_id}</td>
+                      <td className="p-2 text-center font-mono uppercase">{r.type}</td>
+                      <td className="p-2 font-mono text-slate-600 whitespace-nowrap">{r.r_pot.map(v => v.toFixed(6)).join(' / ')}</td>
+                      <td className="p-2 font-mono text-slate-600 whitespace-nowrap">{r.r_en.map(v => v.toFixed(6)).join(' / ')}</td>
+                      <td className="p-2 text-center whitespace-nowrap">
+                        {!r.existingId
+                          ? <span className="text-green-700 font-bold">+ Nueva</span>
+                          : <span className="text-blue-600 font-bold">↺ Actualiza</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => { setRows(null); setMsg(null); }}
+                className="flex-1 py-3 rounded-2xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                Volver a seleccionar
+              </button>
+              <button type="button" onClick={confirm} disabled={saving}
+                className="flex-[2] bg-[#002855] text-white py-3 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg disabled:opacity-60">
+                {saving ? 'Importando...' : `Confirmar importación (${rows.length} tarifas)`}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
