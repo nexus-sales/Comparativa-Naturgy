@@ -913,15 +913,22 @@ interface ImportRow {
 }
 
 // Maps plan-name keyword + access type → tariff type and segment
-function resolvePlanMeta(planName: string, accessCode: string): { type: string; segment_id: string } | null {
+function resolvePlanMeta(planName: string, accessCode: string): { type: string; segment_id: string; accessLabel: string } | null {
   const up = planName.toUpperCase();
   const is20 = accessCode.startsWith('20');
+  const is30 = accessCode.startsWith('30');
   const segment_id = is20 ? 'pyme20' : 'pyme361';
-  if (up.includes('24H') || up.includes('24 H')) return { type: 'uni', segment_id };
-  if (up.includes('VARIABLE'))                    return { type: is20 ? 'tri' : 'tri6', segment_id };
-  if (up.includes('FIJO') || up.includes('ECO') || up.includes('LUZ')) {
-    return { type: is20 ? 'tri' : 'hex', segment_id };
-  }
+  // accessLabel: Variable 6.1TD uses commercial name "6X", others use "2.0"/"3.0"/"6.1"
+  const stdLabel = is20 ? '2.0' : is30 ? '3.0' : '6.1';
+
+  if (up.includes('24H') || up.includes('24 H'))
+    return { type: 'uni',             segment_id, accessLabel: stdLabel };
+  if (up.includes('VARIABLE'))
+    return { type: is20 ? 'tri' : 'tri6', segment_id, accessLabel: is20 ? '2.0' : is30 ? '3.0' : '6X' };
+  if (up.includes('ECO'))
+    return { type: is20 ? 'tri' : 'hex', segment_id, accessLabel: stdLabel };
+  if (up.includes('FIJO') || up.includes('TRIHORARIO') || up.includes('LUZ') || up.includes('FIJA'))
+    return { type: is20 ? 'tri' : 'hex', segment_id, accessLabel: stdLabel };
   return null;
 }
 
@@ -1005,64 +1012,101 @@ function TariffImporter({
 
       const parsed: ImportRow[] = [];
       let currentPlan = '';
-      const debugRows: string[] = []; // first 20 non-empty rows for diagnostics
+      let accessRowsLogged = 0;
 
       ws.eachRow((row, rowNum) => {
-        // Collect debug info for the first 20 rows
-        if (rowNum <= 20) {
-          const cells = [];
-          for (let c = 1; c <= 6; c++) {
+        // Log first 40 rows unconditionally for column-layout diagnosis
+        if (rowNum <= 40) {
+          const cells: string[] = [];
+          for (let c = 1; c <= 8; c++) {
             const t = getText(row.getCell(c));
             if (t) cells.push(`C${c}:"${t}"`);
           }
-          if (cells.length) debugRows.push(`R${rowNum}: ${cells.join(' ')}`);
+          if (cells.length) console.log(`[IMPORT] R${rowNum}:`, cells.join('  '));
         }
 
-        // Detect plan header: any cell in cols 1-8 that contains PLAN + LUZ (not GAS)
+        // ── Plan header detection ──────────────────────────────────────────
+        // Any cell in cols 1-8 that starts with "PLAN" (case-insensitive) and not GAS
         for (let c = 1; c <= 8; c++) {
-          const t = getText(row.getCell(c)).toUpperCase();
-          if (t.includes('PLAN') && t.includes('LUZ') && !t.includes('GAS')) {
-            currentPlan = getText(row.getCell(c))
-              .toLowerCase()
-              .replace(/\bplan\b/i, 'Plan')
-              .replace(/\b(fijo|variable|luz|eco|24h)\b/gi, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-            return; // next row
-          }
+          const raw = getText(row.getCell(c));
+          const up  = raw.toUpperCase().trim();
+          if (!up.startsWith('PLAN ') && !up.startsWith('PLAN\t')) continue;
+          if (up.includes('GAS')) continue;
+
+          // Strip access-code suffixes from the header (e.g. "6X", "6.1", "3.0")
+          const cleaned = raw
+            .replace(/\b6[Xx]\b/g, '')        // remove "6X"
+            .replace(/\b\d+\.\d+\b/g, '')     // remove "2.0", "3.0", "6.1" etc.
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          currentPlan = cleaned
+            .toLowerCase()
+            .replace(/\bplan\b/i, 'Plan')
+            .replace(/\b(fijo|variable|luz|eco|24h|trihorario)\b/gi,
+              w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          console.log(`[IMPORT] Plan header R${rowNum}: "${raw}" → "${currentPlan}"`);
+          return; // skip to next row
         }
         if (!currentPlan) return;
 
-        // Detect access-type row: any cell in cols 1-8 that contains XTD / X.XTD
-        // Handles: 20TD, 2.0TD, 30TD, 3.0TD, 61TD, 6.1TD (with or without spaces)
+        // ── Access-type row detection ─────────────────────────────────────
+        // Any cell in cols 1-8 that starts with a number followed by TD
+        // Handles: 20TD, 2.0TD, 30TD, 3.0TD, 61TD, 6.1TD (spaces optional)
         for (let c = 1; c <= 8; c++) {
           const t = getText(row.getCell(c)).toUpperCase().replace(/\s/g, '');
           const m = t.match(/^([\d.]+)TD/);
           if (!m) continue;
 
-          // Normalise "2.0"→"20", "3.0"→"30", "6.1"→"61"
-          const digits = m[1].replace('.', '');
-          const accessCode = digits; // '20', '30', '61'
-          const accessLabel = digits === '20' ? '2.0' : digits === '30' ? '3.0' : '6.1';
-          const meta = resolvePlanMeta(currentPlan, accessCode);
+          const digits     = m[1].replace('.', '');   // "20", "30", "61"
+          const accessCode = digits;
+          const meta       = resolvePlanMeta(currentPlan, accessCode);
           if (!meta) break;
 
-          const { type, segment_id } = meta;
-          const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
+          const { type, segment_id, accessLabel } = meta;
+          const enN  = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
           const potN = segment_id === 'pyme361' ? 6 : 2;
 
-          // Potencia: cols 6-11 (1-based), shared across all 3 variants
+          // Log first 3 access rows with all cols 1-40 so we can see the data layout
+          if (accessRowsLogged < 3) {
+            accessRowsLogged++;
+            const allCols: string[] = [];
+            for (let ci = 1; ci <= 40; ci++) {
+              const v = getNum(row.getCell(ci));
+              if (v !== 0) allCols.push(`C${ci}:${v}`);
+            }
+            console.log(`[IMPORT] Access row R${rowNum} (${currentPlan} / ${accessCode}TD):`, allCols.join('  ') || '(all zero)');
+          }
+
+          // ── Potencia: cols 6-11 (1-based), shared across all 3 variants ──
           const r_pot: number[] = [];
           for (let i = 6; i < 6 + potN; i++) r_pot.push(getNum(row.getCell(i)));
 
-          // Energía columns: base 12-17, ONE 19-24, SUPRA 26-31
-          const enOffsets = [12, 19, 26] as const;
+          // ── Energía: base 12-17, ONE 19-24, SUPRA 26-31 ──────────────────
+          const enOffsets    = [12, 19, 26] as const;
           const variantSuffixes = ['', ' ONE', ' SUPRA'] as const;
+
+          // Build the tariff name:
+          // - if plan name ends with "Trihorario" and access is 2.0 → "Plan Fijo Luz 2.0 TRIHORARIO"
+          // - otherwise → "Plan Fijo Luz 3.0"
+          const hasTri = /trihorario$/i.test(currentPlan);
+          const basePlan = hasTri ? currentPlan.replace(/\s*trihorario\s*$/i, '').trim() : currentPlan;
 
           for (let v = 0; v < 3; v++) {
             const r_en: number[] = [];
             for (let i = enOffsets[v]; i < enOffsets[v] + enN; i++) r_en.push(getNum(row.getCell(i)));
-            const name = `${currentPlan} ${accessLabel}${variantSuffixes[v]}`.replace(/\s+/g, ' ').trim();
-            const existing = existingTariffs.find(t => t.name === name && t.segment_id === segment_id);
-            parsed.push({ name, segment_id, type, pot_unit: 'dia', r_pot, r_en, sva: 0, requires_auth: false, existingId: existing?.id ?? null });
+
+            const suffix = variantSuffixes[v];
+            const name = (hasTri && accessCode === '20')
+              ? `${basePlan} ${accessLabel} TRIHORARIO${suffix}`
+              : `${basePlan} ${accessLabel}${suffix}`;
+            const nameTrimmed = name.replace(/\s+/g, ' ').trim();
+
+            const existing = existingTariffs.find(t => t.name === nameTrimmed && t.segment_id === segment_id);
+            parsed.push({ name: nameTrimmed, segment_id, type, pot_unit: 'dia', r_pot, r_en, sva: 0, requires_auth: false, existingId: existing?.id ?? null });
           }
           break;
         }
