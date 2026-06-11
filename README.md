@@ -19,6 +19,65 @@
 
 ## Mantenimiento y Correcciones Recientes
 
+### Junio 2026 — Importador de tarifas PYME + tipo tri6 (rama `importador-pyme`)
+
+Ampliación del modelo de datos y nuevo componente de importación masiva de las 36 tarifas de luz PYME de Naturgy.
+
+#### Nuevo tipo de tarifa: `tri6`
+
+| Tipo  | Periodos energía | Periodos potencia | Segmentos        |
+|-------|-----------------|-------------------|------------------|
+| `uni` | 1               | 2 ó 6             | pyme20, pyme30, pyme61 |
+| `tri` | 3               | 2                 | pyme20           |
+| `tri6`| 3               | 6                 | pyme30, pyme61   |
+| `hex` | 6               | 6                 | pyme30, pyme61   |
+
+- `tri6` añadido a `TarifaLocal.tipo` en `calculations.ts` y al mapa `nEnMap`.
+- `TariffForm` corregido: el número de periodos de potencia lo decide el segmento (`pot_p`), no el tipo; eliminado el forzado a `hex` para segmentos de 6 periodos.
+
+#### Constraints SQL necesarias (Supabase SQL Editor)
+
+```sql
+ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS chk_ren_len;
+ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS chk_rpot_len;
+ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS tariffs_type_check;
+
+ALTER TABLE tariffs ADD CONSTRAINT chk_ren_len CHECK (
+  (type='uni'  AND array_length(r_en,1)=1) OR
+  (type='tri'  AND array_length(r_en,1)=3) OR
+  (type='tri6' AND array_length(r_en,1)=3) OR
+  (type='hex'  AND array_length(r_en,1)=6)
+);
+ALTER TABLE tariffs ADD CONSTRAINT chk_rpot_len CHECK (array_length(r_pot,1) IN (2,6));
+ALTER TABLE tariffs ADD CONSTRAINT tariffs_type_check CHECK (type IN ('uni','tri','tri6','hex'));
+
+-- Segmento pyme361 unificado (si no existe ya pyme30/pyme61 por separado)
+INSERT INTO segments (id, label, tax_model, pot_p, bono_rate, excedente_rate, tax_imp_elec, tax_igic, tax_igic_red, tax_igic_7)
+SELECT 'pyme30','Pyme 3.0TD',tax_model,6,bono_rate,excedente_rate,tax_imp_elec,tax_igic,tax_igic_red,tax_igic_7
+FROM segments WHERE id='pyme20' ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO segments (id, label, tax_model, pot_p, bono_rate, excedente_rate, tax_imp_elec, tax_igic, tax_igic_red, tax_igic_7)
+SELECT 'pyme61','Pyme 6.1TD',tax_model,6,bono_rate,excedente_rate,tax_imp_elec,tax_igic,tax_igic_red,tax_igic_7
+FROM segments WHERE id='pyme20' ON CONFLICT (id) DO NOTHING;
+```
+
+#### TariffImporter — importación masiva desde Excel o JSON
+
+- Botón "Importar Excel PYME" en el panel admin de tarifas.
+- Acepta el Excel oficial `NC-Productos-Captacion-PYMES-*.xlsx` (hoja `JUN26_3_VP`) o el archivo de referencia `Tarifas pyme 36.json`.
+- Extrae las 36 tarifas (4 planes × 3 accesos × 3 variantes base/ONE/SUPRA) con detección automática de tipo y segmento.
+- Muestra tabla de revisión con nombres, segmentos, tipos y precios antes de confirmar.
+- Toggle "Desactivar tarifas anteriores de los mismos segmentos" (activo por defecto) para evitar duplicados: pone `is_active = false` a las tarifas viejas antes de insertar las nuevas.
+- Upsert por `name + segment_id`: actualiza si existe, crea si no existe. Nunca borra.
+
+#### Mapeo de columnas Excel (hoja JUN26_3_VP)
+
+- Potencia: columnas C6–C11 (P1–P6), compartidas entre las 3 variantes.
+- Energía base: C12–C17 (uni/tri/hex) o **C14–C16** (tri6, desplazamiento +2 confirmado).
+- Energía ONE: C19–C24 (uni/tri/hex) o **C21–C23** (tri6).
+- Energía SUPRA: C26–C31 (uni/tri/hex) o **C28–C30** (tri6).
+- Nota: los planes Variable pyme30/pyme61 (tri6) usan fórmulas de mercado en el Excel; si las celdas devuelven error, usar `Tarifas pyme 36.json` como fuente.
+
 ### Mayo 2026 — Refactorización Arquitectural Completa (v2.0.0)
 
 Auditoría de seguridad y calidad completa con reset de base de datos y refactorización integral del código.
