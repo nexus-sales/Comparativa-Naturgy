@@ -21,6 +21,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const [clients, setClients] = useState<Record<string, SegCliente>>({});
   const hasInitializedClients = useRef(false);
   const [requestedActiveSeg, setActiveSeg] = useState("res");
+  const [lastPymeSeg, setLastPymeSeg] = useState("pyme20");
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "cli", pyme20: "cli", pyme20one: "cli", pyme30: "cli", pyme61: "cli" });
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
@@ -38,6 +39,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const activeSeg = segmentDefs.some(seg => seg.id === requestedActiveSeg)
     ? requestedActiveSeg
     : segmentDefs[0]?.id ?? requestedActiveSeg;
+  const activeSector = activeSeg === "res" ? "res" : "pyme";
 
   const [comercialData, setComercialData] = useState<ComercialData>({
     nombre: profile?.full_name || "Comercial",
@@ -267,15 +269,59 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl overflow-x-auto mb-4 no-scrollbar">
-        {segmentDefs.map(seg => (
-          <button key={seg.id} onClick={() => setActiveSeg(seg.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex-1 whitespace-nowrap ${activeSeg === seg.id ? 'text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-            style={activeSeg === seg.id ? { backgroundColor: seg.color } : undefined}
-          >{seg.label.toUpperCase()}</button>
-        ))}
+      {/* Sector Selection Tabs */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl mb-4">
+        <button
+          onClick={() => setActiveSeg("res")}
+          className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
+            activeSector === "res"
+              ? "bg-[#185FA5] text-white shadow-md"
+              : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+          }`}
+        >
+          RESIDENCIAL
+        </button>
+        <button
+          onClick={() => setActiveSeg(lastPymeSeg)}
+          className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
+            activeSector === "pyme"
+              ? "bg-[#002855] text-white shadow-md"
+              : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+          }`}
+        >
+          PYME
+        </button>
       </div>
-        <div className="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar whitespace-nowrap">
+
+      {/* Sub-tabs for PYME varieties */}
+      {activeSector === "pyme" && (
+        <div className="flex gap-1 bg-slate-100/60 border border-slate-200/60 p-1 rounded-xl mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
+          {segmentDefs
+            .filter((seg) => seg.id !== "res" && seg.id !== "pyme361")
+            .map((seg) => {
+              const cleanLabel = seg.label.replace(/^Pyme\s+/i, "");
+              return (
+                <button
+                  key={seg.id}
+                  onClick={() => {
+                    setActiveSeg(seg.id);
+                    setLastPymeSeg(seg.id);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex-1 whitespace-nowrap ${
+                    activeSeg === seg.id
+                      ? "text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                  style={activeSeg === seg.id ? { backgroundColor: seg.color } : undefined}
+                >
+                  {cleanLabel.toUpperCase()}
+                </button>
+              );
+            })}
+        </div>
+      )}
+
+      <div className="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar whitespace-nowrap">
         {[["cli","DATOS CLIENTE"],["tar","TARIFAS"],["comp","COMPARATIVA"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setSubTab(id)} className={`flex-1 sm:flex-none px-4 sm:px-6 py-3 text-[10px] sm:text-[11px] font-black tracking-widest transition-all border-b-2 ${sub===id?(activeSeg==="res"?"text-orange-500 border-orange-500":"text-blue-600 border-blue-600"):"text-slate-400 border-transparent"}`}>{lbl}</button>
         ))}

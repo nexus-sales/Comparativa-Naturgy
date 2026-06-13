@@ -166,7 +166,7 @@ function pdfPage(
   color([80, 80, 80] as any); bold(6.5); tx('kWh', L + 2, y + 4); tx('€/kWh', L + 60, y + 4);
   y += 6;
 
-  const nEn = { uni: 1, tri: 3, hex: 6 }[tar.tipo] || 1;
+  const nEn = { uni: 1, tri: 3, tri6: 3, hex: 6 }[tar.tipo] || 1;
   for (let i = 0; i < nEn; i++) {
     const kwh = tar.tipo === 'uni' ? safeEn.reduce((a, v) => a + (+v || 0), 0) : (safeEn[i] || 0);
     const rate = tar.rEn[i] || 0;
