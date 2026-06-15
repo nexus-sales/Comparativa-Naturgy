@@ -110,7 +110,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   };
 }
 
-export function fmtEur(v: number | null | undefined, d = 3): string {
+export function fmtEur(v: number | null | undefined, d = 2): string {
   if (v === null || v === undefined || isNaN(Number(v))) return '—';
   const factor = 10 ** d;
   const truncated = Math.trunc(Number(v) * factor) / factor;

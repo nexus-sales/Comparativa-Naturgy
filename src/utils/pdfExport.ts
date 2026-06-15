@@ -73,7 +73,7 @@ function pdfPage(
   const vl = (x: number, y: number, h: number) => doc.line(x, y, x, y + h);
   const tx = (t: string | number | null | undefined, x: number, y: number, opts?: object) =>
     doc.text(String(t === null || t === undefined ? '' : t), x, y, opts as any || {});
-  const fmt = (v: number | null | undefined, d = 3) => {
+  const fmt = (v: number | null | undefined, d = 2) => {
     if (v == null || isNaN(+v)) return '-';
     const factor = 10 ** d;
     const truncated = Math.trunc((+v) * factor) / factor;

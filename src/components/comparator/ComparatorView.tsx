@@ -239,8 +239,8 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                 <span className={`text-slate-400 text-[10px] transition-transform ${isOpen?"rotate-90":""}`}>›</span>
                 <div className="flex-1 font-bold text-slate-800 text-sm">{t.nombre}</div>
                 <div className="text-right">
-                  <div className="font-black text-[#002855]">{fmtEur(r.total)}</div>
-                  {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah))}</div>}
+                  <div className="font-black text-[#002855]">{fmtEur(r.total, 3)}</div>
+                  {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah), 3)}</div>}
                 </div>
               </div>
               {isOpen && (
@@ -250,11 +250,11 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                     <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-blue-600">Energía (€/kWh)</p>{t.rEn.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 grid grid-cols-2 gap-x-8 gap-y-1">
-                    <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia)}</span></div>
-                    <div className="flex justify-between"><span>Energía bruta</span><span>{fmtEur(r.energia)}</span></div>
-                    <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler)}</span></div>
-                    {(r.reactiva ?? 0) > 0 && <div className="flex justify-between text-purple-700"><span>Reactiva (penalización)</span><span>{fmtEur(r.reactiva)}</span></div>}
-                    <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total)}</span></div>
+                    <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia, 3)}</span></div>
+                    <div className="flex justify-between"><span>Energía bruta</span><span>{fmtEur(r.energia, 3)}</span></div>
+                    <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler, 3)}</span></div>
+                    {(r.reactiva ?? 0) > 0 && <div className="flex justify-between text-purple-700"><span>Reactiva (penalización)</span><span>{fmtEur(r.reactiva, 3)}</span></div>}
+                    <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total, 3)}</span></div>
                   </div>
                 </div>
               )}

@@ -59,7 +59,7 @@ export async function exportExcel(
     ]),
     ['TOTAL ESTIMADO', +c.factura, ...results.map(x => +x.r.total)],
     [],
-    ['Mejor opcion:', best.t.nombre, `Total: ${fmtRaw(best.r.total, 3)} EUR`],
+    ['Mejor opcion:', best.t.nombre, `Total: ${fmtRaw(best.r.total)} EUR`],
   ];
 
   const mod = await import('exceljs');
@@ -78,7 +78,7 @@ export async function exportExcel(
     if (rowNum >= 8) {
       row.eachCell((cell, colNum) => {
         if (colNum >= 2 && typeof cell.value === 'number') {
-          cell.numFmt = '#,##0.000';
+          cell.numFmt = '#,##0.00';
         }
       });
     }

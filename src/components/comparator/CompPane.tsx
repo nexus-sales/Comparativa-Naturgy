@@ -64,19 +64,19 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-200">
           <p className="text-[10px] font-black text-slate-400 uppercase">FACTURA ACTUAL</p>
-          <p className="text-xl font-black text-slate-700">{fmtEur(c.factura)}</p>
+          <p className="text-xl font-black text-slate-700">{fmtEur(c.factura, 3)}</p>
         </div>
         <div className={`bg-white p-4 rounded-2xl border-2 ${accentRes ? "border-orange-500" : "border-blue-600"}`}>
           <p className="text-[10px] font-black text-slate-400 uppercase">MEJOR OPCIÓN</p>
-          <p className={`text-xl font-black ${accentRes ? "text-orange-500" : "text-blue-600"}`}>{fmtEur(best.r.total)}</p>
+          <p className={`text-xl font-black ${accentRes ? "text-orange-500" : "text-blue-600"}`}>{fmtEur(best.r.total, 3)}</p>
         </div>
         <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
           <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO MENSUAL</p>
-          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh) : "—"}</p>
+          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh, 3) : "—"}</p>
         </div>
         <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
           <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO ANUAL</p>
-          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh * 12) : "—"}</p>
+          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh * 12, 3) : "—"}</p>
         </div>
       </div>
 
@@ -96,25 +96,25 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
           <tbody>
             <tr className="border-b">
               <td className="p-3">Potencia</td><td className="text-right p-3">—</td>
-              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.potencia)}</td>)}
+              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.potencia, 3)}</td>)}
             </tr>
             <tr className="border-b">
               <td className="p-3">Energía</td><td className="text-right p-3">—</td>
-              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.energia)}</td>)}
+              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.energia, 3)}</td>)}
             </tr>
             <tr className="border-b">
               <td className="p-3">Impuestos</td><td className="text-right p-3">—</td>
-              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur((r.igic ?? 0) + (r.igicRed ?? 0) + (r.igic7 ?? 0) + r.impElec)}</td>)}
+              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur((r.igic ?? 0) + (r.igicRed ?? 0) + (r.igic7 ?? 0) + r.impElec, 3)}</td>)}
             </tr>
             <tr className="bg-orange-50/30 font-black text-sm">
               <td className="p-3">TOTAL</td>
-              <td className="text-right p-3">{fmtEur(c.factura)}</td>
+              <td className="text-right p-3">{fmtEur(c.factura, 3)}</td>
               {results.map(({ t, r }) => {
                 const ah = c.factura - r.total;
                 return (
                   <td key={t.id} className={`text-right p-3 ${t.id === best.t.id ? (accentRes ? "text-orange-500" : "text-blue-600") : "text-slate-700"}`}>
-                    {fmtEur(r.total)}
-                    {ah > 0.01 && <span className="block text-[9px] font-normal text-green-600">-{fmtEur(ah)}</span>}
+                    {fmtEur(r.total, 3)}
+                    {ah > 0.01 && <span className="block text-[9px] font-normal text-green-600">-{fmtEur(ah, 3)}</span>}
                   </td>
                 );
               })}
