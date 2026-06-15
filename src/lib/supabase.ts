@@ -29,8 +29,14 @@ function acquireTimeoutError(): Error {
 }
 
 const authLock = async <R>(_name: string, timeout: number, fn: () => Promise<R>): Promise<R> => {
-  // Phase 1: same-tab queue
-  while (localLock) await localLock;
+  // Phase 1: same-tab queue — capped at MAX_WAIT_MS so a stuck holder can't
+  // block the queue forever; after the deadline we proceed best-effort.
+  const localDeadline = Date.now() + MAX_WAIT_MS;
+  while (localLock) {
+    const remaining = localDeadline - Date.now();
+    if (remaining <= 0) break;
+    await Promise.race([localLock, new Promise<void>(r => setTimeout(r, remaining))]);
+  }
   let releaseLocal!: () => void;
   localLock = new Promise(r => { releaseLocal = r; });
 

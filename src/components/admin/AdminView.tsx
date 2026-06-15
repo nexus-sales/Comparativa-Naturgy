@@ -568,7 +568,7 @@ function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: ()
         if (data) onSaved(data as Notice);
         else onSaved({ ...notice!, ...payload } as Notice); // RLS may block read-back; use local copy
       } else {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await withTimeout(supabase.auth.getSession());
         const { data, error } = await withTimeout(
           supabase.from('notices').insert([{ ...payload, created_by: session?.user?.id ?? null }]).abortSignal(controller.signal).select().maybeSingle()
         );

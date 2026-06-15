@@ -27,6 +27,19 @@ function isRefreshTokenError(err: unknown): boolean {
     /refresh.token/i.test(e.message);
 }
 
+const SESSION_TIMEOUT_MS = 10_000;
+
+// Wraps getSession() with a hard 10 s deadline so a locked or hung auth
+// call never blocks the app init or tab-focus handler indefinitely.
+function sessionWithTimeout() {
+  return Promise.race([
+    supabase.auth.getSession(),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('getSession timeout')), SESSION_TIMEOUT_MS)
+    ),
+  ]);
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +90,7 @@ export function useAuth() {
 
     async function init() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await sessionWithTimeout();
         if (cancelled) return;
 
         if (error && isRefreshTokenError(error)) {
@@ -124,7 +137,7 @@ export function useAuth() {
     const onVisibilityChange = async () => {
       if (document.visibilityState !== 'visible' || cancelled) return;
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await sessionWithTimeout();
         if (cancelled) return;
 
         if (error && isRefreshTokenError(error)) {
