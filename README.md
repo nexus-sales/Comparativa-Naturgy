@@ -19,6 +19,37 @@
 
 ## Mantenimiento y Correcciones Recientes
 
+### Junio 2026 — Energía reactiva, 3 decimales truncados y mejoras de exportación
+
+#### Energía reactiva (tarifas 3.0TD / 6.1TD — tipo `hex`)
+
+- Nuevo campo `reactiva?: number[]` y `reactivaRate?: number[]` (6 posiciones) en `SegCliente`.
+- `CalcResult` incluye `reactiva?: number` (coste total, positivo).
+- `calc()` suma la penalización reactiva al subtotal antes de aplicar el Impuesto Eléctrico, de modo que queda correctamente dentro de la base imponible.
+- `ComparatorView`: bloque de inputs P1–P6 (kVArh exceso + €/kVArh) visible solo en segmentos de 6 periodos. Línea "Reactiva (penalización)" en el desglose de cada tarifa.
+- PDF: bloque "ENERGÍA REACTIVA" con fila por periodo y línea final "COSTE REACTIVA", pintado solo cuando `potP === 6` y `r.reactiva > 0`.
+- Excel: filas `Energia reactiva` y `Compensacion excedentes` añadidas a `rowDefs` en ambas variantes (PYME y residencial).
+- `UserHistoryView`: el objeto `SegCliente` reconstruido al regenerar una comparativa guardada incluye `reactiva` y `reactivaRate` con guarda `Array.isArray`, de modo que las comparativas de 6 periodos conservan la reactiva al reabrirse desde el historial.
+- **Sin cambios en Supabase**: los arrays viajan dentro del JSONB `calculation_data.client_data` vía `{ ...c }`.
+
+#### Decimales: 3 cifras truncadas (sin redondeo)
+
+- `fmtEur` pasa a `d = 3` por defecto y usa `Math.trunc` en lugar de `toFixed` para evitar redondeos (`1,2349 €` → `1,234 €`).
+- `fmtRaw` aplica la misma truncación (mantiene `d = 2` por defecto para inputs).
+- PDF `fmt()`: elimina el `.replace(/,?0+$/, '')` interno → los importes en € muestran siempre 3 decimales fijos (`45,600 €`); los `.replace` en call sites de precios unitarios (€/kWh, €/kW, €/kVArh) siguen recortando ceros de relleno.
+- Excel: formato numérico `#,##0.000` aplicado a todas las celdas de importe; `fmtRaw` de "Mejor opción" pasa a 3 decimales.
+
+#### Excedentes kWh con decimales
+
+- Input "Excedentes kWh" pasa de `fmtRaw(enExc, 0)` a `fmtRaw(enExc, 3)` — evitaba que el descuento usase el entero en lugar del valor real con decimales.
+- PDF: la columna kWh de excedentes usa `fmt(c.enExc, 3)` en lugar de `fmt(c.enExc, 0)`.
+
+#### Avisos: fix de carga permanente para comerciales
+
+- `NoticesView.useEffect` refactorizado con `try/catch/finally`: si Supabase devuelve error, se loguea con `console.error`, `notices` queda vacío y `setLoading(false)` siempre se ejecuta en el `finally`. Antes la pantalla se quedaba en "Cargando avisos..." indefinidamente ante cualquier fallo de red.
+
+---
+
 ### Junio 2026 — Importador de tarifas PYME + tipo tri6 (rama `importador-pyme`)
 
 Ampliación del modelo de datos y nuevo componente de importación masiva de las 36 tarifas de luz PYME de Naturgy.

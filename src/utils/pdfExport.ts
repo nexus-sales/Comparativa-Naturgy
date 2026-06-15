@@ -73,9 +73,11 @@ function pdfPage(
   const vl = (x: number, y: number, h: number) => doc.line(x, y, x, y + h);
   const tx = (t: string | number | null | undefined, x: number, y: number, opts?: object) =>
     doc.text(String(t === null || t === undefined ? '' : t), x, y, opts as any || {});
-  const fmt = (v: number | null | undefined, d?: number) => {
+  const fmt = (v: number | null | undefined, d = 3) => {
     if (v == null || isNaN(+v)) return '-';
-    const val = (+v).toFixed(d != null ? d : 2).replace('.', ',');
+    const factor = 10 ** d;
+    const truncated = Math.trunc((+v) * factor) / factor;
+    const val = truncated.toFixed(d).replace('.', ',');
     const parts = val.split(',');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     return parts.join(',');
@@ -181,7 +183,39 @@ function pdfPage(
     y += rh;
   }
 
-  // DESGLOSE
+
+  // ENERGÍA REACTIVA (solo hex/pyme361 cuando r.reactiva > 0)
+  if (potP === 6 && r.reactiva && r.reactiva > 0) {
+    fill(or); stroke(or); doc.rect(L, y, CW, 6, 'F');
+    color(wh); bold(8.5); tx('ENERGÍA REACTIVA', L + 2, y + 4.2);
+    y += 6;
+    box(L, y, CW, 6, gr); vl(L + 40, y, 6); vl(L + 58, y, 6); vl(L + 110, y, 6); vl(L + 155, y, 6);
+    color([80, 80, 80] as any); bold(6.5); tx('kVArh exceso', L + 2, y + 4); tx('€/kVArh', L + 60, y + 4);
+    y += 6;
+    const safeReactiva = c.reactiva || [];
+    const safeReactivaRate = c.reactivaRate || [];
+    let rvi = 0;
+    for (let i = 0; i < 6; i++) {
+      const kvarh = +(safeReactiva[i] || 0);
+      const rate = +(safeReactivaRate[i] || 0);
+      if (!kvarh && !rate) continue;
+      const costI = kvarh * rate;
+      box(L, y, CW, rh, rvi % 2 ? altGr : wh);
+      vl(L + 40, y, rh); vl(L + 58, y, rh); vl(L + 110, y, rh); vl(L + 155, y, rh);
+      color([30, 30, 30] as any); norm(7);
+      tx(fmt(kvarh, 3), L + 2, y + 4.5);
+      bold(8); tx(lbs[i], L + 42, y + 4.5);
+      norm(7); tx(fmt(rate, 6).replace(/,?0+$/, '') + ' €', L + 60, y + 4.5);
+      color(navy); bold(7.5); tx(fmtE(costI), R - 2, y + 4.5, { align: 'right' });
+      rvi++; y += rh;
+    }
+    fill([255, 244, 230] as any); stroke(or); doc.rect(L, y, CW, 7, 'FD'); vl(L + 110, y, 7);
+    color(navy); bold(8.5); tx('COSTE REACTIVA', L + 112, y + 5);
+    color(or); bold(11); tx(fmtE(r.reactiva), R - 2, y + 5.5, { align: 'right' });
+    y += 7 + 2;
+  }
+
+    // DESGLOSE
   const lineItems: [string | null, number | null, boolean][] = isPyme ? [
     ['SIN SVA', r.sva || 0, false], ['ALQUILER', r.alquiler, false], [null, null, false],
     ['SUBTOTAL', r.subtotal, true], ['IMPUESTO ELEC.', r.impElec, false],

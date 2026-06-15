@@ -16,6 +16,8 @@ export interface SegCliente {
   taxIGIC: number;
   taxIGICRed: number;
   taxIGIC7: number;
+  reactiva?: number[];     // kVArh exceso por periodo (6 posiciones)
+  reactivaRate?: number[]; // €/kVArh por periodo (6 posiciones)
 }
 
 export interface TarifaLocal {
@@ -36,6 +38,7 @@ export interface CalcResult {
   potencia: number;
   energia: number;
   excedentes?: number; // Valor negativo (ej: -5.40)
+  reactiva?: number;   // Coste total energía reactiva (positivo)
   sva: number;
   alquiler: number;
   subtotal: number;
@@ -68,8 +71,9 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   const sva = +(t.sva || 0);
   const alq = +(c.alquiler || 0);
   const costExc = (+(c.enExc || 0)) * (+(c.excedenteRate || 0));
-  
-  const subtotal = costPot + costEn + sva + alq - costExc;
+  const costReactiva = (c.reactiva || []).reduce((acc, v, i) => acc + (+(v) || 0) * (+(c.reactivaRate?.[i] ?? 0) || 0), 0);
+
+  const subtotal = costPot + costEn + costReactiva + sva + alq - costExc;
   const impElec = (subtotal + costExc - alq) * (+(c.taxImpElec || 0) / 100);
   const bono = (+(c.bonoRate || 0)) * dias;
 
@@ -79,6 +83,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
       potencia: +costPot.toFixed(4),
       energia: +costEn.toFixed(4),
       excedentes: - +costExc.toFixed(4),
+      reactiva: +costReactiva.toFixed(4),
       sva, alquiler: alq,
       subtotal: +subtotal.toFixed(4),
       impElec: +impElec.toFixed(4),
@@ -94,6 +99,7 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
     potencia: +costPot.toFixed(4),
     energia: +costEn.toFixed(4),
     excedentes: - +costExc.toFixed(4),
+    reactiva: +costReactiva.toFixed(4),
     sva, alquiler: alq,
     subtotal: +subtotal.toFixed(4),
     impElec: +impElec.toFixed(4),
@@ -104,17 +110,21 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   };
 }
 
-export function fmtEur(v: number | null | undefined, d = 2): string {
+export function fmtEur(v: number | null | undefined, d = 3): string {
   if (v === null || v === undefined || isNaN(Number(v))) return '—';
-  const val = (+v).toFixed(d).replace('.', ',');
+  const factor = 10 ** d;
+  const truncated = Math.trunc(Number(v) * factor) / factor;
+  const val = truncated.toFixed(d).replace('.', ',');
   const parts = val.split(',');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return parts.join(',') + ' €';
+  return parts.join(',') + ' €';
 }
 
 export function fmtRaw(v: number | null | undefined, d = 2): string {
   if (v === null || v === undefined || isNaN(Number(v))) return '';
-  const val = (+v).toFixed(d).replace('.', ',');
+  const factor = 10 ** d;
+  const truncated = Math.trunc(Number(v) * factor) / factor;
+  const val = truncated.toFixed(d).replace('.', ',');
   if (d === 0) {
     return val.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   }
@@ -164,6 +174,8 @@ export function makeDefaultClient(segId: string): SegCliente {
     taxIGIC: d.taxIGIC ?? 7,
     taxIGICRed: d.taxIGICRed ?? 0,
     taxIGIC7: d.taxIGIC7 ?? 0,
+    reactiva: [0, 0, 0, 0, 0, 0],
+    reactivaRate: [0, 0, 0, 0, 0, 0],
   };
 }
 

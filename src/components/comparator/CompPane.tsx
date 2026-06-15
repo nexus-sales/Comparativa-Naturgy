@@ -76,7 +76,7 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
         </div>
         <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
           <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO ANUAL</p>
-          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(+(bestAh * 12).toFixed(2)) : "—"}</p>
+          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh * 12) : "—"}</p>
         </div>
       </div>
 

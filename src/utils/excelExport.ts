@@ -18,8 +18,10 @@ export async function exportExcel(
   const rowDefs: [string, keyof CalcResult][] = isPyme ? [
     ['Coste potencia', 'potencia'],
     ['Coste energia', 'energia'],
+    ['Energia reactiva', 'reactiva'],
     ['SVA', 'sva'],
     ['Alquiler', 'alquiler'],
+    ['Compensacion excedentes', 'excedentes'],
     ['Subtotal', 'subtotal'],
     ['Imp. electricidad', 'impElec'],
     ['IGIC Reducido 3%', 'igicRed'],
@@ -28,8 +30,10 @@ export async function exportExcel(
   ] : [
     ['Coste potencia', 'potencia'],
     ['Coste energia', 'energia'],
+    ['Energia reactiva', 'reactiva'],
     ['SVA', 'sva'],
     ['Alquiler', 'alquiler'],
+    ['Compensacion excedentes', 'excedentes'],
     ['Subtotal', 'subtotal'],
     ['Imp. electricidad', 'impElec'],
     ['IGIC alquiler', 'igic'],
@@ -55,7 +59,7 @@ export async function exportExcel(
     ]),
     ['TOTAL ESTIMADO', +c.factura, ...results.map(x => +x.r.total)],
     [],
-    ['Mejor opcion:', best.t.nombre, `Total: ${fmtRaw(best.r.total)} EUR`],
+    ['Mejor opcion:', best.t.nombre, `Total: ${fmtRaw(best.r.total, 3)} EUR`],
   ];
 
   const mod = await import('exceljs');
@@ -69,6 +73,16 @@ export async function exportExcel(
   const ws = wb.addWorksheet('Comparativa');
   ws.addRows(rows);
   ws.columns = [{ width: 28 }, { width: 16 }, ...results.map(() => ({ width: 20 }))];
+  // Apply 3-decimal number format to numeric cells in component/total rows
+  ws.eachRow((row, rowNum) => {
+    if (rowNum >= 8) {
+      row.eachCell((cell, colNum) => {
+        if (colNum >= 2 && typeof cell.value === 'number') {
+          cell.numFmt = '#,##0.000';
+        }
+      });
+    }
+  });
 
   const kwRows = c.kw.map((v, i) => v ? [`P${i + 1}`, v] : null).filter(Boolean) as [string, number][];
   const enRows = c.en.map((v, i) => v ? [`P${i + 1}`, v] : null).filter(Boolean) as [string, number][];

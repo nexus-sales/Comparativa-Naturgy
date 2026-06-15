@@ -69,13 +69,20 @@ export function NoticesView() {
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase
-        .from('notices')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      if (data) setNotices(data as Notice[]);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from('notices')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (data) setNotices(data as Notice[]);
+      } catch (err) {
+        console.error('Error cargando avisos:', err);
+        setNotices([]);
+      } finally {
+        setLoading(false);
+      }
     };
     void fetch();
   }, []);

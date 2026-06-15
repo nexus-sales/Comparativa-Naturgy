@@ -291,6 +291,8 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                                 taxIGIC: rawClient?.taxIGIC || 0,
                                 taxIGICRed: rawClient?.taxIGICRed || 0,
                                 taxIGIC7: rawClient?.taxIGIC7 || 0,
+                                reactiva: Array.isArray(rawClient?.reactiva) ? rawClient.reactiva : [0, 0, 0, 0, 0, 0],
+                                reactivaRate: Array.isArray(rawClient?.reactivaRate) ? rawClient.reactivaRate : [0, 0, 0, 0, 0, 0],
                               };
                               const segTariffs = ((cd.available_tariffs as unknown[]) || []).map((t: unknown) => {
                                 const tariff = t as Record<string, unknown>;

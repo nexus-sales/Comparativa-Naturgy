@@ -104,9 +104,9 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const upClient = (segId: string, field: keyof SegCliente, val: unknown) =>
     setClients(prev => ({ ...prev, [segId]: { ...prev[segId], [field]: val } }));
 
-  const upClientArr = (segId: string, field: "kw" | "en", idx: number, val: number) =>
+  const upClientArr = (segId: string, field: "kw" | "en" | "reactiva" | "reactivaRate", idx: number, val: number) =>
     setClients(prev => {
-      const arr = [...prev[segId][field]] as number[];
+      const arr = [...((prev[segId][field] as number[] | undefined) ?? [0,0,0,0,0,0])];
       arr[idx] = val;
       return { ...prev, [segId]: { ...prev[segId], [field]: arr } };
     });
@@ -253,6 +253,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                     <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia)}</span></div>
                     <div className="flex justify-between"><span>Energía bruta</span><span>{fmtEur(r.energia)}</span></div>
                     <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler)}</span></div>
+                    {(r.reactiva ?? 0) > 0 && <div className="flex justify-between text-purple-700"><span>Reactiva (penalización)</span><span>{fmtEur(r.reactiva)}</span></div>}
                     <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total)}</span></div>
                   </div>
                 </div>
@@ -361,8 +362,26 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div><label htmlFor={`${activeSeg}-alq`} className="block text-xs font-bold text-slate-500 mb-1">Alquiler (€)</label><input id={`${activeSeg}-alq`} placeholder="0,00" type="text" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm" value={inputValues[`${activeSeg}-alq`] ?? fmtRaw(clients[activeSeg]?.alquiler,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-alq`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"alquiler",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-alq`]; return n;})}/></div>
-              <div><label htmlFor={`${activeSeg}-exc`} className="block text-xs font-bold text-green-600 mb-1">Excedentes kWh</label><input id={`${activeSeg}-exc`} placeholder="0" type="text" className="w-full p-2.5 bg-green-50 border-green-200 rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-exc`] ?? fmtRaw(clients[activeSeg]?.enExc,0)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-exc`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"enExc",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-exc`]; return n;})}/></div>
+              <div><label htmlFor={`${activeSeg}-exc`} className="block text-xs font-bold text-green-600 mb-1">Excedentes kWh</label><input id={`${activeSeg}-exc`} placeholder="0" type="text" className="w-full p-2.5 bg-green-50 border-green-200 rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-exc`] ?? fmtRaw(clients[activeSeg]?.enExc,3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-exc`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"enExc",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-exc`]; return n;})}/></div>
             </div>
+            {getSegMeta(activeSeg).potP === 6 && (
+              <>
+                <div className="border-t border-slate-100 my-4"></div>
+                <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-purple-500 pl-2">Reactiva — kVArh exceso</p>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-2">
+                  {Array.from({length:6},(_,i)=>(
+                    <div key={i}><label htmlFor={`${activeSeg}-react-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1} kVArh</label>
+                    <input id={`${activeSeg}-react-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-react-${i}`] ?? fmtRaw(clients[activeSeg]?.reactiva?.[i] ?? 0, 3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-react-${i}`]:v})); const n=parseFloat(v.replace(/./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactiva",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-react-${i}`]; return n;})}/></div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
+                  {Array.from({length:6},(_,i)=>(
+                    <div key={i}><label htmlFor={`${activeSeg}-reactRate-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1} €/kVArh</label>
+                    <input id={`${activeSeg}-reactRate-${i}`} placeholder="0,000000" type="text" className="w-full p-2 bg-purple-50 border border-purple-100 rounded-lg text-sm" value={inputValues[`${activeSeg}-reactRate-${i}`] ?? fmtRaw(clients[activeSeg]?.reactivaRate?.[i] ?? 0, 6)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-reactRate-${i}`]:v})); const n=parseFloat(v.replace(/./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactivaRate",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-reactRate-${i}`]; return n;})}/></div>
+                  ))}
+                </div>
+              </>
+            )}
             <div className="mb-4"><label htmlFor={`${activeSeg}-fac`} className="block text-xs font-bold text-blue-700 mb-1">Factura Actual (€)</label><input id={`${activeSeg}-fac`} placeholder="0,00" type="text" className="w-full p-2.5 bg-blue-50 border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={inputValues[`${activeSeg}-fac`] ?? fmtRaw(clients[activeSeg]?.factura,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-fac`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"factura",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-fac`]; return n;})}/></div>
             {isAdmin && (
               <div className="mt-6 pt-4 border-t border-red-100 bg-red-50/50 p-4 rounded-xl">
