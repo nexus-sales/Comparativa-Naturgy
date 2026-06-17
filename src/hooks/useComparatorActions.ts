@@ -14,6 +14,7 @@ export interface ComparatorActionsParams {
   c: SegCliente;
   segTariffs: TarifaLocal[];
   comercialData: ComercialData;
+  selectedTariffId?: string;
 }
 
 export interface ComparatorResults {
@@ -29,7 +30,7 @@ export function buildResults(taxModel: string, potP: number, c: SegCliente, segT
   return { results, best, bestAh };
 }
 
-export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTariffs, comercialData }: ComparatorActionsParams) {
+export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTariffs, comercialData, selectedTariffId }: ComparatorActionsParams) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [saveMsg, setSaveMsg] = useState('');
   const isSaving = saveStatus === 'saving';
@@ -40,11 +41,23 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
     setTimeout(() => setSaveStatus('idle'), status === 'success' ? 3000 : 5000);
   };
 
-  const { best, bestAh } = buildResults(taxModel, potP, c, segTariffs);
+  const { results, best, bestAh } = buildResults(taxModel, potP, c, segTariffs);
+  
+  // Usar tarifa seleccionada o la mejor por defecto
+  const selectedResult = selectedTariffId 
+    ? results.find(r => r.t.id === selectedTariffId) || best
+    : best;
+  const selectedAh = selectedResult ? +(c.factura - selectedResult.r.total).toFixed(2) : bestAh;
 
   const saveComp = async (act: "SAVE" | "PDF") => {
     if (isSaving || !user) return;
     setSaveStatus('saving');
+    if (!selectedTariffId) {
+      alert('Por favor, selecciona una tarifa válida antes de continuar');
+      return;
+    }
+    if (!selectedResult) return;
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g, "").trim() : "";
@@ -53,18 +66,18 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
         user_id: user.id,
         client_name: sEsc(c.nombre) || "S/N",
         client_address: sEsc(c.dir),
-        target_tariff: best.t.nombre,
+        target_tariff: selectedResult.t.nombre,
         target_segment: segLabel,
         calculation_data: {
           segment: segLabel,
           tax_model: taxModel,
           pot_prices: potP,
-          best_tariff: best.t.nombre,
-          total_cost: best.r.total,
-          saving: bestAh,
+          best_tariff: selectedResult.t.nombre,
+          total_cost: selectedResult.r.total,
+          saving: selectedAh,
           current_invoice: c.factura,
           client_data: { ...c, nombre: sEsc(c.nombre), cups: sEsc(c.cups), dir: sEsc(c.dir) },
-          available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === best.t.id }))
+          available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === selectedResult.t.id }))
         }
       }).abortSignal(controller.signal);
 
@@ -94,16 +107,24 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
   };
 
   const handlePDF = () => {
+    if (!selectedTariffId) {
+      alert('Por favor, selecciona una tarifa válida antes de continuar');
+      return;
+    }
     try {
-      exportPDF(segLabel, taxModel, potP, c, segTariffs, comercialData);
+      exportPDF(segLabel, taxModel, potP, c, segTariffs, comercialData, selectedTariffId);
     } catch (e) {
       showResult('error', 'Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
     }
   };
 
   const handleExcel = async () => {
+    if (!selectedTariffId) {
+      alert('Por favor, selecciona una tarifa válida antes de continuar');
+      return;
+    }
     try {
-      await exportExcel(segLabel, taxModel, potP, c, segTariffs);
+      await exportExcel(segLabel, taxModel, potP, c, segTariffs, selectedTariffId);
     } catch (e) {
       showResult('error', 'Error al generar Excel: ' + (e instanceof Error ? e.message : String(e)));
     }

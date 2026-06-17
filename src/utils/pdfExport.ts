@@ -21,17 +21,22 @@ export function exportPDF(
   potP: number,
   cliente: SegCliente,
   tariffs: TarifaLocal[],
-  comercial: ComercialData
+  comercial: ComercialData,
+  selectedTariffId?: string
 ) {
-  const selected = tariffs.filter(t => t.selected);
-  if (!selected.length) { alert('Selecciona al menos una tarifa para exportar.'); return; }
+  const selectedTariff = selectedTariffId 
+    ? tariffs.find(t => t.id === selectedTariffId)
+    : tariffs.find(t => t.selected);
+  
+  if (!selectedTariff) { 
+    alert('Selecciona una tarifa para exportar.'); 
+    return; 
+  }
   const isPyme = taxModel !== 'res';
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  selected.forEach((t, idx) => {
     if (idx > 0) doc.addPage();
-    const r = calc(taxModel, potP, cliente, t);
-    pdfPage(doc, potP, cliente, t, r, isPyme, comercial);
-  });
+  const r = calc(taxModel, potP, cliente, selectedTariff);
+  pdfPage(doc, potP, cliente, selectedTariff, r, isPyme, comercial);
   const blob = doc.output('blob');
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

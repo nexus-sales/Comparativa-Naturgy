@@ -74,7 +74,8 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   const costReactiva = (c.reactiva || []).reduce((acc, v, i) => acc + (+(v) || 0) * (+(c.reactivaRate?.[i] ?? 0) || 0), 0);
 
   const subtotal = costPot + costEn + costReactiva + sva + alq - costExc;
-  const impElec = (subtotal + costExc - alq) * (+(c.taxImpElec || 0) / 100);
+  // Impuesto eléctrico: solo sobre potencia + energía (base energética)
+  const impElec = (costPot + costEn) * (+(c.taxImpElec || 0) / 100);
   const bono = (+(c.bonoRate || 0)) * dias;
 
   if (taxModel === 'res') {
@@ -93,8 +94,12 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
     };
   }
 
-  const igicRed = (subtotal + impElec + bono) * (+(c.taxIGICRed || 0) / 100);
-  const igic7 = alq * (+(c.taxIGIC7 || 0) / 100);
+  // IGIC Reducido 3%: sobre potencia + energía + impuesto eléctrico + bono social
+  const baseIGICRed = costPot + costEn + impElec + bono;
+  const igicRed = baseIGICRed * (+(c.taxIGICRed || 0) / 100);
+  // IGIC General 7%: sobre alquiler + SVE (servicios)
+  const baseIGIC7 = alq + sva;
+  const igic7 = baseIGIC7 * (+(c.taxIGIC7 || 0) / 100);
   return {
     potencia: +costPot.toFixed(4),
     energia: +costEn.toFixed(4),

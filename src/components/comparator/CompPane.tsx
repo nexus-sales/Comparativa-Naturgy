@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useComparatorActions, buildResults, fmtEur } from "../../hooks/useComparatorActions";
 import type { ComercialData } from "../../utils/pdfExport";
 import { makeDefaultClient } from "../../utils/calculations";
@@ -32,7 +33,7 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
   };
   const safeTariffs = segTariffs.length ? segTariffs : [fallbackTariff];
   const { saveStatus, saveMsg, isSaving, saveComp, handlePDF, handleExcel } = useComparatorActions({
-    user, segLabel, taxModel, potP, c: safeClient, segTariffs: safeTariffs, comercialData
+    user, segLabel, taxModel, potP, c: safeClient, segTariffs: safeTariffs, comercialData, selectedTariffId
   });
 
   if (!c || (!+c.factura && c.en.every(v => !+v)))
@@ -41,6 +42,9 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
     return <div className="p-12 text-center text-slate-400">Selecciona al menos una tarifa.</div>;
 
   const { results, best, bestAh } = buildResults(taxModel, potP, c, segTariffs);
+  
+  // Estado para la tarifa seleccionada (por defecto la mejor opción)
+  const [selectedTariffId, setSelectedTariffId] = useState<string>(best?.t?.id || "");
 
   const accentRes = activeSeg === "res";
 
@@ -87,8 +91,22 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
               <th className="p-3 text-left">Componente</th>
               <th className="p-3 text-right text-slate-500">Actual</th>
               {results.map(({ t }) => (
-                <th key={t.id} className={`p-3 text-right ${t.id === best.t.id ? (accentRes ? "text-orange-500" : "text-blue-600") : "text-slate-700"}`}>
-                  {t.nombre}{t.id === best.t.id ? " ★" : ""}
+                <th key={t.id} className={`p-3 text-right relative ${
+                  t.id === selectedTariffId 
+                    ? "bg-blue-50 border-x-2 border-t-2 border-blue-500" 
+                    : ""
+                } ${t.id === best.t.id ? (accentRes ? "text-orange-500" : "text-blue-600") : "text-slate-700"}`}>
+                  <label className="flex flex-col items-center cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="tariff-select"
+                      value={t.id}
+                      checked={t.id === selectedTariffId}
+                      onChange={() => setSelectedTariffId(t.id)}
+                      className="mb-1"
+                    />
+                    <span>{t.nombre}{t.id === best.t.id ? " ⭐" : ""}</span>
+                  </label>
                 </th>
               ))}
             </tr>
@@ -96,15 +114,27 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
           <tbody>
             <tr className="border-b">
               <td className="p-3">Potencia</td><td className="text-right p-3">—</td>
-              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.potencia, 3)}</td>)}
+              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${
+                t.id === selectedTariffId ? "bg-blue-50 border-x-2 border-blue-500" : ""
+              } ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.potencia, 3)}</td>)}
             </tr>
             <tr className="border-b">
               <td className="p-3">Energía</td><td className="text-right p-3">—</td>
-              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.energia, 3)}</td>)}
+              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${
+                t.id === selectedTariffId ? "bg-blue-50 border-x-2 border-blue-500" : ""
+              } ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.energia, 3)}</td>)}
+            </tr>
+            <tr className="border-b">
+              <td className="p-3">SVE GC Xpress</td><td className="text-right p-3">—</td>
+              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${
+                t.id === selectedTariffId ? "bg-blue-50 border-x-2 border-blue-500" : ""
+              }`}>{fmtEur(r.sva, 3)}</td>)}
             </tr>
             <tr className="border-b">
               <td className="p-3">Impuestos</td><td className="text-right p-3">—</td>
-              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur((r.igic ?? 0) + (r.igicRed ?? 0) + (r.igic7 ?? 0) + r.impElec, 3)}</td>)}
+              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${
+                t.id === selectedTariffId ? "bg-blue-50 border-x-2 border-blue-500" : ""
+              } ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur((r.igic ?? 0) + (r.igicRed ?? 0) + (r.igic7 ?? 0) + r.impElec, 3)}</td>)}
             </tr>
             <tr className="bg-orange-50/30 font-black text-sm">
               <td className="p-3">TOTAL</td>
@@ -112,7 +142,9 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
               {results.map(({ t, r }) => {
                 const ah = c.factura - r.total;
                 return (
-                  <td key={t.id} className={`text-right p-3 ${t.id === best.t.id ? (accentRes ? "text-orange-500" : "text-blue-600") : "text-slate-700"}`}>
+                  <td key={t.id} className={`text-right p-3 ${
+                    t.id === selectedTariffId ? "bg-blue-100 border-x-2 border-b-2 border-blue-500" : ""
+                  } ${t.id === best.t.id ? (accentRes ? "text-orange-500" : "text-blue-600") : "text-slate-700"}`}>
                     {fmtEur(r.total, 3)}
                     {ah > 0.01 && <span className="block text-[9px] font-normal text-green-600">-{fmtEur(ah, 3)}</span>}
                   </td>

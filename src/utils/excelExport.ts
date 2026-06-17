@@ -6,13 +6,16 @@ export async function exportExcel(
   taxModel: string,
   potP: number,
   cliente: SegCliente,
-  tariffs: TarifaLocal[]
+  tariffs: TarifaLocal[],
+  selectedTariffId?: string
 ): Promise<void> {
-  const selected = tariffs.filter(t => t.selected);
-  if (!selected.length) return;
+  const selectedTariff = selectedTariffId 
+    ? tariffs.find(t => t.id === selectedTariffId)
+    : tariffs.find(t => t.selected);
+    
+  if (!selectedTariff) return;
 
-  const results = selected.map(t => ({ t, r: calc(taxModel, potP, cliente, t) }));
-  const best = results.reduce((a, b) => b.r.total < a.r.total ? b : a, results[0]);
+  const result = { t: selectedTariff, r: calc(taxModel, potP, cliente, selectedTariff) };
   const isPyme = taxModel !== 'res';
 
   const rowDefs: [string, keyof CalcResult][] = isPyme ? [
@@ -48,18 +51,15 @@ export async function exportExcel(
     ['Direccion:', c.dir],
     ['Periodo:', `${c.f1} -> ${c.f2}`, 'Dias:', c.dias],
     [],
-    ['Componente', 'Factura actual', ...results.map(x => x.t.nombre)],
+    ['Componente', 'Factura actual', result.t.nombre],
     ...rowDefs.map(([lbl, key]) => [
       lbl,
       key === 'alquiler' ? +c.alquiler : null,
-      ...results.map(x => {
-        const val = x.r[key];
-        return val !== undefined ? +val : null;
-      }),
+      result.r[key] !== undefined ? +result.r[key] : null,
     ]),
-    ['TOTAL ESTIMADO', +c.factura, ...results.map(x => +x.r.total)],
+    ['TOTAL ESTIMADO', +c.factura, +result.r.total],
     [],
-    ['Mejor opcion:', best.t.nombre, `Total: ${fmtRaw(best.r.total)} EUR`],
+    ['Tarifa seleccionada:', result.t.nombre, `Total: ${fmtRaw(result.r.total)} EUR`],
   ];
 
   const mod = await import('exceljs');
