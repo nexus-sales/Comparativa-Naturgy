@@ -130,6 +130,36 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     setClients(prev => ({ ...prev, [segId]: { ...makeDefaultClient(segId), ...keep, nombre: "", cups: "", dir: "", f1: "", f2: "", dias: 0, kw: [0,0,0,0,0,0], en: [0,0,0,0,0,0], enExc: 0, factura: 0 } }));
   };
 
+  const copyClientData = (fromSegId: string, toSegId: string) => {
+    const sourceClient = clients[fromSegId];
+    if (!sourceClient) return;
+    
+    // Copiamos datos básicos del cliente pero mantenemos la configuración fiscal del segmento destino
+    const targetKeep = (({ bonoRate, excedenteRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7 }) =>
+      ({ bonoRate, excedenteRate, taxImpElec, taxIGIC, taxIGICRed, taxIGIC7 }))(clients[toSegId]);
+    
+    setClients(prev => ({
+      ...prev,
+      [toSegId]: {
+        ...prev[toSegId],
+        ...targetKeep, // Mantener configuración fiscal del destino
+        nombre: sourceClient.nombre,
+        cups: sourceClient.cups,
+        dir: sourceClient.dir,
+        f1: sourceClient.f1,
+        f2: sourceClient.f2,
+        dias: sourceClient.dias,
+        kw: [...sourceClient.kw],
+        en: [...sourceClient.en],
+        alquiler: sourceClient.alquiler,
+        enExc: sourceClient.enExc,
+        factura: sourceClient.factura,
+        reactiva: sourceClient.reactiva ? [...sourceClient.reactiva] : undefined,
+        reactivaRate: sourceClient.reactivaRate ? [...sourceClient.reactivaRate] : undefined
+      }
+    }));
+  };
+
   const toggleSelected = (id: string) =>
     setTariffMeta(prev => ({ ...prev, [id]: { open: prev[id]?.open ?? false, selected: !(prev[id]?.selected ?? true) } }));
 
@@ -224,9 +254,49 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     const c = clients[segId];
     if (!segTariffs.length) return <div className="p-12 text-center text-slate-400">No hay tarifas disponibles.</div>;
 
+    const allSelected = segTariffs.every(t => tariffMeta[t.id]?.selected ?? true);
+    const someSelected = segTariffs.some(t => tariffMeta[t.id]?.selected ?? true);
+    
+    const toggleAllTariffs = () => {
+      const newState = !allSelected;
+      const updates: Record<string, { selected: boolean; open: boolean }> = {};
+      segTariffs.forEach(t => {
+        updates[t.id] = {
+          selected: newState,
+          open: tariffMeta[t.id]?.open ?? false
+        };
+      });
+      setTariffMeta(prev => ({ ...prev, ...updates }));
+    };
+
     return (
       <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
         {renderAuthWarning()}
+        
+        {/* Botón para seleccionar/deseleccionar todas */}
+        <div className="bg-white rounded-xl border border-slate-200 p-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={input => {
+                if (input) {
+                  input.indeterminate = !allSelected && someSelected;
+                }
+              }}
+              onChange={toggleAllTariffs}
+              className="w-4 h-4"
+              aria-label="Seleccionar todas las tarifas"
+            />
+            <span className="text-sm font-bold text-slate-700">
+              {allSelected ? 'Deseleccionar todas' : someSelected ? 'Seleccionar todas' : 'Seleccionar todas'}
+            </span>
+          </div>
+          <span className="text-xs text-slate-500">
+            {segTariffs.filter(t => tariffMeta[t.id]?.selected ?? true).length} de {segTariffs.length} seleccionadas
+          </span>
+        </div>
+
         {segTariffs.map(t => {
           const r = calc(taxModel, potP, c, t);
           const ah = +(c.factura - r.total).toFixed(2);
@@ -333,7 +403,45 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             {renderAuthWarning()}
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-[#002855]">Datos del cliente</h3>
-              <button onClick={() => clearClient(activeSeg)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
+              <div className="flex items-center gap-2">
+                {/* Mostrar botones de copia solo para segmentos pyme */}
+                {activeSector === "pyme" && (
+                  <div className="relative group">
+                    <button className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copiar datos de
+                    </button>
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 hidden group-hover:block z-10">
+                      <div className="py-1">
+                        {segmentDefs
+                          .filter(seg => seg.id !== "res" && seg.id !== "pyme361" && seg.id !== activeSeg)
+                          .map(seg => (
+                            <button
+                              key={seg.id}
+                              onClick={() => {
+                                if (clients[seg.id]?.nombre || clients[seg.id]?.cups) {
+                                  copyClientData(seg.id, activeSeg);
+                                  alert(`Datos copiados de ${seg.label} a ${segDef.label}`);
+                                } else {
+                                  alert(`No hay datos en ${seg.label} para copiar`);
+                                }
+                              }}
+                              className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 flex items-center justify-between"
+                            >
+                              <span>{seg.label.replace(/^Pyme\s+/i, "")}</span>
+                              {(clients[seg.id]?.nombre || clients[seg.id]?.cups) && (
+                                <span className="text-green-600">✓</span>
+                              )}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <button onClick={() => clearClient(activeSeg)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div><label htmlFor={`${activeSeg}-nombre`} className="block text-xs font-bold text-slate-500 mb-1">Nombre</label><input id={`${activeSeg}-nombre`} placeholder="Ej: Juan Pérez" className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm text-slate-900" value={clients[activeSeg]?.nombre || ""} onChange={e => upClient(activeSeg,"nombre",e.target.value)} /></div>

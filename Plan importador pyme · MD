@@ -1,0 +1,178 @@
+# Plan: Importador de tarifas PYME + ampliación del modelo
+
+Objetivo: importar las 36 tarifas de luz PYME del Excel oficial de Naturgy
+(`NC-Productos-Captacion-PYMES-*.xlsx`, hoja `JUN26_3_VP`), ampliando el modelo
+de datos para soportar dos combinaciones nuevas que Naturgy ha sacado.
+
+IMPORTANTE: el importador NO debe guardar automáticamente. Debe mostrar lo leído
+y que el admin CONFIRME antes de escribir en la base de datos.
+
+---
+
+## Lógica de negocio confirmada
+
+Cada plan del Excel tiene 3 variantes comerciales (base / ONE / SUPRA), en
+columnas de energía paralelas:
+- Potencia: columnas 6-11 (P1-P6), común a las 3 variantes
+- Energía base:  columnas 12-17
+- Energía ONE:   columnas 19-24
+- Energía SUPRA: columnas 26-31
+
+Mapeo de tipo de tarifa (clave del modelo):
+
+| Tarifa             | Acceso  | nº potencia | nº energía | type   | segment_id |
+|--------------------|---------|-------------|------------|--------|------------|
+| Plan Fijo Luz 24h  | 2.0     | 2           | 1 (única)  | uni    | pyme20     |
+| Plan Fijo Luz 24h  | 3.0/6.1 | 6           | 1 (única)  | uni    | pyme361    |  <- NUEVO: uni con pot 6
+| Plan Fijo Luz/ECO  | 2.0     | 2           | 3 (tramos) | tri    | pyme20     |
+| Plan Fijo Luz/ECO  | 3.0/6.1 | 6           | 6 (tramos) | hex    | pyme361    |
+| Plan Variable      | 2.0     | 2           | 3 (tramos) | tri    | pyme20     |
+| Plan Variable      | 3.0/6.1 | 6           | 3 (tramos) | tri6   | pyme361    |  <- NUEVO: tri6
+
+- "Plan Fijo Luz 24h" = precio ÚNICO de energía 24h: se suma todo el consumo de
+  todos los tramos y se multiplica por un solo precio. El tipo `uni` del motor
+  YA hace exactamente esto. La novedad es que el contador es de 6 periodos de
+  potencia (3.0/6.1), por eso `uni` + potencia de 6.
+- "Plan Variable 3.0/6.1" = 3 precios reales de energía (punta/llano/valle) pero
+  potencia de 6 periodos. Tipo nuevo `tri6` = 3 energías + 6 potencias.
+
+---
+
+## CAPA 1 — Tipos (src/types/index.ts)
+
+La interfaz Tariff usa `type: string`, así que no hay que cambiar el tipo en sí,
+pero documenta los valores válidos: 'uni' | 'tri' | 'tri6' | 'hex'.
+Si hay un tipo TS literal para `tipo` en calculations.ts (TarifaLocal.tipo:
+'uni'|'tri'|'hex'), AÑADIR 'tri6':
+
+    tipo: 'uni' | 'tri' | 'tri6' | 'hex';
+
+## CAPA 2 — Motor de cálculo (src/utils/calculations.ts)
+
+En la función `calc`, el mapa de nº de periodos de energía:
+
+    const nEnMap: Record<string, number> = { uni: 1, tri: 3, tri6: 3, hex: 6 };
+
+Con eso, la rama `else` (que recorre `n` periodos de energía) ya calcula `tri6`
+correctamente: 3 precios de energía × 3 consumos. La potencia ya recorre `potP`
+periodos independientemente del tipo, así que pot=6 con energía de 3 funciona.
+
+NO hay que tocar nada más del cálculo. Verificar que `potP` para el segmento
+pyme361 es 6 (lo es, según segments).
+
+## CAPA 3 — Base de datos (Supabase SQL Editor)
+
+Las restricciones actuales rechazan `uni` con pot 6 y no conocen `tri6`.
+Reemplazarlas:
+
+    ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS chk_ren_len;
+    ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS chk_rpot_len;
+
+    ALTER TABLE tariffs ADD CONSTRAINT chk_ren_len CHECK (
+      (type='uni'  AND array_length(r_en,1)=1) OR
+      (type='tri'  AND array_length(r_en,1)=3) OR
+      (type='tri6' AND array_length(r_en,1)=3) OR
+      (type='hex'  AND array_length(r_en,1)=6)
+    );
+
+    ALTER TABLE tariffs ADD CONSTRAINT chk_rpot_len CHECK (
+      array_length(r_pot,1) IN (2,6)
+    );
+
+(Si el formulario de tarifas en AdminView tiene un <select> de tipo, añadir la
+opción 'tri6' con etiqueta tipo "Variable 3 tramos (6 periodos potencia)".)
+
+## CAPA 4 — Importador (nuevo, en AdminView)
+
+- Botón "Importar Excel PYME" en el panel admin de tarifas.
+- Usa `exceljs` (ya es dependencia) para leer la hoja `JUN26_3_VP`.
+- Extrae con la lógica del script de referencia (abajo): recorre los bloques de
+  plan (filas cabecera con "PLAN ... LUZ"), y por cada fila con tipo de acceso
+  (20TD/30TD/61TD) genera 3 tarifas (base/ONE/SUPRA).
+- Aplica el mapeo de la tabla de arriba para asignar type y segment_id.
+- IGNORA gas por ahora (bloques "PLAN ... GAS").
+- IGNORA celdas con #REF!/#N/A (tratar como vacío).
+- MUESTRA una tabla de revisión: name, segment, type, r_pot, r_en — con un
+  resumen "Se crearán X nuevas, se actualizarán Y existentes (por name+segment)".
+- Solo al pulsar "Confirmar importación" hace el upsert a la tabla tariffs.
+- Upsert: si ya existe una tarifa con el mismo name + segment_id, ACTUALIZA sus
+  precios; si no, la crea. Nunca borra las que no estén en el Excel.
+
+El JSON `tarifas_pyme_36.json` (adjunto) contiene las 36 tarifas ya mapeadas y
+validadas — sirve como "verdad de referencia" para comprobar que el parser del
+importador produce exactamente lo mismo.
+
+---
+
+## Orden de aplicación y verificación
+
+1. Capa 2 (cálculo) + Capa 1 (tipos) → `npx tsc --noEmit`.
+2. Capa 3 (BD) en Supabase.
+3. PRUEBA DE CÁLCULO antes de seguir: crear a mano UNA tarifa nueva
+   "Plan Fijo Luz 24h 3.0" (uni, pot 6, energía 1) y UNA "Plan Variable 3.0"
+   (tri6, pot 6, energía 3), hacer una comparativa con consumos conocidos, y
+   comparar el total con una factura/simulación real de Naturgy. Si cuadra → seguir.
+4. Capa 4 (importador) con pantalla de revisión.
+5. Importar las 36 y revisar la lista en modo admin y en modo comercial.
+
+NO subir a producción hasta que el paso 3 (prueba de cálculo) cuadre.
+
+---
+
+## CAPA 2.5 — CRÍTICO: lógica de type/truncado en AdminView (TariffForm.save)
+
+⚠️ Esta capa faltaba en la versión inicial del plan. El payload actual FUERZA y
+TRUNCA de forma que rompería las tarifas nuevas. Hay que reescribir esta parte.
+
+Código actual problemático (TariffForm, función save, ~líneas 737-752):
+
+    const type = isSixPeriodSegment(segments, form.segment_id) ? 'hex' : form.type;
+    let final_r_en  = normalizePrices(form.r_en, 6);
+    let final_r_pot = normalizePrices(form.r_pot, 6);
+    if (type === 'uni')      { final_r_en = slice(0,1); final_r_pot = slice(0,2); }
+    else if (type === 'tri') { final_r_en = slice(0,3); final_r_pot = slice(0,2); }
+    else if (type === 'hex') { final_r_en = slice(0,6); final_r_pot = slice(0,6); }
+
+DOS problemas:
+1. `isSixPeriodSegment(...) ? 'hex' : ...` fuerza hex a TODA tarifa de pyme361.
+   Pero "Plan Fijo Luz 24h 3.0" es pyme361 y debe ser `uni`; "Plan Variable 3.0"
+   debe ser `tri6`. El forzado a hex los machacaría.
+2. `uni` trunca potencia a 2 SIEMPRE. Pero el nuevo uni (24h 3.0/6.1) necesita
+   potencia de 6.
+
+Reescribir así: el nº de periodos de POTENCIA lo decide el SEGMENTO (pot_p del
+segment: pyme20=2, pyme361=6), NO el type. El nº de periodos de ENERGÍA lo decide
+el TYPE. Y NO forzar el type por segmento: respetar el type elegido/importado.
+
+    // potencia: depende del segmento (2 o 6), no del type
+    const seg = segments.find(s => s.id === form.segment_id);
+    const potN = seg?.pot_p === 6 ? 6 : 2;
+
+    // energía: depende del type
+    const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 })[form.type] ?? 1;
+
+    const type = form.type; // NO forzar a hex
+    const final_r_pot = normalizePrices(form.r_pot, potN);
+    const final_r_en  = normalizePrices(form.r_en,  enN);
+
+Validación coherente a añadir antes de guardar (defensa):
+- pyme20  -> potN debe ser 2
+- pyme361 -> potN debe ser 6
+- type uni -> enN 1 ; tri/tri6 -> enN 3 ; hex -> enN 6
+- combinaciones válidas:
+    pyme20  + (uni | tri)
+    pyme361 + (uni | tri6 | hex)
+
+## CAPA 1.5 — Select de tipo en el formulario (AdminView UI)
+
+Si el formulario tiene un <select> de "type", añadir 'tri6' y revisar que para
+el segmento pyme361 se puedan elegir uni / tri6 / hex (no solo hex). Para pyme20:
+uni / tri. Etiquetas sugeridas:
+- uni  -> "Precio único 24h"
+- tri  -> "3 tramos (potencia 2)"
+- tri6 -> "3 tramos (potencia 6)"
+- hex  -> "6 tramos"
+
+El importador escribe directamente el payload, así que aunque el select no se
+toque, el importador debe construir el payload con la lógica de CAPA 2.5
+(potencia por segmento, energía por type, sin forzar hex).
