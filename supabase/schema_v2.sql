@@ -246,7 +246,9 @@ CREATE TABLE tariffs (
   id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   segment_id    TEXT    NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
   name          TEXT    NOT NULL,
-  type          TEXT    NOT NULL CHECK (type IN ('uni', 'tri', 'hex')),
+  -- uni6  = 6 periodos de potencia + 1 precio único de energía (PFL 24h en 3.0/6.1TD)
+  -- tri6  = 6 periodos de potencia + 3 bloques de energía (horario trihorario en AT)
+  type          TEXT    NOT NULL CHECK (type IN ('uni', 'uni6', 'tri', 'tri6', 'hex')),
   pot_unit      TEXT    NOT NULL CHECK (pot_unit IN ('dia', 'anio')),
   r_pot         NUMERIC[] NOT NULL,
   r_en          NUMERIC[] NOT NULL,
@@ -256,13 +258,15 @@ CREATE TABLE tariffs (
   created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   CONSTRAINT chk_ren_len CHECK (
-    (type = 'uni' AND array_length(r_en,  1) = 1) OR
-    (type = 'tri' AND array_length(r_en,  1) = 3) OR
-    (type = 'hex' AND array_length(r_en,  1) = 6)
+    (type = 'uni'  AND array_length(r_en,  1) = 1) OR
+    (type = 'uni6' AND array_length(r_en,  1) = 1) OR
+    (type = 'tri'  AND array_length(r_en,  1) = 3) OR
+    (type = 'tri6' AND array_length(r_en,  1) = 3) OR
+    (type = 'hex'  AND array_length(r_en,  1) = 6)
   ),
   CONSTRAINT chk_rpot_len CHECK (
-    (type IN ('uni','tri') AND array_length(r_pot, 1) = 2) OR
-    (type = 'hex'          AND array_length(r_pot, 1) = 6)
+    (type IN ('uni','tri')        AND array_length(r_pot, 1) = 2) OR
+    (type IN ('uni6','tri6','hex') AND array_length(r_pot, 1) = 6)
   )
 );
 

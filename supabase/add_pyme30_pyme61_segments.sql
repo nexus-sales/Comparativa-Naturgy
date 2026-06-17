@@ -17,28 +17,31 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. Agregar tarifas ONE para pyme30 (Pyme 3.0TD)
+-- NOTA: pot_unit='dia' porque las tasas (0.122973…) están en €/kW/día.
+--   pyme20one usa las mismas tasas pero en €/kW/año (44.884… = 0.122973 × 365).
+--   Mezclar pot_unit='anio' con tasas diarias divide el resultado entre 365.
 INSERT INTO tariffs (name, segment_id, type, pot_unit, r_pot, r_en, sva, requires_auth, is_active)
 VALUES
-  -- Plan Fijo Luz 24h One (3.0TD)
-  ('PFL 24h One', 'pyme30', 'uni', 'anio', 
+  -- Plan Fijo Luz 24h One (3.0TD): uni6 = 6 potencias + 1 energía
+  ('PFL 24h One', 'pyme30', 'uni6', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1279],
    6.44, false, true),
-  
-  -- Plan Fijo Luz One (3.0TD) - Trihorario
-  ('PFL One', 'pyme30', 'tri6', 'anio',
+
+  -- Plan Fijo Luz One (3.0TD) - Trihorario energía / 6 periodos potencia
+  ('PFL One', 'pyme30', 'tri6', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1225, 0.1325, 0.0825],
    6.44, false, true),
-  
+
   -- Plan Fijo Luz Trihorario One (3.0TD) - Hex
-  ('PFL Trihorario One', 'pyme30', 'hex', 'anio',
+  ('PFL Trihorario One', 'pyme30', 'hex', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1225, 0.1225, 0.1225, 0.1325, 0.1325, 0.0825],
    6.44, false, true),
-  
+
   -- Tarifa Plana One (3.0TD)
-  ('Tarifa Plana One', 'pyme30', 'uni', 'anio',
+  ('Tarifa Plana One', 'pyme30', 'uni', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1199],
    6.44, false, true)
@@ -47,26 +50,26 @@ ON CONFLICT DO NOTHING;
 -- 3. Agregar tarifas ONE para pyme61 (Pyme 6.1TD)
 INSERT INTO tariffs (name, segment_id, type, pot_unit, r_pot, r_en, sva, requires_auth, is_active)
 VALUES
-  -- Plan Fijo Luz 24h One (6.1TD)
-  ('PFL 24h One', 'pyme61', 'uni', 'anio', 
+  -- Plan Fijo Luz 24h One (6.1TD): uni6 = 6 potencias + 1 energía
+  ('PFL 24h One', 'pyme61', 'uni6', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1279],
    6.44, false, true),
-  
-  -- Plan Fijo Luz One (6.1TD) - Trihorario
-  ('PFL One', 'pyme61', 'tri6', 'anio',
+
+  -- Plan Fijo Luz One (6.1TD) - Trihorario energía / 6 periodos potencia
+  ('PFL One', 'pyme61', 'tri6', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1225, 0.1325, 0.0825],
    6.44, false, true),
-  
+
   -- Plan Fijo Luz Trihorario One (6.1TD) - Hex
-  ('PFL Trihorario One', 'pyme61', 'hex', 'anio',
+  ('PFL Trihorario One', 'pyme61', 'hex', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1225, 0.1225, 0.1225, 0.1325, 0.1325, 0.0825],
    6.44, false, true),
-  
+
   -- Tarifa Plana One (6.1TD)
-  ('Tarifa Plana One', 'pyme61', 'uni', 'anio',
+  ('Tarifa Plana One', 'pyme61', 'uni', 'dia',
    ARRAY[0.122973, 0.043976, 0.097384, 0.05478, 0.087232, 0.046691],
    ARRAY[0.1199],
    6.44, false, true)

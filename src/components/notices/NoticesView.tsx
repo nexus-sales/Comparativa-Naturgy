@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
-import { Bell, Zap, Wrench, Newspaper, Star } from "lucide-react";
+import { ArrowDown, ArrowUp, Bell, Zap, Wrench, Newspaper, Star } from "lucide-react";
 import type { Notice } from "../../types";
 
 type TypeFilter = 'all' | 'tarifa' | 'servicio' | 'noticia';
+type SortOrder = 'desc' | 'asc';
 
 const TYPE_CONFIG = {
   tarifa:   { label: 'Tarifa',   Icon: Zap,       borderCls: 'border-l-orange-400', badgeCls: 'bg-orange-100 text-orange-700' },
@@ -37,7 +38,12 @@ function getDateBadge(notice: Notice): { label: string; cls: string } | null {
   return null;
 }
 
-function sortNotices(notices: Notice[]): Notice[] {
+function getPublicationTime(notice: Notice): number {
+  const time = new Date(notice.created_at).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortNotices(notices: Notice[], order: SortOrder): Notice[] {
   const priority = (n: Notice) => {
     if (n.is_highlighted) return 0;
     if (n.type === 'tarifa')   return 1;
@@ -45,12 +51,33 @@ function sortNotices(notices: Notice[]): Notice[] {
     return 3;
   };
   return [...notices].sort((a, b) => {
-    const pd = priority(a) - priority(b);
-    if (pd !== 0) return pd;
-    const aDate = a.effective_date ?? a.created_at.split('T')[0];
-    const bDate = b.effective_date ?? b.created_at.split('T')[0];
-    return bDate.localeCompare(aDate);
+    const dateDiff = getPublicationTime(a) - getPublicationTime(b);
+    if (dateDiff !== 0) return order === 'desc' ? -dateDiff : dateDiff;
+    return priority(a) - priority(b);
   });
+}
+
+function getMonthKey(notice: Notice): string {
+  return notice.created_at.split('T')[0].slice(0, 7);
+}
+
+function getMonthLabel(monthKey: string): string {
+  const [year, month] = monthKey.split('-').map(Number);
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+}
+
+function groupNoticesByMonth(notices: Notice[]): Array<{ key: string; label: string; notices: Notice[] }> {
+  const groups = new Map<string, Notice[]>();
+  for (const notice of notices) {
+    const key = getMonthKey(notice);
+    groups.set(key, [...(groups.get(key) ?? []), notice]);
+  }
+  return Array.from(groups, ([key, items]) => ({
+    key,
+    label: getMonthLabel(key),
+    notices: items,
+  }));
 }
 
 function timeAgo(dateStr: string): string {
@@ -66,6 +93,7 @@ export function NoticesView() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<TypeFilter>('all');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   useEffect(() => {
     const fetch = async () => {
@@ -87,8 +115,9 @@ export function NoticesView() {
     void fetch();
   }, []);
 
-  const sorted   = sortNotices(notices);
+  const sorted   = useMemo(() => sortNotices(notices, sortOrder), [notices, sortOrder]);
   const filtered = filter === 'all' ? sorted : sorted.filter(n => n.type === filter);
+  const grouped  = groupNoticesByMonth(filtered);
   const counts   = {
     tarifa:   notices.filter(n => n.type === 'tarifa').length,
     servicio: notices.filter(n => n.type === 'servicio').length,
@@ -116,11 +145,23 @@ export function NoticesView() {
               </p>
             </div>
           </div>
-          <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
-            <FilterBtn active={filter === 'all'}      onClick={() => setFilter('all')}      label="Todos"    count={notices.length} />
-            <FilterBtn active={filter === 'tarifa'}   onClick={() => setFilter('tarifa')}   label="Tarifas"  count={counts.tarifa}   color="orange" />
-            <FilterBtn active={filter === 'servicio'} onClick={() => setFilter('servicio')} label="Servicio" count={counts.servicio}  color="blue"   />
-            <FilterBtn active={filter === 'noticia'}  onClick={() => setFilter('noticia')}  label="Noticias" count={counts.noticia}   color="green"  />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
+              <FilterBtn active={filter === 'all'}      onClick={() => setFilter('all')}      label="Todos"    count={notices.length} />
+              <FilterBtn active={filter === 'tarifa'}   onClick={() => setFilter('tarifa')}   label="Tarifas"  count={counts.tarifa}   color="orange" />
+              <FilterBtn active={filter === 'servicio'} onClick={() => setFilter('servicio')} label="Servicio" count={counts.servicio}  color="blue"   />
+              <FilterBtn active={filter === 'noticia'}  onClick={() => setFilter('noticia')}  label="Noticias" count={counts.noticia}   color="green"  />
+            </div>
+            <button
+              type="button"
+              onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+              className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 shadow-sm hover:text-blue-900 hover:border-blue-200 transition-all whitespace-nowrap"
+              title="Ordenar por fecha de publicacion"
+              aria-label="Ordenar por fecha de publicacion"
+            >
+              {sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+              {sortOrder === 'desc' ? 'Recientes primero' : 'Antiguos primero'}
+            </button>
           </div>
         </div>
 
@@ -131,8 +172,23 @@ export function NoticesView() {
             <p className="text-xs mt-1">El administrador publicará novedades aquí</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filtered.map(notice => <NoticeCard key={notice.id} notice={notice} />)}
+          <div className="space-y-6">
+            {grouped.map(group => (
+              <section key={group.key} className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider whitespace-nowrap">
+                    {group.label}
+                  </h3>
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                    {group.notices.length} aviso{group.notices.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {group.notices.map(notice => <NoticeCard key={notice.id} notice={notice} />)}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>

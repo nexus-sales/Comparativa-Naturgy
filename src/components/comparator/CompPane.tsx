@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useComparatorActions, buildResults, fmtEur } from "../../hooks/useComparatorActions";
 import type { ComercialData } from "../../utils/pdfExport";
-import { makeDefaultClient } from "../../utils/calculations";
+import { makeDefaultClient, SVE_CATALOG } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
 import type { User } from "@supabase/supabase-js";
 
@@ -125,12 +125,15 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
                 t.id === selectedTariffId ? "bg-blue-50 border-x-2 border-blue-500" : ""
               } ${t.id === best.t.id ? (accentRes ? "text-orange-600" : "text-blue-700") : ""}`}>{fmtEur(r.energia, 3)}</td>)}
             </tr>
-            <tr className="border-b">
-              <td className="p-3">SVE GC Xpress</td><td className="text-right p-3">—</td>
-              {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${
-                t.id === selectedTariffId ? "bg-blue-50 border-x-2 border-blue-500" : ""
-              }`}>{fmtEur(r.sva, 3)}</td>)}
-            </tr>
+            {(c?.sveAnioRate || 0) > 0 && (
+              <tr className="border-b">
+                <td className="p-3">{SVE_CATALOG.find(s => s.id === c.sveServiceId)?.name ?? 'SVE'}</td>
+                <td className="text-right p-3">—</td>
+                {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${
+                  t.id === selectedTariffId ? "bg-blue-50 border-x-2 border-blue-500" : ""
+                }`}>{fmtEur(r.sva, 3)}</td>)}
+              </tr>
+            )}
             <tr className="border-b">
               <td className="p-3">Impuestos</td><td className="text-right p-3">—</td>
               {results.map(({ t, r }) => <td key={t.id} className={`text-right p-3 font-bold ${

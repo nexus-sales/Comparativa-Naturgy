@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
-import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS } from "../../utils/calculations";
+import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS, SVE_CATALOG, SVE_SEGMENT_IDS } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
 import type { ComercialData } from "../../utils/pdfExport";
 import { CompPane } from "./CompPane";
@@ -489,6 +489,28 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                   ))}
                 </div>
               </>
+            )}
+            {(SVE_SEGMENT_IDS[activeSeg]?.length ?? 0) > 0 && (
+              <div className="mb-4">
+                <label htmlFor={`${activeSeg}-sve`} className="block text-xs font-bold text-slate-500 mb-1">Servicio de Valor Añadido (SVE)</label>
+                <select
+                  id={`${activeSeg}-sve`}
+                  className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm text-slate-900"
+                  value={clients[activeSeg]?.sveServiceId || ""}
+                  onChange={e => {
+                    const id = e.target.value;
+                    const svc = SVE_CATALOG.find(s => s.id === id);
+                    upClient(activeSeg, "sveServiceId", id || null);
+                    upClient(activeSeg, "sveAnioRate", svc ? svc.priceYear : 0);
+                  }}
+                >
+                  <option value="">Sin SVE</option>
+                  {(SVE_SEGMENT_IDS[activeSeg] || []).map(id => {
+                    const svc = SVE_CATALOG.find(s => s.id === id);
+                    return svc ? <option key={id} value={id}>{svc.name} — {fmtEur(svc.priceYear, 2)}/año</option> : null;
+                  })}
+                </select>
+              </div>
             )}
             <div className="mb-4"><label htmlFor={`${activeSeg}-fac`} className="block text-xs font-bold text-blue-700 mb-1">Factura Actual (€)</label><input id={`${activeSeg}-fac`} placeholder="0,00" type="text" className="w-full p-2.5 bg-blue-50 border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={inputValues[`${activeSeg}-fac`] ?? fmtRaw(clients[activeSeg]?.factura,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-fac`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"factura",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-fac`]; return n;})}/></div>
             {isAdmin && (

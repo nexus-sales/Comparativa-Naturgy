@@ -1,3 +1,25 @@
+export interface SveService {
+  id: string;
+  name: string;
+  priceYear: number;
+}
+
+export const SVE_CATALOG: SveService[] = [
+  { id: 'sve_gc_xpress',     name: 'SVE GC Xpress',              priceYear: 89.16  },
+  { id: 'sve_gc_xpress_dto', name: 'SVE GC Xpress (20% dto.)',   priceYear: 71.328 },
+  { id: 'svs_gc_10kwp',      name: 'SVS GC <10kWp',              priceYear: 130.30 },
+];
+
+// Servicios SVE disponibles por segmento (array vacío = no aplica SVE)
+export const SVE_SEGMENT_IDS: Record<string, string[]> = {
+  res:       [],
+  pyme20:    ['sve_gc_xpress', 'sve_gc_xpress_dto', 'svs_gc_10kwp'],
+  pyme20one: ['sve_gc_xpress', 'sve_gc_xpress_dto', 'svs_gc_10kwp'],
+  pyme30:    ['sve_gc_xpress', 'sve_gc_xpress_dto', 'svs_gc_10kwp'],
+  pyme61:    [],
+  pyme361:   ['sve_gc_xpress', 'sve_gc_xpress_dto', 'svs_gc_10kwp'],
+};
+
 export interface SegCliente {
   nombre: string;
   cups: string;
@@ -18,12 +40,14 @@ export interface SegCliente {
   taxIGIC7: number;
   reactiva?: number[];     // kVArh exceso por periodo (6 posiciones)
   reactivaRate?: number[]; // €/kVArh por periodo (6 posiciones)
+  sveServiceId?: string | null;  // ID del servicio SVE activo (null = sin SVE)
+  sveAnioRate?: number;          // Precio anual del SVE activo (€/año, prorrateado por días en calc)
 }
 
 export interface TarifaLocal {
   id: string;
   nombre: string;
-  tipo: 'uni' | 'tri' | 'tri6' | 'hex';
+  tipo: 'uni' | 'uni6' | 'tri' | 'tri6' | 'hex';
   potUnit: 'dia' | 'anio';
   rPot: number[];
   rEn: number[];
@@ -60,22 +84,27 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
   }
 
   let costEn = 0;
-  const nEnMap: Record<string, number> = { uni: 1, tri: 3, tri6: 3, hex: 6 };
-  if (t.tipo === 'uni') {
+  const nEnMap: Record<string, number> = { uni: 1, uni6: 1, tri: 3, tri6: 3, hex: 6 };
+  if (t.tipo === 'uni' || t.tipo === 'uni6') {
+    // Precio único × consumo total (suma de todos los periodos)
     costEn = (+(t.rEn[0]) || 0) * c.en.reduce((a, v) => a + (+v || 0), 0);
   } else {
     const n = nEnMap[t.tipo] || 1;
     for (let i = 0; i < n; i++) costEn += (+(t.rEn[i] || 0)) * (+(c.en[i] || 0));
   }
 
-  const sva = +(t.sva || 0);
+  // SVE: servicio opcional del cliente, prorrateado por días (t.sva siempre 0)
+  const sva = ((c.sveAnioRate || 0) / 365) * dias;
   const alq = +(c.alquiler || 0);
-  const costExc = (+(c.enExc || 0)) * (+(c.excedenteRate || 0));
+  const costExcRaw = (+(c.enExc || 0)) * (+(c.excedenteRate || 0));
+  // Tope: la compensación por excedentes nunca supera el coste de la energía (DGT V1146-24)
+  const costExc = Math.min(costExcRaw, costEn);
   const costReactiva = (c.reactiva || []).reduce((acc, v, i) => acc + (+(v) || 0) * (+(c.reactivaRate?.[i] ?? 0) || 0), 0);
 
   const subtotal = costPot + costEn + costReactiva + sva + alq - costExc;
-  // Impuesto eléctrico: solo sobre potencia + energía (base energética)
-  const impElec = (costPot + costEn) * (+(c.taxImpElec || 0) / 100);
+  const costEnNet = costEn - costExc;
+  // Impuesto eléctrico: base = potencia + energía NETA de excedentes (DGT V1146-24)
+  const impElec = (costPot + costEnNet) * (+(c.taxImpElec || 0) / 100);
   const bono = (+(c.bonoRate || 0)) * dias;
 
   if (taxModel === 'res') {
@@ -94,8 +123,8 @@ export function calc(taxModel: string, potP: number, c: SegCliente, t: TarifaLoc
     };
   }
 
-  // IGIC Reducido 3%: sobre potencia + energía + impuesto eléctrico + bono social
-  const baseIGICRed = costPot + costEn + impElec + bono;
+  // IGIC Reducido 3%: base = potencia + energía NETA de excedentes + IE + bono (DGT V1146-24)
+  const baseIGICRed = costPot + costEnNet + impElec + bono;
   const igicRed = baseIGICRed * (+(c.taxIGICRed || 0) / 100);
   // IGIC General 7%: sobre alquiler + SVE (servicios)
   const baseIGIC7 = alq + sva;
@@ -181,6 +210,8 @@ export function makeDefaultClient(segId: string): SegCliente {
     taxIGIC7: d.taxIGIC7 ?? 0,
     reactiva: [0, 0, 0, 0, 0, 0],
     reactivaRate: [0, 0, 0, 0, 0, 0],
+    sveServiceId: null,
+    sveAnioRate: 0,
   };
 }
 

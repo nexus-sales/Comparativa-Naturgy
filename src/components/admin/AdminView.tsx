@@ -754,7 +754,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
       // pot periods come from the segment, not the type
       const seg = segments.find(s => s.id === form.segment_id);
       const potN = seg?.pot_p === 6 ? 6 : 2;
-      const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
+      const enN = ({ uni: 1, uni6: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
 
       const final_r_pot = normalizePrices(form.r_pot, potN);
       const final_r_en  = normalizePrices(form.r_en,  enN);
@@ -810,7 +810,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
   const isSixPeriod = isSixPeriodSegment(segments, form.segment_id);
   const selectedType = form.type;
   const potN = (segments.find(s => s.id === form.segment_id)?.pot_p ?? 2) === 6 ? 6 : 2;
-  const enN = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[selectedType] ?? 1;
+  const enN = ({ uni: 1, uni6: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[selectedType] ?? 1;
 
   return (
     <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -838,7 +838,8 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
           <label className="text-xs font-bold text-slate-400">Tipo / Unidad de Potencia</label>
           <div className="flex gap-4 mt-1">
             <select title="Tipo de tarifa" className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm" value={selectedType} onChange={e => setForm({ ...form, type: e.target.value })}>
-              <option value="uni">Precio único 24h</option>
+              <option value="uni">Precio único 24h (potencia 2)</option>
+              {isSixPeriod && <option value="uni6">Precio único 24h (potencia 6)</option>}
               {!isSixPeriod && <option value="tri">3 tramos (potencia 2)</option>}
               {isSixPeriod && <option value="tri6">3 tramos (potencia 6)</option>}
               <option value="hex">6 tramos</option>
@@ -922,7 +923,8 @@ function resolvePlanMeta(planName: string, accessCode: string): { type: string; 
   const stdLabel = is20 ? '2.0' : is30 ? '3.0' : '6.1';
 
   if (up.includes('24H') || up.includes('24 H'))
-    return { type: 'uni',             segment_id, accessLabel: stdLabel };
+    // uni6 para 3.0TD/6.1TD (6 potencias, 1 energía); uni para 2.0TD (2 potencias, 1 energía)
+    return { type: is20 ? 'uni' : 'uni6', segment_id, accessLabel: stdLabel };
   if (up.includes('VARIABLE'))
     return { type: is20 ? 'tri' : 'tri6', segment_id, accessLabel: is20 ? '2.0' : is30 ? '3.0' : '6X' };
   if (up.includes('ECO'))
@@ -1033,7 +1035,7 @@ function TariffImporter({
         if (!meta) return; // GAS or unrecognised plan
 
         const { type } = meta;
-        const enN  = ({ uni: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
+        const enN  = ({ uni: 1, uni6: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
         const potN = segment_id !== 'pyme20' ? 6 : 2;
 
         // Log first 12 data rows with all non-zero columns for price column verification
