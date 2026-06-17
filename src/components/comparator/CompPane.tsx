@@ -32,6 +32,12 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
     selected: false,
   };
   const safeTariffs = segTariffs.length ? segTariffs : [fallbackTariff];
+  
+  const { results, best, bestAh } = buildResults(taxModel, potP, c, safeTariffs);
+  
+  // Estado para la tarifa seleccionada (por defecto la mejor opción)
+  const [selectedTariffId, setSelectedTariffId] = useState<string>(best?.t?.id || "");
+
   const { saveStatus, saveMsg, isSaving, saveComp, handlePDF, handleExcel } = useComparatorActions({
     user, segLabel, taxModel, potP, c: safeClient, segTariffs: safeTariffs, comercialData, selectedTariffId
   });
@@ -40,11 +46,6 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
     return <div className="p-12 text-center text-slate-400">Introduce datos del cliente para comparar.</div>;
   if (!segTariffs.length)
     return <div className="p-12 text-center text-slate-400">Selecciona al menos una tarifa.</div>;
-
-  const { results, best, bestAh } = buildResults(taxModel, potP, c, segTariffs);
-  
-  // Estado para la tarifa seleccionada (por defecto la mejor opción)
-  const [selectedTariffId, setSelectedTariffId] = useState<string>(best?.t?.id || "");
 
   const accentRes = activeSeg === "res";
 
