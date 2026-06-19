@@ -309,8 +309,8 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                 <span className={`text-slate-400 text-[10px] transition-transform ${isOpen?"rotate-90":""}`}>›</span>
                 <div className="flex-1 font-bold text-slate-800 text-sm">{t.nombre}</div>
                 <div className="text-right">
-                  <div className="font-black text-[#002855]">{fmtEur(r.total, 3)}</div>
-                  {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah), 3)}</div>}
+                  <div className="font-black text-[#002855]">{fmtEur(r.total, 2)}</div>
+                  {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah), 2)}</div>}
                 </div>
               </div>
               {isOpen && (
@@ -320,11 +320,11 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                     <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-blue-600">Energía (€/kWh)</p>{t.rEn.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 grid grid-cols-2 gap-x-8 gap-y-1">
-                    <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia, 3)}</span></div>
-                    <div className="flex justify-between"><span>Energía bruta</span><span>{fmtEur(r.energia, 3)}</span></div>
-                    <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler, 3)}</span></div>
-                    {(r.reactiva ?? 0) > 0 && <div className="flex justify-between text-purple-700"><span>Reactiva (penalización)</span><span>{fmtEur(r.reactiva, 3)}</span></div>}
-                    <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total, 3)}</span></div>
+                    <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia, 2)}</span></div>
+                    <div className="flex justify-between"><span>Energía bruta</span><span>{fmtEur(r.energia, 2)}</span></div>
+                    <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler, 2)}</span></div>
+                    {(r.reactiva ?? 0) > 0 && <div className="flex justify-between text-purple-700"><span>Reactiva (penalización)</span><span>{fmtEur(r.reactiva, 2)}</span></div>}
+                    <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total, 2)}</span></div>
                   </div>
                 </div>
               )}
@@ -479,7 +479,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-2">
                   {Array.from({length:6},(_,i)=>(
                     <div key={i}><label htmlFor={`${activeSeg}-react-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1} kVArh</label>
-                    <input id={`${activeSeg}-react-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-react-${i}`] ?? fmtRaw(clients[activeSeg]?.reactiva?.[i] ?? 0, 3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-react-${i}`]:v})); const n=parseFloat(v.replace(/./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactiva",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-react-${i}`]; return n;})}/></div>
+                    <input id={`${activeSeg}-react-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-react-${i}`] ?? fmtRaw(clients[activeSeg]?.reactiva?.[i] ?? 0, 2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-react-${i}`]:v})); const n=parseFloat(v.replace(/./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactiva",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-react-${i}`]; return n;})}/></div>
                   ))}
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
