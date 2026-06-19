@@ -256,7 +256,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="font-black text-green-600 text-base">
+                        <div className={`font-black text-base ${((cd?.saving as number) || 0) >= 0 ? "text-green-600" : "text-red-500"}`}>
                           {fmtEur((cd?.saving as number) || 0)}
                         </div>
                         <div className="text-[10px] text-slate-400">

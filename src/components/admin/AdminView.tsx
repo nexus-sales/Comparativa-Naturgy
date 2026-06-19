@@ -334,7 +334,7 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
                             {toSectorFilter(item.target_segment || cd?.segment) || "Otro"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-black text-green-600 text-right whitespace-nowrap">
+                        <td className={`px-6 py-4 font-black text-right whitespace-nowrap ${((cd?.saving as number) || 0) >= 0 ? "text-green-600" : "text-red-500"}`}>
                           {fmtEur((cd?.saving as number) || 0)}
                         </td>
                       </tr>
