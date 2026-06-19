@@ -196,7 +196,7 @@ function App() {
             {effectiveTab === "notices"    && <NoticesView />}
             {isAdmin && (
               <div className={effectiveTab === "admin" ? "" : "hidden"}>
-                <AdminView segments={segments} tariffs={tariffs} />
+                <AdminView segments={segments} tariffs={tariffs} user={user} />
               </div>
             )}
           </>

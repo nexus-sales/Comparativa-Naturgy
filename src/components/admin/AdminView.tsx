@@ -6,13 +6,15 @@ import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
 import { toSectorFilter } from "../../utils/sectors";
 import type { Segment, Tariff, ClientComparison, Profile, Notice } from "../../types";
+import type { User } from "@supabase/supabase-js";
 
 interface AdminViewProps {
   segments: Segment[];
   tariffs: Tariff[];
+  user: User;
 }
 
-export function AdminView({ segments, tariffs }: AdminViewProps) {
+export function AdminView({ segments, tariffs, user }: AdminViewProps) {
   const { refresh: refreshStore } = useAppStore();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [history, setHistory] = useState<ClientComparison[]>([]);
@@ -442,6 +444,7 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
 
           {(showNoticeForm || editingNotice) && (
             <NoticeForm
+              user={user}
               notice={editingNotice ?? undefined}
               onClose={() => { setShowNoticeForm(false); setEditingNotice(null); }}
               onSaved={(saved) => {
@@ -514,7 +517,7 @@ export function AdminView({ segments, tariffs }: AdminViewProps) {
   );
 }
 
-function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: () => void; onSaved: (n: Notice) => void }) {
+function NoticeForm({ notice, onClose, onSaved, user }: { notice?: Notice; onClose: () => void; onSaved: (n: Notice) => void; user: User }) {
   const isEdit = !!notice;
   const [form, setForm] = useState({
     type:           notice?.type           ?? 'tarifa' as 'tarifa' | 'servicio' | 'noticia',
@@ -568,9 +571,8 @@ function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: ()
         if (data) onSaved(data as Notice);
         else onSaved({ ...notice!, ...payload } as Notice); // RLS may block read-back; use local copy
       } else {
-        const { data: { session } } = await withTimeout(supabase.auth.getSession());
         const { data, error } = await withTimeout(
-          supabase.from('notices').insert([{ ...payload, created_by: session?.user?.id ?? null }]).abortSignal(controller.signal).select().maybeSingle()
+          supabase.from('notices').insert([{ ...payload, created_by: user.id }]).abortSignal(controller.signal).select().maybeSingle()
         );
         if (error) { setFormMsg({ type: 'error', text: 'Error al crear: ' + error.message }); return; }
         if (data) onSaved(data as Notice);
@@ -769,23 +771,11 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         sva: cleanNum(form.sva),
         requires_auth: form.requires_auth,
       };
-      const controller = new AbortController();
-      // No .select().single() — we only need the error; .single() can throw PGRST116
-      // when RLS allows the write but not the read-back, which would falsely look like a failure.
       const request = isEdit
-        ? supabase.from("tariffs").update(payload).eq("id", tariff!.id).abortSignal(controller.signal)
-        : supabase.from("tariffs").insert([payload]).abortSignal(controller.signal);
+        ? supabase.from("tariffs").update(payload).eq("id", tariff!.id)
+        : supabase.from("tariffs").insert([payload]);
       
-      const { error } = await Promise.race([
-        request,
-        new Promise<never>((_, reject) => {
-          const timeout = window.setTimeout(() => reject(new DOMException("Timeout", "AbortError")), 15000);
-          controller.signal.addEventListener("abort", () => {
-            clearTimeout(timeout);
-            reject(new DOMException("Timeout", "AbortError"));
-          });
-        })
-      ]);
+      const { error } = await request;
 
 
       if (error) {

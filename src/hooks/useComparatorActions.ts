@@ -51,18 +51,18 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
 
   const saveComp = async (act: "SAVE" | "PDF") => {
     if (isSaving || !user) return;
-    setSaveStatus('saving');
+    
     if (!selectedTariffId) {
       alert('Por favor, selecciona una tarifa válida antes de continuar');
       return;
     }
     if (!selectedResult) return;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    setSaveStatus('saving');
+    
     const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g, "").trim() : "";
     try {
-      const request = supabase.from("client_comparisons").insert({
+      const payload = {
         user_id: user.id,
         client_name: sEsc(c.nombre) || "S/N",
         client_address: sEsc(c.dir),
@@ -79,30 +79,22 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
           client_data: { ...c, nombre: sEsc(c.nombre), cups: sEsc(c.cups), dir: sEsc(c.dir) },
           available_tariffs: segTariffs.map(t => ({ ...t, selected: t.id === selectedResult.t.id }))
         }
-      }).abortSignal(controller.signal);
+      };
 
-      const { error } = await Promise.race([
-        request,
-        new Promise<never>((_, reject) => {
-          const timeout = window.setTimeout(() => reject(new DOMException("Timeout", "AbortError")), 15000);
-          controller.signal.addEventListener("abort", () => {
-            clearTimeout(timeout);
-            reject(new DOMException("Timeout", "AbortError"));
-          });
-        })
-      ]);
+      const { error } = await supabase.from("client_comparisons").insert(payload);
 
-      if (error) { showResult('error', error.message); return; }
-      if (act === "SAVE") showResult('success', 'Guardado correctamente');
-      else setSaveStatus('idle');
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        showResult('error', 'Tiempo de espera agotado al guardar. Revisa tu conexión.');
-      } else {
-        showResult('error', err instanceof Error ? err.message : 'Error desconocido');
+      if (error) { 
+        showResult('error', error.message || 'Error al guardar en base de datos'); 
+        return; 
       }
-    } finally {
-      clearTimeout(timeoutId);
+      
+      if (act === "SAVE") {
+        showResult('success', 'Guardado correctamente');
+      } else {
+        setSaveStatus('idle');
+      }
+    } catch (err: unknown) {
+      showResult('error', err instanceof Error ? err.message : 'Error desconocido al guardar');
     }
   };
 

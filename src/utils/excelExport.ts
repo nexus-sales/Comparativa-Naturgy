@@ -72,7 +72,7 @@ export async function exportExcel(
 
   const ws = wb.addWorksheet('Comparativa');
   ws.addRows(rows);
-  ws.columns = [{ width: 28 }, { width: 16 }, ...results.map(() => ({ width: 20 }))];
+  ws.columns = [{ width: 28 }, { width: 16 }, { width: 20 }];
   // Apply 3-decimal number format to numeric cells in component/total rows
   ws.eachRow((row, rowNum) => {
     if (rowNum >= 8) {
