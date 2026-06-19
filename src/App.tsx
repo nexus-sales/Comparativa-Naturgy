@@ -242,19 +242,37 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
             <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-orange-500"></div> Cómo hacer una comparativa
             </h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
               1. Selecciona el sector (Residencial o Pyme).<br/>
               2. Introduce los datos de la factura actual en la pestaña <strong className="text-slate-900">Datos cliente</strong>.<br/>
               3. Revisa las tarifas disponibles y selecciona las que quieras comparar.<br/>
               4. Obtén el resultado visual y genera el informe PDF para el cliente.
             </p>
+            <div className="bg-orange-100/50 p-3 rounded-xl border border-orange-200">
+              <strong className="text-orange-800 text-xs block mb-1">💡 Nuevo: Copiado rápido en Pymes</strong>
+              <p className="text-xs text-orange-700">Si cambias entre distintos tipos de Pyme (2.0TD, 3.0TD, etc.), ahora puedes usar el botón <strong className="font-bold">Copiar datos de</strong> situado en la esquina superior derecha de la sección de Datos Cliente para transferir automáticamente el consumo y la información del cliente sin tener que volver a teclearlos.</p>
+            </div>
           </section>
+          
           <section className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
             <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div> Exportaciones e Historial
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div> Exportaciones, Excel e Historial
+            </h3>
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
+              Todas las comparativas guardadas o exportadas a PDF se registran automáticamente en tu <strong className="text-slate-900">Historial</strong>. Desde allí puedes volver a descargar el informe en cualquier momento o gestionar tus ofertas.
+            </p>
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+              <strong className="text-blue-800 text-xs block mb-1">📊 Nuevo: Exportación a Excel</strong>
+              <p className="text-xs text-blue-700">Ahora puedes descargar los resultados de tu comparativa directamente en un archivo Excel. Perfecto para analizar el desglose de costes energéticos, potencia y alquileres en formato hoja de cálculo.</p>
+            </div>
+          </section>
+
+          <section className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div> Avisos y Comunicaciones
             </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Todas las comparativas guardadas o exportadas a PDF se registran automáticamente en tu <strong className="text-slate-900">Historial</strong>. Desde allí puedes volver a descargar el informe en cualquier momento.
+              En la pantalla principal ahora dispones de una pestaña de <strong className="text-slate-900">Avisos</strong>. Consulta periódicamente esta sección para estar al tanto de nuevas directrices, actualizaciones de tarifas o mensajes importantes del equipo de administración.
             </p>
           </section>
           <button onClick={onClose} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg text-sm">Entendido, cerrar ayuda</button>
