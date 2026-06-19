@@ -337,13 +337,13 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           if (segId === 'res') return segTariffs.map(renderTariff);
 
           const GROUPS = [
-            { key: 'variable',   label: 'Variable',   tipos: ['hex'] },
-            { key: 'trihoraria', label: 'Trihoraria',  tipos: ['tri', 'tri6'] },
-            { key: 'planfijo',   label: 'Plan Fijo',   tipos: ['uni', 'uni6'] },
+            { key: 'variable',   label: 'Variable',   match: (t: TarifaLocal) => /variable/i.test(t.nombre) },
+            { key: 'trihoraria', label: 'Trihoraria',  match: (t: TarifaLocal) => /trihorari/i.test(t.nombre) },
+            { key: 'planfijo',   label: 'Plan Fijo',   match: (t: TarifaLocal) => !/variable/i.test(t.nombre) && !/trihorari/i.test(t.nombre) },
           ];
 
           return GROUPS.map(group => {
-            const gTariffs = segTariffs.filter(t => group.tipos.includes(t.tipo));
+            const gTariffs = segTariffs.filter(group.match);
             if (!gTariffs.length) return null;
             const gKey = `${segId}-${group.key}`;
             const isGOpen = groupOpen[gKey] ?? true;
