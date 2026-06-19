@@ -24,6 +24,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const [lastPymeSeg, setLastPymeSeg] = useState("pyme20");
   const [subTabs, setSubTabs] = useState<Record<string, string>>({ res: "cli", pyme20: "cli", pyme20one: "cli", pyme30: "cli", pyme61: "cli" });
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
+  const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const chartInstances = useRef<Record<string, ChartInstance>>({});
   const segmentDefs = useMemo(() => {
@@ -297,40 +298,70 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           </span>
         </div>
 
-        {segTariffs.map(t => {
-          const r = calc(taxModel, potP, c, t);
-          const ah = +(c.factura - r.total).toFixed(2);
-          const isOpen = tariffMeta[t.id]?.open;
-          const isSelected = tariffMeta[t.id]?.selected ?? true;
-          return (
-            <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50" onClick={()=>toggleOpen(t.id)}>
-                <input aria-label={`Seleccionar tarifa ${t.nombre}`} type="checkbox" checked={isSelected} className="w-4 h-4" onClick={e=>{e.stopPropagation(); toggleSelected(t.id);}} onChange={()=>{}}/>
-                <span className={`text-slate-400 text-[10px] transition-transform ${isOpen?"rotate-90":""}`}>›</span>
-                <div className="flex-1 font-bold text-slate-800 text-sm">{t.nombre}</div>
-                <div className="text-right">
-                  <div className="font-black text-[#002855]">{fmtEur(r.total, 2)}</div>
-                  {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah), 2)}</div>}
+        {(() => {
+          const renderTariff = (t: TarifaLocal) => {
+            const r = calc(taxModel, potP, c, t);
+            const ah = +(c.factura - r.total).toFixed(2);
+            const isOpen = tariffMeta[t.id]?.open;
+            const isSelected = tariffMeta[t.id]?.selected ?? true;
+            return (
+              <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50" onClick={()=>toggleOpen(t.id)}>
+                  <input aria-label={`Seleccionar tarifa ${t.nombre}`} type="checkbox" checked={isSelected} className="w-4 h-4" onClick={e=>{e.stopPropagation(); toggleSelected(t.id);}} onChange={()=>{}}/>
+                  <span className={`text-slate-400 text-[10px] transition-transform ${isOpen?"rotate-90":""}`}>›</span>
+                  <div className="flex-1 font-bold text-slate-800 text-sm">{t.nombre}</div>
+                  <div className="text-right">
+                    <div className="font-black text-[#002855]">{fmtEur(r.total, 2)}</div>
+                    {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah), 2)}</div>}
+                  </div>
                 </div>
+                {isOpen && (
+                  <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-[11px] text-slate-600">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-orange-600">Potencia (€/kW)</p>{t.rPot.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
+                      <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-blue-600">Energía (€/kWh)</p>{t.rEn.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-200 grid grid-cols-2 gap-x-8 gap-y-1">
+                      <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia, 2)}</span></div>
+                      <div className="flex justify-between"><span>Energía bruta</span><span>{fmtEur(r.energia, 2)}</span></div>
+                      <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler, 2)}</span></div>
+                      {(r.reactiva ?? 0) > 0 && <div className="flex justify-between text-purple-700"><span>Reactiva (penalización)</span><span>{fmtEur(r.reactiva, 2)}</span></div>}
+                      <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total, 2)}</span></div>
+                    </div>
+                  </div>
+                )}
               </div>
-              {isOpen && (
-                <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-[11px] text-slate-600">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-orange-600">Potencia (€/kW)</p>{t.rPot.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
-                    <div><p className="font-bold opacity-50 uppercase text-[9px] mb-1 text-blue-600">Energía (€/kWh)</p>{t.rEn.map((v,i)=>v>0?(<div key={i} className="flex justify-between"><span>P{i+1}</span><span>{v.toFixed(6)}</span></div>):null)}</div>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-slate-200 grid grid-cols-2 gap-x-8 gap-y-1">
-                    <div className="flex justify-between"><span>Potencia bruta</span><span>{fmtEur(r.potencia, 2)}</span></div>
-                    <div className="flex justify-between"><span>Energía bruta</span><span>{fmtEur(r.energia, 2)}</span></div>
-                    <div className="flex justify-between"><span>Alquiler</span><span>{fmtEur(r.alquiler, 2)}</span></div>
-                    {(r.reactiva ?? 0) > 0 && <div className="flex justify-between text-purple-700"><span>Reactiva (penalización)</span><span>{fmtEur(r.reactiva, 2)}</span></div>}
-                    <div className="flex justify-between font-bold text-slate-900"><span>TOTAL</span><span>{fmtEur(r.total, 2)}</span></div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+            );
+          };
+
+          if (segId === 'res') return segTariffs.map(renderTariff);
+
+          const GROUPS = [
+            { key: 'variable',   label: 'Variable',   tipos: ['hex'] },
+            { key: 'trihoraria', label: 'Trihoraria',  tipos: ['tri', 'tri6'] },
+            { key: 'planfijo',   label: 'Plan Fijo',   tipos: ['uni', 'uni6'] },
+          ];
+
+          return GROUPS.map(group => {
+            const gTariffs = segTariffs.filter(t => group.tipos.includes(t.tipo));
+            if (!gTariffs.length) return null;
+            const gKey = `${segId}-${group.key}`;
+            const isGOpen = groupOpen[gKey] ?? true;
+            return (
+              <div key={group.key} className="space-y-2">
+                <button
+                  onClick={() => setGroupOpen(prev => ({ ...prev, [gKey]: !isGOpen }))}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors text-left"
+                >
+                  <span className={`text-slate-500 text-sm font-bold transition-transform duration-200 inline-block ${isGOpen ? "rotate-90" : ""}`}>›</span>
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-600">{group.label}</span>
+                  <span className="text-xs text-slate-400 font-normal ml-1">({gTariffs.length})</span>
+                </button>
+                {isGOpen && <div className="space-y-2">{gTariffs.map(renderTariff)}</div>}
+              </div>
+            );
+          });
+        })()}
       </div>
     );
   };
