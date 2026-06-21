@@ -318,15 +318,15 @@ export function CommissionsView({ profile }: Props) {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tarifa Eléctrica Contratada</label>
-              <select value={tarifaCliente} onChange={e => handleTarifaChange(e.target.value)}
+              <label htmlFor="tarifaCliente" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tarifa Eléctrica Contratada</label>
+              <select id="tarifaCliente" value={tarifaCliente} onChange={e => handleTarifaChange(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 bg-white">
                 {TARIFAS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div className="max-w-[200px]">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fecha de Venta</label>
-              <input type="date" value={fechaVentaPyme} onChange={e => setFechaVentaPyme(e.target.value)}
+              <label htmlFor="fechaVentaPyme" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fecha de Venta</label>
+              <input id="fechaVentaPyme" type="date" value={fechaVentaPyme} onChange={e => setFechaVentaPyme(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
             </div>
           </div>
@@ -505,8 +505,8 @@ export function CommissionsView({ profile }: Props) {
               </div>
             </div>
             <div className="max-w-[200px]">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fecha de Venta</label>
-              <input type="date" value={resFechaVenta} onChange={e => setResFechaVenta(e.target.value)}
+              <label htmlFor="resFechaVenta" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fecha de Venta</label>
+              <input id="resFechaVenta" type="date" value={resFechaVenta} onChange={e => setResFechaVenta(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
             </div>
           </div>
@@ -533,9 +533,9 @@ export function CommissionsView({ profile }: Props) {
             <div className="grid grid-cols-2 gap-3">
               {RES_PRODUCTOS.map(p => (
                 <div key={p.value} className="bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{p.emoji} {p.label}</label>
+                  <label htmlFor={`resComision_${p.value}`} className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{p.emoji} {p.label}</label>
                   <div className="flex items-center gap-1.5">
-                    <input type="number" value={resComisiones[p.value]}
+                    <input id={`resComision_${p.value}`} type="number" value={resComisiones[p.value]}
                       onChange={e => setResComisiones(prev => ({ ...prev, [p.value]: +e.target.value }))}
                       className="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-lg font-black text-slate-800 focus:outline-none focus:border-violet-400" />
                     <span className="text-sm font-bold text-slate-400">€</span>
@@ -561,14 +561,14 @@ export function CommissionsView({ profile }: Props) {
                     <div className={`text-xs font-bold ${t.activo ? "text-violet-700" : "text-slate-600"}`}>{t.label}</div>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-xs font-bold text-green-600">+</span>
-                      <input type="number" value={t.valor}
+                      <input type="number" aria-label={`Valor ${t.label}`} value={t.valor}
                         onChange={e => setResRappelTramos(prev => prev.map(x => x.id === t.id ? { ...x, valor: +e.target.value } : x))}
                         className="w-14 border border-slate-200 rounded-lg px-1.5 py-1 text-xs font-black focus:outline-none focus:border-violet-400" />
                       <span className="text-xs text-slate-400">€/contrato</span>
                     </div>
                   </div>
                   <label className="cursor-pointer ml-3">
-                    <input type="checkbox" className="sr-only" checked={t.activo}
+                    <input type="checkbox" aria-label={`Activar ${t.label}`} className="sr-only" checked={t.activo}
                       onChange={e => setResRappelTramos(prev => prev.map(x => x.id === t.id ? { ...x, activo: e.target.checked } : x))} />
                     <div className={`w-11 h-6 rounded-full relative transition-colors ${t.activo ? "bg-violet-600" : "bg-slate-300"}`}>
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${t.activo ? "left-6" : "left-1"}`} />
@@ -587,14 +587,14 @@ export function CommissionsView({ profile }: Props) {
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-xs font-bold text-green-600">+</span>
-                      <input type="number" value={t.valor}
+                      <input type="number" aria-label={`Valor ${t.label}`} value={t.valor}
                         onChange={e => setResAdocTramos(prev => prev.map(x => x.id === t.id ? { ...x, valor: +e.target.value } : x))}
                         className="w-14 border border-slate-200 rounded-lg px-1.5 py-1 text-xs font-black focus:outline-none focus:border-cyan-400" />
                       <span className="text-xs text-slate-400">€/contrato</span>
                     </div>
                   </div>
                   <label className="cursor-pointer ml-3">
-                    <input type="checkbox" className="sr-only" checked={t.activo}
+                    <input type="checkbox" aria-label={`Activar ${t.label}`} className="sr-only" checked={t.activo}
                       onChange={e => setResAdocTramos(prev => prev.map(x => x.id === t.id ? { ...x, activo: e.target.checked } : x))} />
                     <div className={`w-11 h-6 rounded-full relative transition-colors ${t.activo ? "bg-cyan-600" : "bg-slate-300"}`}>
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${t.activo ? "left-6" : "left-1"}`} />
@@ -662,8 +662,8 @@ export function CommissionsView({ profile }: Props) {
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
             <div className="flex flex-wrap gap-3 justify-between items-end">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mes de cobro</label>
-                <select value={mesVentaFiltro} onChange={e => setMesVentaFiltro(e.target.value)}
+                <label htmlFor="mesVentaFiltro" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mes de cobro</label>
+                <select id="mesVentaFiltro" value={mesVentaFiltro} onChange={e => setMesVentaFiltro(e.target.value)}
                   className="border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:border-orange-400 bg-white">
                   {mesesDisponibles.map(k => (
                     <option key={k} value={k}>{k === "pendientes" ? "⌛ Ventas sin activar" : mesLabel(k)}{k === mesKey(hoy()) ? " (actual)" : ""}</option>
@@ -739,7 +739,7 @@ export function CommissionsView({ profile }: Props) {
                             <span className="text-[10px] bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-lg">{v.planLabel}</span>
                             <span className="text-[10px] text-slate-400">{v.kwh.toLocaleString("es-ES")} kWh</span>
                             <span className="text-[9px] font-bold text-slate-400">F.ACT.</span>
-                            <input type="date" value={v.fechaActivacion || ""} onChange={e => updateFechaActivacion(v.id, e.target.value)}
+                            <input type="date" aria-label="Fecha Activación" value={v.fechaActivacion || ""} onChange={e => updateFechaActivacion(v.id, e.target.value)}
                               className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 text-slate-500 focus:outline-none focus:border-orange-400" />
                           </div>
                         </div>
@@ -789,7 +789,7 @@ export function CommissionsView({ profile }: Props) {
                               <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-lg">{prod?.emoji} {prod?.label}</span>
                               {resRappel > 0 && <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-lg">+{fmtEur(resRappel)} {resActiveLabels}</span>}
                               <span className="text-[9px] font-bold text-slate-400">F.ACT.</span>
-                              <input type="date" value={v.fechaActivacion || ""} onChange={e => updateFechaActivacionRes(v.id, e.target.value)}
+                              <input type="date" aria-label="Fecha Activación" value={v.fechaActivacion || ""} onChange={e => updateFechaActivacionRes(v.id, e.target.value)}
                                 className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 text-slate-500 focus:outline-none focus:border-violet-400" />
                             </div>
                           </div>
