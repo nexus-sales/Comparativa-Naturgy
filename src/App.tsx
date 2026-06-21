@@ -135,15 +135,15 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <header className="bg-[#002855] text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <LogoNaturgy />
-            <div>
+            <div className="hidden sm:block">
               <h1 className="text-lg font-bold tracking-tight">Comparativa Tarifas Naturgy</h1>
               <p className="text-xs text-blue-200">Herramienta comercial · Canarias</p>
             </div>
           </div>
-          <nav className="flex items-center gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto max-w-full">
+          <nav className="flex items-center gap-0.5 sm:gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto flex-1 sm:flex-none mx-2 sm:mx-0">
             <TabButton active={effectiveTab === "dashboard"}  onClick={() => setActiveTab("dashboard")}  icon={<Home size={16} />}   label="Inicio" />
             <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />}  label="Comercial" />
             <TabButton active={effectiveTab === "profile"}    onClick={() => setActiveTab("profile")}    icon={<Pencil size={16} />} label="Usuario" />
@@ -152,8 +152,8 @@ function App() {
             <TabButton active={effectiveTab === "commissions"} onClick={() => setActiveTab("commissions")} icon={<Calculator size={16} />} label="Comisiones" />
             {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-blue-200 hidden md:inline">{user.email}</span>
+          <div className="flex items-center gap-2 sm:gap-4 text-sm flex-shrink-0">
+            <span className="text-blue-200 hidden lg:inline text-xs">{user.email}</span>
             <button onClick={() => setShowAppHelp(true)} className="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2">
               <HelpCircle size={16} /><span className="hidden sm:inline text-xs">Ayuda</span>
             </button>
@@ -226,9 +226,9 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-5 py-2 rounded-lg transition-all duration-200 font-medium text-sm ${active ? "bg-orange-500 text-white shadow-md" : "text-blue-100 hover:bg-white/10"}`}
+      className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm flex-shrink-0 ${active ? "bg-orange-500 text-white shadow-md" : "text-blue-100 hover:bg-white/10"}`}
     >
-      {icon} {label}
+      {icon} <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }

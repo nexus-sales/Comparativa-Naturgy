@@ -382,7 +382,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
         <button
           type="button"
           onClick={() => setActiveSeg("res")}
-          className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
+          className={`px-3 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
             activeSector === "res"
               ? "bg-[#185FA5] text-white shadow-md"
               : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
@@ -393,7 +393,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
         <button
           type="button"
           onClick={() => setActiveSeg(lastPymeSeg)}
-          className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
+          className={`px-3 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
             activeSector === "pyme"
               ? "bg-[#002855] text-white shadow-md"
               : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
@@ -496,14 +496,14 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             </div>
             <div className="border-t border-slate-100 my-4"></div>
             <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-orange-500 pl-2">Potencia (kW)</p>
-            <div className={`grid gap-3 mb-4 ${getSegMeta(activeSeg).potP === 6 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2"}`}>
+            <div className={`grid gap-3 mb-4 ${getSegMeta(activeSeg).potP === 6 ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : "grid-cols-2"}`}>
               {Array.from({length:getSegMeta(activeSeg).potP},(_,i)=>(
                 <div key={i}><label htmlFor={`${activeSeg}-kw-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
                 <input id={`${activeSeg}-kw-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-kw-${i}`] ?? fmtRaw(clients[activeSeg]?.kw[i],3)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-kw-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"kw",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-kw-${i}`]; return n;})}/></div>
               ))}
             </div>
             <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-blue-500 pl-2">Energía (kWh)</p>
-            <div className={`grid gap-3 mb-4 ${getSegMeta(activeSeg).potP === 6 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-3"}`}>
+            <div className={`grid gap-3 mb-4 ${getSegMeta(activeSeg).potP === 6 ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 sm:grid-cols-3"}`}>
               {Array.from({length: (getSegMeta(activeSeg).potP===6?6:3)},(_,i)=>(
                 <div key={i}><label htmlFor={`${activeSeg}-en-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1}</label>
                 <input id={`${activeSeg}-en-${i}`} placeholder="0" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-en-${i}`] ?? fmtRaw(clients[activeSeg]?.en[i],2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-en-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"en",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-en-${i}`]; return n;})}/></div>
@@ -517,13 +517,13 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
               <>
                 <div className="border-t border-slate-100 my-4"></div>
                 <p className="text-xs font-black text-slate-400 uppercase mb-3 border-l-4 border-purple-500 pl-2">Reactiva — kVArh exceso</p>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-2">
                   {Array.from({length:6},(_,i)=>(
                     <div key={i}><label htmlFor={`${activeSeg}-react-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1} kVArh</label>
                     <input id={`${activeSeg}-react-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-react-${i}`] ?? fmtRaw(clients[activeSeg]?.reactiva?.[i] ?? 0, 2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-react-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactiva",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-react-${i}`]; return n;})}/></div>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
                   {Array.from({length:6},(_,i)=>(
                     <div key={i}><label htmlFor={`${activeSeg}-reactRate-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1} €/kVArh</label>
                     <input id={`${activeSeg}-reactRate-${i}`} placeholder="0,000000" type="text" className="w-full p-2 bg-purple-50 border border-purple-100 rounded-lg text-sm" value={inputValues[`${activeSeg}-reactRate-${i}`] ?? fmtRaw(clients[activeSeg]?.reactivaRate?.[i] ?? 0, 6)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-reactRate-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactivaRate",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-reactRate-${i}`]; return n;})}/></div>

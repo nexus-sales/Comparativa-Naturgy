@@ -305,7 +305,7 @@ export function CommissionsView({ profile }: Props) {
           {/* Datos cliente */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
             <p className="text-[11px] font-black text-[#002855] tracking-widest uppercase">👤 Datos del cliente</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nombre / Razón Social</label>
                 <input type="text" placeholder="Empresa S.L." value={nombreCliente} onChange={e => setNombreCliente(e.target.value)}
@@ -324,7 +324,7 @@ export function CommissionsView({ profile }: Props) {
                 {TARIFAS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
-            <div className="max-w-[200px]">
+            <div className="w-full sm:max-w-[200px]">
               <label htmlFor="fechaVentaPyme" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Fecha de Venta</label>
               <input id="fechaVentaPyme" type="date" value={fechaVentaPyme} onChange={e => setFechaVentaPyme(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100" />
@@ -375,7 +375,7 @@ export function CommissionsView({ profile }: Props) {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">kWh por mes</label>
                   <button type="button" onClick={limpiarCalc} className="text-[10px] text-slate-400 hover:text-red-500 font-bold transition-colors">🗑 Limpiar</button>
                 </div>
-                <div className="grid grid-cols-6 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
                   {["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"].map((m, i) => (
                     <div key={m} className="flex flex-col gap-1">
                       <span className="text-[9px] font-bold text-slate-400 text-center">{m}</span>
@@ -430,7 +430,7 @@ export function CommissionsView({ profile }: Props) {
                       <div className="w-2 h-2 rounded-full bg-orange-500"></div>
                       <span className="text-[10px] font-black text-orange-500 uppercase tracking-wider">Precio Fijo</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {(["one","luz","supra"] as PlanPlan[]).map(k => (
                         <button key={k} type="button" onClick={() => { setPlanSel({ tipo: "fijo", plan: k }); setTarifaCliente(`Plan Fijo Luz ${k === "one" ? "ONE" : k === "supra" ? "Supra" : ""}`.trim().replace(/\s+/, " ")); }}
                           className={`p-3 rounded-xl border-2 text-left transition-all ${planSel?.tipo === "fijo" && planSel?.plan === k ? "border-orange-500 bg-orange-50" : "border-slate-200 hover:border-slate-300"}`}>
@@ -447,7 +447,7 @@ export function CommissionsView({ profile }: Props) {
                       <div className="w-2 h-2 rounded-full bg-blue-600"></div>
                       <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Precio Variable</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {(["one","luz","supra"] as PlanPlan[]).map(k => (
                         <button key={k} type="button" onClick={() => { setPlanSel({ tipo: "variable", plan: k }); setTarifaCliente(`Plan Variable Luz ${k === "one" ? "ONE" : k === "supra" ? "Supra" : ""}`.trim().replace(/\s+/, " ")); }}
                           className={`p-3 rounded-xl border-2 text-left transition-all ${planSel?.tipo === "variable" && planSel?.plan === k ? "border-blue-600 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}>

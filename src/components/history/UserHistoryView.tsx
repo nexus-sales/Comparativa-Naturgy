@@ -155,7 +155,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard title="Total Ofertas" value={filteredHistory.length} icon={<FileText className="text-blue-500" />} />
         <KPICard title="Ahorro Total" value={fmtEur(totalSavings)} icon={<div className="text-green-500 font-bold">€</div>} />
         <KPICard title="Ahorro Medio" value={fmtEur(avgSaving)} icon={<div className="text-emerald-500 font-bold">⌀</div>} />

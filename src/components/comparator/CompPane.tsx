@@ -85,7 +85,7 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
         <table className="w-full text-[11px] min-w-max">
           <thead className="bg-slate-50 border-b">
             <tr>

@@ -155,11 +155,11 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
     <div className="p-6 bg-white rounded-2xl shadow-sm border border-slate-200">
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
         <h2 className="text-xl font-bold flex items-center gap-2 text-[#002855]"><Shield className="text-orange-500" size={22} /> Panel de Control</h2>
-        <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
-          <button type="button" onClick={() => setView("tariffs")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "tariffs"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
-          <button type="button" onClick={() => setView("history")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "history"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
-          <button type="button" onClick={() => setView("users")}   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "users"    ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
-          <button type="button" onClick={() => setView("notices")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "notices"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
+          <button type="button" onClick={() => setView("tariffs")} className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "tariffs"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
+          <button type="button" onClick={() => setView("history")} className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "history"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
+          <button type="button" onClick={() => setView("users")}   className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "users"    ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
+          <button type="button" onClick={() => setView("notices")} className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "notices"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>
             <Bell size={14} />Avisos
             {notices.filter(n => n.is_active).length > 0 && (
               <span className="bg-orange-500 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
@@ -468,7 +468,7 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
       )}
 
       {view === "users" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {profiles.map(p => (
             <div key={p.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
               <div className="flex items-start justify-between mb-2">
@@ -598,7 +598,7 @@ function NoticeForm({ notice, onClose, onSaved, user }: { notice?: Notice; onClo
 
   return (
     <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white w-full max-w-lg rounded-3xl p-4 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-[#002855]">{isEdit ? 'Editar Aviso' : 'Nuevo Aviso'}</h2>
           <button type="button" aria-label="Cerrar" onClick={onClose} className="text-slate-400 hover:text-slate-700"><X /></button>
@@ -813,7 +813,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
 
   return (
     <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white w-full max-w-2xl rounded-3xl p-4 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-[#002855]">{isEdit ? "Editar Tarifa" : "Nueva Tarifa"}</h2>
           <button type="button" aria-label="Cerrar" onClick={onClose} className="text-slate-400 hover:text-slate-700"><X /></button>
@@ -1109,7 +1109,7 @@ function TariffImporter({
 
   return (
     <div className="fixed inset-0 bg-[#002855]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white w-full max-w-5xl rounded-3xl p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white w-full max-w-5xl rounded-3xl p-4 sm:p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-[#002855]">Importar tarifas PYME desde Excel</h2>
           <button type="button" aria-label="Cerrar" onClick={onClose} className="text-slate-400 hover:text-slate-700"><X /></button>

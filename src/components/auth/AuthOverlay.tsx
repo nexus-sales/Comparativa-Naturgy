@@ -72,7 +72,7 @@ export const AuthStatus = () => {
   };
 
   return (
-    <div className="max-w-[450px] mx-auto my-10 p-8 border border-slate-200 rounded-3xl bg-white shadow-xl shadow-slate-200/50 relative">
+    <div className="max-w-[450px] mx-auto my-4 sm:my-10 p-4 sm:p-8 border border-slate-200 rounded-3xl bg-white shadow-xl shadow-slate-200/50 relative">
       <button 
         onClick={() => setShowHelp(true)}
         className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-[#002855] hover:text-orange-500 transition-colors"
@@ -175,7 +175,7 @@ export const AuthStatus = () => {
 
       {showHelp && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[1000] p-5 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-[400px] w-full relative shadow-2xl">
+          <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-[400px] w-full relative shadow-2xl">
             <button 
               onClick={() => setShowHelp(false)}
               className="absolute top-4 right-4 bg-transparent border-none cursor-pointer text-slate-400 hover:text-slate-600 transition-colors"

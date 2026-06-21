@@ -75,7 +75,7 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
+    <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border border-slate-200 p-4 sm:p-8">
       <div className="flex items-center gap-4 mb-8">
         <div className="bg-blue-100 p-3 rounded-2xl text-blue-600">
           <Users size={32} />
@@ -87,7 +87,7 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="col-span-1">
             <label className="block text-sm font-bold text-slate-700 mb-2">Nombre Completo</label>
             <input
@@ -109,7 +109,7 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
               onChange={e => setFormData({...formData, phone: e.target.value})}
             />
           </div>
-          <div className="col-span-2">
+          <div className="col-span-1 sm:col-span-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">Email Profesional</label>
             <input
               type="email"
