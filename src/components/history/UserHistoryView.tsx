@@ -30,12 +30,12 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const query = supabase
+      let query = supabase
         .from("client_comparisons")
         .select("*")
         .neq("deleted_by_user", true);
 
-      if (!isAdmin) query.eq("user_id", user.id);
+      if (!isAdmin) query = query.eq("user_id", user.id);
 
       const { data, error } = await query
         .order("created_at", { ascending: false })
@@ -99,35 +99,32 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   }, [fetchHistory]);
 
   const filteredHistory = history.filter(item => {
-    const cd = item.calculation_data as Record<string, unknown>;
-    const tariffMatch = !filterTariff || item.target_tariff === filterTariff || cd?.best_tariff === filterTariff;
-    const sector = toSectorFilter(item.target_segment || cd?.segment);
+    const cd = item.calculation_data;
+    const tariffMatch = !filterTariff || item.target_tariff === filterTariff || cd.best_tariff === filterTariff;
+    const sector = toSectorFilter(item.target_segment || cd.segment);
     const segmentMatch = !filterSegment || sector === filterSegment;
     return tariffMatch && segmentMatch;
   });
 
-  const totalSavings = filteredHistory.reduce((acc, curr) => {
-    const cd = curr.calculation_data as Record<string, unknown>;
-    return acc + ((cd?.saving as number) || 0);
-  }, 0);
+  const totalSavings = filteredHistory.reduce(
+    (acc, curr) => acc + (curr.calculation_data.saving ?? 0),
+    0
+  );
   const avgSaving = filteredHistory.length ? totalSavings / filteredHistory.length : 0;
 
   const countBySegment = filteredHistory.reduce<Record<string, number>>((acc, curr) => {
-    const cd = curr.calculation_data as Record<string, unknown>;
-    const seg = toSectorFilter(curr.target_segment || cd?.segment) || "Otro";
+    const seg = toSectorFilter(curr.target_segment || curr.calculation_data.segment) || "Otro";
     acc[seg] = (acc[seg] || 0) + 1;
     return acc;
   }, {});
 
-  const uniqueTariffs = Array.from(new Set(history.map(item => {
-    const cd = item.calculation_data as Record<string, unknown>;
-    return item.target_tariff || (cd?.best_tariff as string);
-  }).filter(Boolean)));
+  const uniqueTariffs = Array.from(new Set(
+    history.map(item => item.target_tariff || item.calculation_data.best_tariff).filter(Boolean)
+  ));
 
-  const uniqueSegments = Array.from(new Set(history.map(item => {
-    const cd = item.calculation_data as Record<string, unknown>;
-    return toSectorFilter(item.target_segment || cd?.segment);
-  }).filter(Boolean)));
+  const uniqueSegments = Array.from(new Set(
+    history.map(item => toSectorFilter(item.target_segment || item.calculation_data.segment)).filter(Boolean)
+  ));
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -224,18 +221,18 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                 <tr>
-                  <th className="px-6 py-4">Fecha</th>
-                  {isAdmin && <th className="px-6 py-4">Comercial</th>}
-                  <th className="px-6 py-4">Cliente</th>
-                  <th className="px-6 py-4">Sector</th>
-                  <th className="px-6 py-4 text-right">Ahorro</th>
-                  <th className="px-4 py-4 text-center sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">Acciones</th>
+                  <th scope="col" className="px-6 py-4">Fecha</th>
+                  {isAdmin && <th scope="col" className="px-6 py-4">Comercial</th>}
+                  <th scope="col" className="px-6 py-4">Cliente</th>
+                  <th scope="col" className="px-6 py-4">Sector</th>
+                  <th scope="col" className="px-6 py-4 text-right">Ahorro</th>
+                  <th scope="col" className="px-4 py-4 text-center sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_rgba(0,0,0,0.04)]">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredHistory.map(item => {
                   try {
-                  const cd = item.calculation_data as Record<string, unknown>;
+                  const cd = item.calculation_data;
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
@@ -252,15 +249,15 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                          {toSectorFilter(item.target_segment || cd?.segment) || "Otro"}
+                          {toSectorFilter(item.target_segment || cd.segment) || "Otro"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className={`font-black text-base ${((cd?.saving as number) || 0) >= 0 ? "text-green-600" : "text-red-500"}`}>
-                          {fmtEur((cd?.saving as number) || 0)}
+                        <div className={`font-black text-base ${(cd.saving ?? 0) >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          {fmtEur(cd.saving ?? 0)}
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          Tarifa: {item.target_tariff || (cd?.best_tariff as string)}
+                          Tarifa: {item.target_tariff || cd.best_tariff}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center sticky right-0 bg-white border-l border-slate-100 shadow-[-4px_0_6px_rgba(0,0,0,0.04)] group-hover:bg-slate-50/50">
@@ -268,10 +265,10 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                           <button
                             type="button"
                             onClick={() => {
-                              if (!cd) { setActionError("No hay datos de cálculo disponibles."); return; }
-                              const segLabel = (cd.segment as string) || "Residencial";
-                              const taxModel = (cd.tax_model as string) || "Canarias";
-                              const potP = typeof cd.pot_prices === "number" ? cd.pot_prices : 2;
+                              if (!cd.available_tariffs?.length) { setActionError("No hay datos de cálculo disponibles."); return; }
+                              const segLabel = cd.segment ?? "Residencial";
+                              const taxModel = cd.tax_model ?? "Canarias";
+                              const potP = cd.pot_prices ?? 2;
                               const rawClient = cd.client_data as Partial<SegCliente> | undefined;
                               const c: SegCliente = {
                                 nombre: rawClient?.nombre || "",
@@ -294,7 +291,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                                 reactiva: Array.isArray(rawClient?.reactiva) ? rawClient.reactiva : [0, 0, 0, 0, 0, 0],
                                 reactivaRate: Array.isArray(rawClient?.reactivaRate) ? rawClient.reactivaRate : [0, 0, 0, 0, 0, 0],
                               };
-                              const segTariffs = ((cd.available_tariffs as unknown[]) || []).map((t: unknown) => {
+                              const segTariffs = (cd.available_tariffs ?? []).map((t: unknown) => {
                                 const tariff = t as Record<string, unknown>;
                                 const tariffName = tariff.nombre ?? tariff.name;
                                 return { ...tariff, selected: String(tariffName).trim() === String(cd.best_tariff).trim() };

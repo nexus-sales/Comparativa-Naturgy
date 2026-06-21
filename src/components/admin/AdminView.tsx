@@ -8,6 +8,12 @@ import { toSectorFilter } from "../../utils/sectors";
 import type { Segment, Tariff, ClientComparison, Profile, Notice } from "../../types";
 import type { User } from "@supabase/supabase-js";
 
+const NOTICE_TYPE_CFG = {
+  tarifa:   { label: 'Tarifa',   Icon: Zap,       badgeCls: 'bg-orange-100 text-orange-700', borderCls: 'border-l-orange-400' },
+  servicio: { label: 'Servicio', Icon: Wrench,    badgeCls: 'bg-blue-100 text-blue-700',     borderCls: 'border-l-blue-400'   },
+  noticia:  { label: 'Noticia',  Icon: Newspaper, badgeCls: 'bg-green-100 text-green-700',   borderCls: 'border-l-green-400'  },
+} as const;
+
 interface AdminViewProps {
   segments: Segment[];
   tariffs: Tariff[];
@@ -43,45 +49,47 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
   const [historyFilterSegment, setHistoryFilterSegment] = useState<string>("");
 
   useEffect(() => {
+    let active = true;
+
     const fetchProfiles = async () => {
       const { data, error } = await supabase.from("profiles").select("*").order("email");
-      if (error) {
-        console.error("Error loading profiles:", error);
-      } else if (data) {
-        setProfiles(data);
-      }
+      if (!active) return;
+      if (error) console.error("Error loading profiles:", error);
+      else if (data) setProfiles(data);
     };
-
-    fetchProfiles();
 
     const fetchNotices = async () => {
       const { data, error } = await supabase
         .from('notices')
         .select('*')
         .order('created_at', { ascending: false });
+      if (!active) return;
       if (error) console.error('Error loading notices:', error);
       else if (data) setNotices(data as Notice[]);
     };
-    fetchNotices();
 
     const fetchAdminHistory = async () => {
       const { data, error } = await supabase.from("client_comparisons")
         .select("*, profiles(email)")
         .order("created_at", { ascending: false })
         .limit(100);
-      
+      if (!active) return;
       if (error) {
         console.error("Admin History Error (Join failed):", error);
         const { data: sData } = await supabase.from("client_comparisons")
           .select("*")
           .order("created_at", { ascending: false });
-        if (sData) setHistory(sData);
+        if (active && sData) setHistory(sData);
       } else if (data) {
         setHistory(data);
       }
     };
 
-    fetchAdminHistory();
+    void fetchProfiles();
+    void fetchNotices();
+    void fetchAdminHistory();
+
+    return () => { active = false; };
   }, []);
 
   const toggleApprove = async (id: string, current: boolean) => {
@@ -129,31 +137,29 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
   const closeForm = () => { setShowTariffForm(false); setEditingTariff(null); };
 
   const filteredHistory = history.filter(item => {
-    const cd = item.calculation_data as Record<string, unknown>;
-    const tariffMatch = !historyFilterTariff || item.target_tariff === historyFilterTariff || cd?.best_tariff === historyFilterTariff;
-    const sector = toSectorFilter(item.target_segment || cd?.segment);
+    const cd = item.calculation_data;
+    const tariffMatch = !historyFilterTariff || item.target_tariff === historyFilterTariff || cd.best_tariff === historyFilterTariff;
+    const sector = toSectorFilter(item.target_segment || cd.segment);
     const segmentMatch = !historyFilterSegment || sector === historyFilterSegment;
     return tariffMatch && segmentMatch;
   });
 
-  const uniqueHistoryTariffs = Array.from(new Set(history.map(item => {
-    const cd = item.calculation_data as Record<string, unknown>;
-    return item.target_tariff || (cd?.best_tariff as string);
-  }).filter(Boolean)));
-  const uniqueHistorySegments = Array.from(new Set(history.map(item => {
-    const cd = item.calculation_data as Record<string, unknown>;
-    return toSectorFilter(item.target_segment || cd?.segment);
-  }).filter(Boolean)));
+  const uniqueHistoryTariffs = Array.from(new Set(
+    history.map(item => item.target_tariff || item.calculation_data.best_tariff).filter(Boolean)
+  ));
+  const uniqueHistorySegments = Array.from(new Set(
+    history.map(item => toSectorFilter(item.target_segment || item.calculation_data.segment)).filter(Boolean)
+  ));
 
   return (
     <div className="p-6 bg-white rounded-2xl shadow-sm border border-slate-200">
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
         <h2 className="text-xl font-bold flex items-center gap-2 text-[#002855]"><Shield className="text-orange-500" size={22} /> Panel de Control</h2>
         <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
-          <button onClick={() => setView("tariffs")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "tariffs"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
-          <button onClick={() => setView("history")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "history"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
-          <button onClick={() => setView("users")}   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "users"    ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
-          <button onClick={() => setView("notices")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "notices"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>
+          <button type="button" onClick={() => setView("tariffs")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "tariffs"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
+          <button type="button" onClick={() => setView("history")} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "history"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
+          <button type="button" onClick={() => setView("users")}   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "users"    ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
+          <button type="button" onClick={() => setView("notices")} className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === "notices"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>
             <Bell size={14} />Avisos
             {notices.filter(n => n.is_active).length > 0 && (
               <span className="bg-orange-500 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">
@@ -173,7 +179,8 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-4">
             <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto w-full sm:w-auto scrollbar-hide">
-              <button 
+              <button
+                type="button"
                 onClick={() => setFilterSegment("all")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === "all" ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
               >
@@ -181,6 +188,7 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
               </button>
               {segments.map(seg => (
                 <button
+                  type="button"
                   key={seg.id}
                   onClick={() => setFilterSegment(seg.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${filterSegment === seg.id ? "bg-white shadow-sm text-blue-900" : "text-slate-500 hover:text-slate-700"}`}
@@ -226,13 +234,13 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
               {pendingConfirm?.action === 'deleteTariff' && pendingConfirm.id === t.id ? (
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-red-600 font-bold">¿Borrar?</span>
-                  <button onClick={() => deleteTariff(t.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
-                  <button onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                  <button type="button" onClick={() => deleteTariff(t.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
+                  <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setEditingTariff(t)} className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50" title="Editar tarifa"><Pencil size={16} /></button>
-                  <button onClick={() => setPendingConfirm({ action: 'deleteTariff', id: t.id })} className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50" title="Borrar tarifa"><Trash2 size={16} /></button>
+                  <button type="button" onClick={() => setEditingTariff(t)} className="text-slate-400 hover:text-blue-600 transition-colors p-1.5 rounded-lg hover:bg-blue-50" title="Editar tarifa"><Pencil size={16} /></button>
+                  <button type="button" onClick={() => setPendingConfirm({ action: 'deleteTariff', id: t.id })} className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50" title="Borrar tarifa"><Trash2 size={16} /></button>
                 </div>
               )}
             </div>
@@ -255,11 +263,11 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <KPICard title="Total Global" value={filteredHistory.length} icon={<FileText className="text-blue-500" size={20} />} />
-            <KPICard title="Ahorro Acumulado" value={fmtEur(filteredHistory.reduce((acc, curr) => acc + (((curr.calculation_data as Record<string, unknown>)?.saving as number) || 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
-            <KPICard 
-              title="Ahorro Promedio" 
-              value={fmtEur(filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (((curr.calculation_data as Record<string, unknown>)?.saving as number) || 0), 0) / filteredHistory.length : 0)} 
-              icon={<div className="text-emerald-500 font-bold">⌀</div>} 
+            <KPICard title="Ahorro Acumulado" value={fmtEur(filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data.saving ?? 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
+            <KPICard
+              title="Ahorro Promedio"
+              value={fmtEur(filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data.saving ?? 0), 0) / filteredHistory.length : 0)}
+              icon={<div className="text-emerald-500 font-bold">⌀</div>}
             />
             <KPICard title="Top Comercial" value={
               Object.entries(filteredHistory.reduce<Record<string, number>>((acc, curr) => {
@@ -296,7 +304,8 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
               </select>
             </div>
             {(historyFilterTariff || historyFilterSegment) && (
-              <button 
+              <button
+                type="button"
                 onClick={() => { setHistoryFilterTariff(""); setHistoryFilterSegment(""); }}
                 className="text-xs font-bold text-orange-600 hover:text-orange-700 underline"
               >
@@ -310,16 +319,16 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                   <tr>
-                    <th className="px-6 py-4">Fecha</th>
-                    <th className="px-6 py-4">Comercial</th>
-                    <th className="px-6 py-4">Cliente</th>
-                    <th className="px-6 py-4">Sector</th>
-                    <th className="px-6 py-4 text-right">Ahorro</th>
+                    <th scope="col" className="px-6 py-4">Fecha</th>
+                    <th scope="col" className="px-6 py-4">Comercial</th>
+                    <th scope="col" className="px-6 py-4">Cliente</th>
+                    <th scope="col" className="px-6 py-4">Sector</th>
+                    <th scope="col" className="px-6 py-4 text-right">Ahorro</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredHistory.map(item => {
-                    const cd = item.calculation_data as Record<string, unknown>;
+                    const cd = item.calculation_data;
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
@@ -331,11 +340,11 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
                         <td className="px-6 py-4 font-medium text-slate-800">{item.client_name}</td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                            {toSectorFilter(item.target_segment || cd?.segment) || "Otro"}
+                            {toSectorFilter(item.target_segment || cd.segment) || "Otro"}
                           </span>
                         </td>
-                        <td className={`px-6 py-4 font-black text-right whitespace-nowrap ${((cd?.saving as number) || 0) >= 0 ? "text-green-600" : "text-red-500"}`}>
-                          {fmtEur((cd?.saving as number) || 0)}
+                        <td className={`px-6 py-4 font-black text-right whitespace-nowrap ${(cd.saving ?? 0) >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          {fmtEur(cd.saving ?? 0)}
                         </td>
                       </tr>
                     );
@@ -360,6 +369,7 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
               {notices.filter(n => !n.is_active).length > 0 && ` · ${notices.filter(n => !n.is_active).length} archivado${notices.filter(n => !n.is_active).length !== 1 ? 's' : ''}`}
             </p>
             <button
+              type="button"
               onClick={() => setShowNoticeForm(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2"
             >
@@ -376,11 +386,6 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
 
           <div className="space-y-3">
             {notices.map(notice => {
-              const NOTICE_TYPE_CFG = {
-                tarifa:   { label: 'Tarifa',   Icon: Zap,      badgeCls: 'bg-orange-100 text-orange-700', borderCls: 'border-l-orange-400' },
-                servicio: { label: 'Servicio', Icon: Wrench,   badgeCls: 'bg-blue-100 text-blue-700',     borderCls: 'border-l-blue-400'   },
-                noticia:  { label: 'Noticia',  Icon: Newspaper, badgeCls: 'bg-green-100 text-green-700',  borderCls: 'border-l-green-400'  },
-              } as const;
               const cfg = NOTICE_TYPE_CFG[notice.type];
               const Icon = cfg.Icon;
               return (
@@ -418,6 +423,7 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
+                      type="button"
                       onClick={() => setEditingNotice(notice)}
                       className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Editar"
@@ -473,18 +479,19 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
                 {pendingConfirm?.action === 'toggleAdmin' && pendingConfirm.id === p.id ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-purple-700 font-bold">{pendingConfirm.current ? "¿Quitar admin?" : "¿Hacer admin?"}</span>
-                    <button onClick={() => toggleAdmin(p.id, pendingConfirm.current)} className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">Sí</button>
-                    <button onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                    <button type="button" onClick={() => toggleAdmin(p.id, pendingConfirm.current)} className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">Sí</button>
+                    <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
                   </div>
                 ) : pendingConfirm?.action === 'deactivate' && pendingConfirm.id === p.id ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-red-600 font-bold">¿Dar de baja?</span>
-                    <button onClick={() => deactivateUser(p.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
-                    <button onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                    <button type="button" onClick={() => deactivateUser(p.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
+                    <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
                   </div>
                 ) : (
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => setPendingConfirm({ action: 'toggleAdmin', id: p.id, current: p.is_admin })}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
                       title={p.is_admin ? "Quitar admin" : "Hacer admin"}
@@ -492,6 +499,7 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
                       {p.is_admin ? "Admin ✓" : "Hacer admin"}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setPendingConfirm({ action: 'deactivate', id: p.id, email: p.email })}
                       className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       title="Dar de baja acceso"
@@ -503,6 +511,7 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
               </div>
               {!p.is_admin && (
                 <button
+                  type="button"
                   onClick={() => toggleApprove(p.id, p.is_approved)}
                   className={`w-full mt-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_approved ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
                 >
@@ -1006,9 +1015,7 @@ function TariffImporter({
       };
 
       const parsed: ImportRow[] = [];
-      let dataRowsLogged = 0;
-
-      ws.eachRow((row, rowNum) => {
+      ws.eachRow((row, _row) => {
         // ── Data row: C3 must be an access type (20TD, 2.0TD, 30TD, 3.0TD, 61TD, 6.1TD) ──
         // Check C3 FIRST so rows where C4 has a plan name are not misread as headers.
         const c3 = getText(row.getCell(3)).toUpperCase().replace(/\s/g, '');
@@ -1027,17 +1034,6 @@ function TariffImporter({
         const { type } = meta;
         const enN  = ({ uni: 1, uni6: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
         const potN = segment_id !== 'pyme20' ? 6 : 2;
-
-        // Log first 12 data rows with all non-zero columns for price column verification
-        if (dataRowsLogged < 12) {
-          dataRowsLogged++;
-          const cols: string[] = [];
-          for (let ci = 5; ci <= 35; ci++) {
-            const v = getNum(row.getCell(ci));
-            if (v !== 0) cols.push(`C${ci}:${v.toFixed(6)}`);
-          }
-          console.log(`[IMPORT] DataRow R${rowNum} "${baseName}":`, cols.join('  ') || '(no prices)');
-        }
 
         // ── Potencia: C6-C11, shared across all 3 variants ───────────────
         const r_pot: number[] = [];

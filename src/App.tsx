@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./hooks/useAuth";
 import { useAppStore } from "./store/useAppStore";
@@ -8,8 +8,13 @@ import { UserHistoryView } from "./components/history/UserHistoryView";
 import { UserProfileView } from "./components/profile/UserProfileView";
 import { AuthStatus } from "./components/auth/AuthOverlay";
 import { InstallPWA } from "./components/InstallPWA";
-import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X, Bell } from "lucide-react";
+import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X, Bell, Home, Calculator } from "lucide-react";
 import { NoticesView } from "./components/notices/NoticesView";
+import { DashboardView } from "./components/dashboard/DashboardView";
+
+const CommissionsView = lazy(() =>
+  import("./components/commissions/CommissionsView").then(m => ({ default: m.CommissionsView }))
+);
 
 function clearAppStorage() {
   const clearKnownKeys = (storage: Storage) => {
@@ -53,7 +58,8 @@ async function signOutAndReset(resetStore: () => void) {
 function App() {
   const { user, loading: authLoading, isAdmin, profile } = useAuth();
   const { segments, tariffs, loading: dataLoading, error: dataError, load, refresh, reset } = useAppStore();
-  const [activeTab, setActiveTab] = useState<"comparator" | "admin" | "profile" | "history" | "notices">("comparator");
+  type ActiveTab = "dashboard" | "comparator" | "admin" | "profile" | "history" | "notices" | "commissions";
+  const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [showAppHelp, setShowAppHelp] = useState(false);
 
   const isBlocked = profile?.is_blocked === true;
@@ -70,7 +76,7 @@ function App() {
   }, [canLoadData]);
 
   // Don't drop admin tab during transient auth re-checks (isAdmin might briefly be false)
-  const effectiveTab = (!isAdmin && !authLoading && activeTab === "admin") ? "comparator" : activeTab;
+  const effectiveTab = (!isAdmin && !authLoading && activeTab === "admin") ? "dashboard" : activeTab;
   const isProfileIncomplete = !!user && (!profile || !profile.full_name || !profile.phone);
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -138,10 +144,12 @@ function App() {
             </div>
           </div>
           <nav className="flex items-center gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto max-w-full">
+            <TabButton active={effectiveTab === "dashboard"}  onClick={() => setActiveTab("dashboard")}  icon={<Home size={16} />}   label="Inicio" />
             <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />}  label="Comercial" />
             <TabButton active={effectiveTab === "profile"}    onClick={() => setActiveTab("profile")}    icon={<Pencil size={16} />} label="Usuario" />
             <TabButton active={effectiveTab === "history"}    onClick={() => setActiveTab("history")}    icon={<Clock size={16} />}  label="Historial" />
-            <TabButton active={effectiveTab === "notices"}    onClick={() => setActiveTab("notices")}    icon={<Bell size={16} />}   label="Avisos" />
+            <TabButton active={effectiveTab === "notices"}      onClick={() => setActiveTab("notices")}      icon={<Bell size={16} />}       label="Avisos" />
+            <TabButton active={effectiveTab === "commissions"} onClick={() => setActiveTab("commissions")} icon={<Calculator size={16} />} label="Comisiones" />
             {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
           </nav>
           <div className="flex items-center gap-4 text-sm">
@@ -156,7 +164,7 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {isProfileIncomplete && effectiveTab === "comparator" && (
+        {isProfileIncomplete && (effectiveTab === "comparator" || effectiveTab === "dashboard") && (
           <div className="mb-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-6 shadow-lg text-white flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
@@ -190,10 +198,16 @@ function App() {
           </div>
         ) : (
           <>
+            {effectiveTab === "dashboard"  && <DashboardView user={user} isAdmin={isAdmin} onNavigate={setActiveTab} />}
             {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} />}
             {effectiveTab === "profile"    && <UserProfileView user={user} profile={profile} isAdmin={isAdmin} />}
             {effectiveTab === "history"    && <UserHistoryView user={user} isAdmin={isAdmin} />}
-            {effectiveTab === "notices"    && <NoticesView />}
+            {effectiveTab === "notices"      && <NoticesView />}
+            {effectiveTab === "commissions" && (
+              <Suspense fallback={<div className="flex items-center justify-center p-12"><div className="animate-pulse text-slate-400 font-bold">Cargando comisiones...</div></div>}>
+                <CommissionsView profile={profile} />
+              </Suspense>
+            )}
             {isAdmin && (
               <div className={effectiveTab === "admin" ? "" : "hidden"}>
                 <AdminView segments={segments} tariffs={tariffs} user={user} />
@@ -235,7 +249,7 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
         <button onClick={onClose} title="Cerrar ayuda" className="absolute top-8 right-8 text-slate-400 hover:text-slate-600 transition-colors"><X size={28} /></button>
         <div className="space-y-2">
           <h2 className="text-3xl font-black text-[#002855] leading-tight">Ayuda y Guía de Uso</h2>
-          <p className="text-slate-500 font-medium">Todo lo que necesitas saber para usar la herramienta</p>
+          <p className="text-slate-500 font-medium">Versión 1.2.0 · Todo lo que necesitas saber para usar la herramienta</p>
         </div>
         <div className="space-y-6">
           <section className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
@@ -249,11 +263,29 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
               4. Obtén el resultado visual y genera el informe PDF para el cliente.
             </p>
             <div className="bg-orange-100/50 p-3 rounded-xl border border-orange-200">
-              <strong className="text-orange-800 text-xs block mb-1">💡 Nuevo: Copiado rápido en Pymes</strong>
-              <p className="text-xs text-orange-700">Si cambias entre distintos tipos de Pyme (2.0TD, 3.0TD, etc.), ahora puedes usar el botón <strong className="font-bold">Copiar datos de</strong> situado en la esquina superior derecha de la sección de Datos Cliente para transferir automáticamente el consumo y la información del cliente sin tener que volver a teclearlos.</p>
+              <strong className="text-orange-800 text-xs block mb-1">💡 Copiado rápido en Pymes</strong>
+              <p className="text-xs text-orange-700">Si cambias entre distintos tipos de Pyme (2.0TD, 3.0TD, etc.), usa el botón <strong className="font-bold">Copiar datos de</strong> en la esquina superior derecha para transferir automáticamente el consumo y los datos del cliente.</p>
             </div>
           </section>
-          
+
+          <section className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
+            <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div> Calculadora de Comisiones <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full ml-1">NUEVO v1.2</span>
+            </h3>
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
+              La pestaña <strong className="text-slate-900">Comisiones</strong> integra el cálculo y seguimiento de tus ventas directamente en la app — sin necesidad de una herramienta separada.
+            </p>
+            <ul className="text-xs text-slate-600 space-y-1.5 mb-3">
+              <li><strong className="text-slate-800">🏢 Pyme:</strong> Introduce el consumo anual (o mes a mes) y obtén la comisión para los 6 planes disponibles (Fijo/Variable × ONE/Luz/Supra). Selecciona la tarifa contratada y añade la venta con un clic.</li>
+              <li><strong className="text-slate-800">🏠 Residencial:</strong> Selecciona el producto (Luz, Gas, Dual, Servicios), configura las comisiones base y activa los tramos de Rappel o Adoc que correspondan. La comisión total se calcula automáticamente.</li>
+              <li><strong className="text-slate-800">📋 Mis Ventas:</strong> Registra la fecha de activación de cada cliente para que el mes de cobro se calcule solo (+1 mes). Exporta a PDF o Excel para enviar tu liquidación.</li>
+            </ul>
+            <div className="bg-white p-3 rounded-xl border border-emerald-200">
+              <strong className="text-emerald-800 text-xs block mb-1">💾 Copia de seguridad</strong>
+              <p className="text-xs text-emerald-700">Usa <strong>Guardar copia</strong> para exportar todas tus ventas a Excel (incluye hoja de backup oculta). Con <strong>Abrir copia</strong> puedes restaurar los datos en otro dispositivo. Los datos se guardan localmente en tu navegador.</p>
+            </div>
+          </section>
+
           <section className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
             <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-blue-500"></div> Exportaciones, Excel e Historial
@@ -262,8 +294,8 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
               Todas las comparativas guardadas o exportadas a PDF se registran automáticamente en tu <strong className="text-slate-900">Historial</strong>. Desde allí puedes volver a descargar el informe en cualquier momento o gestionar tus ofertas.
             </p>
             <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-              <strong className="text-blue-800 text-xs block mb-1">📊 Nuevo: Exportación a Excel</strong>
-              <p className="text-xs text-blue-700">Ahora puedes descargar los resultados de tu comparativa directamente en un archivo Excel. Perfecto para analizar el desglose de costes energéticos, potencia y alquileres en formato hoja de cálculo.</p>
+              <strong className="text-blue-800 text-xs block mb-1">📊 Exportación a Excel</strong>
+              <p className="text-xs text-blue-700">Descarga los resultados de tu comparativa en Excel para analizar el desglose de costes energéticos, potencia y alquileres.</p>
             </div>
           </section>
 
@@ -272,7 +304,7 @@ function AppHelpModal({ onClose }: { onClose: () => void }) {
               <div className="w-2 h-2 rounded-full bg-purple-500"></div> Avisos y Comunicaciones
             </h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              En la pantalla principal ahora dispones de una pestaña de <strong className="text-slate-900">Avisos</strong>. Consulta periódicamente esta sección para estar al tanto de nuevas directrices, actualizaciones de tarifas o mensajes importantes del equipo de administración.
+              Consulta la pestaña <strong className="text-slate-900">Avisos</strong> periódicamente para estar al tanto de nuevas directrices, actualizaciones de tarifas o mensajes importantes del equipo de administración.
             </p>
           </section>
           <button onClick={onClose} className="w-full bg-[#002855] text-white py-4 rounded-2xl font-bold hover:bg-blue-800 transition-all shadow-lg text-sm">Entendido, cerrar ayuda</button>

@@ -28,9 +28,8 @@ export function exportPDF(
     ? tariffs.find(t => t.id === selectedTariffId)
     : tariffs.find(t => t.selected);
   
-  if (!selectedTariff) { 
-    alert('Selecciona una tarifa para exportar.'); 
-    return; 
+  if (!selectedTariff) {
+    throw new Error('Selecciona una tarifa para exportar.');
   }
   const isPyme = taxModel !== 'res';
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });

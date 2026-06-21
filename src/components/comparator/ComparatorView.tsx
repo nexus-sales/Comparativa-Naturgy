@@ -26,6 +26,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
   const [tariffMeta, setTariffMeta] = useState<Record<string, { selected: boolean; open: boolean }>>({});
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [fiscalMsg, setFiscalMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const chartInstances = useRef<Record<string, ChartInstance>>({});
   const segmentDefs = useMemo(() => {
     const fallbackById = Object.fromEntries(SEG_DEFS.map(seg => [seg.id, seg]));
@@ -179,8 +180,12 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       tax_igic_red: c.taxIGICRed,
       tax_igic_7: c.taxIGIC7
     }).eq("id", segId);
-    if (error) alert("Error: " + error.message);
-    else alert("Configuración fiscal guardada.");
+    if (error) {
+      setFiscalMsg({ type: 'error', text: error.message });
+    } else {
+      setFiscalMsg({ type: 'success', text: "Configuración fiscal guardada." });
+      setTimeout(() => setFiscalMsg(null), 3000);
+    }
   };
 
   useEffect(() => {
@@ -249,7 +254,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     </div>
   );
 
-  const TariffPane = ({ segId }: { segId: string }) => {
+  const renderTariffPane = ({ segId }: { segId: string }) => {
     const { taxModel, potP } = getSegMeta(segId);
     const segTariffs = getSegTariffs(segId);
     const c = clients[segId];
@@ -350,6 +355,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             return (
               <div key={group.key} className="space-y-2">
                 <button
+                  type="button"
                   onClick={() => setGroupOpen(prev => ({ ...prev, [gKey]: !isGOpen }))}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors text-left"
                 >
@@ -374,6 +380,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       {/* Sector Selection Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl mb-4">
         <button
+          type="button"
           onClick={() => setActiveSeg("res")}
           className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
             activeSector === "res"
@@ -384,6 +391,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
           RESIDENCIAL
         </button>
         <button
+          type="button"
           onClick={() => setActiveSeg(lastPymeSeg)}
           className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest transition-all flex-1 text-center ${
             activeSector === "pyme"
@@ -404,6 +412,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
               const cleanLabel = seg.label.replace(/^Pyme\s+/i, "");
               return (
                 <button
+                  type="button"
                   key={seg.id}
                   onClick={() => {
                     setActiveSeg(seg.id);
@@ -425,7 +434,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
 
       <div className="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar whitespace-nowrap">
         {[["cli","DATOS CLIENTE"],["tar","TARIFAS"],["comp","COMPARATIVA"]].map(([id,lbl])=>(
-          <button key={id} onClick={()=>setSubTab(id)} className={`flex-1 sm:flex-none px-4 sm:px-6 py-3 text-[10px] sm:text-[11px] font-black tracking-widest transition-all border-b-2 ${sub===id?(activeSeg==="res"?"text-orange-500 border-orange-500":"text-blue-600 border-blue-600"):"text-slate-400 border-transparent"}`}>{lbl}</button>
+          <button type="button" key={id} onClick={()=>setSubTab(id)} className={`flex-1 sm:flex-none px-4 sm:px-6 py-3 text-[10px] sm:text-[11px] font-black tracking-widest transition-all border-b-2 ${sub===id?(activeSeg==="res"?"text-orange-500 border-orange-500":"text-blue-600 border-blue-600"):"text-slate-400 border-transparent"}`}>{lbl}</button>
         ))}
       </div>
       <div className="min-h-[400px]">
@@ -438,7 +447,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                 {/* Mostrar botones de copia solo para segmentos pyme */}
                 {activeSector === "pyme" && (
                   <div className="relative group">
-                    <button className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50">
+                    <button type="button" className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
@@ -450,13 +459,14 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                           .filter(seg => seg.id !== "res" && seg.id !== "pyme361" && seg.id !== activeSeg)
                           .map(seg => (
                             <button
+                              type="button"
                               key={seg.id}
                               onClick={() => {
                                 if (clients[seg.id]?.nombre || clients[seg.id]?.cups) {
                                   copyClientData(seg.id, activeSeg);
-                                  alert(`Datos copiados de ${seg.label} a ${segDef.label}`);
                                 } else {
-                                  alert(`No hay datos en ${seg.label} para copiar`);
+                                  setFiscalMsg({ type: 'error', text: `No hay datos en ${seg.label} para copiar` });
+                                  setTimeout(() => setFiscalMsg(null), 3000);
                                 }
                               }}
                               className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 flex items-center justify-between"
@@ -471,7 +481,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                     </div>
                   </div>
                 )}
-                <button onClick={() => clearClient(activeSeg)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
+                <button type="button" onClick={() => clearClient(activeSeg)} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1"><Trash2 size={12}/> Limpiar</button>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -510,13 +520,13 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-2">
                   {Array.from({length:6},(_,i)=>(
                     <div key={i}><label htmlFor={`${activeSeg}-react-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1} kVArh</label>
-                    <input id={`${activeSeg}-react-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-react-${i}`] ?? fmtRaw(clients[activeSeg]?.reactiva?.[i] ?? 0, 2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-react-${i}`]:v})); const n=parseFloat(v.replace(/./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactiva",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-react-${i}`]; return n;})}/></div>
+                    <input id={`${activeSeg}-react-${i}`} placeholder="0,000" type="text" className="w-full p-2 bg-slate-50 border rounded-lg text-sm font-bold" value={inputValues[`${activeSeg}-react-${i}`] ?? fmtRaw(clients[activeSeg]?.reactiva?.[i] ?? 0, 2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-react-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactiva",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-react-${i}`]; return n;})}/></div>
                   ))}
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
                   {Array.from({length:6},(_,i)=>(
                     <div key={i}><label htmlFor={`${activeSeg}-reactRate-${i}`} className="block text-xs text-slate-400 mb-1">P{i+1} €/kVArh</label>
-                    <input id={`${activeSeg}-reactRate-${i}`} placeholder="0,000000" type="text" className="w-full p-2 bg-purple-50 border border-purple-100 rounded-lg text-sm" value={inputValues[`${activeSeg}-reactRate-${i}`] ?? fmtRaw(clients[activeSeg]?.reactivaRate?.[i] ?? 0, 6)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-reactRate-${i}`]:v})); const n=parseFloat(v.replace(/./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactivaRate",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-reactRate-${i}`]; return n;})}/></div>
+                    <input id={`${activeSeg}-reactRate-${i}`} placeholder="0,000000" type="text" className="w-full p-2 bg-purple-50 border border-purple-100 rounded-lg text-sm" value={inputValues[`${activeSeg}-reactRate-${i}`] ?? fmtRaw(clients[activeSeg]?.reactivaRate?.[i] ?? 0, 6)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-reactRate-${i}`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClientArr(activeSeg,"reactivaRate",i,n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-reactRate-${i}`]; return n;})}/></div>
                   ))}
                 </div>
               </>
@@ -555,13 +565,24 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                     <div><label htmlFor={`${activeSeg}-tax-igic-7`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${activeSeg}-tax-igic-7`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.taxIGIC7 || 0} onChange={e=>upClient(activeSeg,"taxIGIC7",+e.target.value)}/></div>
                   </> : <div><label htmlFor={`${activeSeg}-tax-igic`} className="text-[10px] text-slate-500">IGIC Alq %</label><input id={`${activeSeg}-tax-igic`} type="number" step="0.01" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.taxIGIC || 0} onChange={e=>upClient(activeSeg,"taxIGIC",+e.target.value)}/></div>}
                 </div>
-                <button onClick={()=>saveFiscalConfig(activeSeg)} className="w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-2 rounded shadow-sm transition-colors">GUARDAR FISCALIDAD PARA ESTE SEGMENTO</button>
+                {fiscalMsg && (
+                  <div className={`mb-2 px-3 py-2 rounded-lg text-xs font-bold ${fiscalMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {fiscalMsg.type === 'success' ? '✓' : '✗'} {fiscalMsg.text}
+                  </div>
+                )}
+                <button type="button" onClick={()=>saveFiscalConfig(activeSeg)} className="w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-2 rounded shadow-sm transition-colors">GUARDAR FISCALIDAD PARA ESTE SEGMENTO</button>
               </div>
             )}
           </div>
         )}
-        {sub === "tar" && TariffPane({ segId: activeSeg })}
-        {sub === "comp" && <CompPane segId={activeSeg} activeSeg={activeSeg} c={clients[activeSeg]} taxModel={getSegMeta(activeSeg).taxModel} potP={getSegMeta(activeSeg).potP} segTariffs={getSegTariffs(activeSeg).filter(t => t.selected)} segDef={segDef} segLabel={segDef.label} user={user} comercialData={comercialData} />}
+        {sub === "tar" && renderTariffPane({ segId: activeSeg })}
+        {sub === "comp" && (
+          (clients[activeSeg]?.dias ?? 0) <= 0
+            ? <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-sm text-center">
+                Introduce las fechas de inicio y fin de la factura para calcular los días del período.
+              </div>
+            : <CompPane segId={activeSeg} activeSeg={activeSeg} c={clients[activeSeg]} taxModel={getSegMeta(activeSeg).taxModel} potP={getSegMeta(activeSeg).potP} segTariffs={getSegTariffs(activeSeg).filter(t => t.selected)} segDef={segDef} segLabel={segDef.label} user={user} comercialData={comercialData} />
+        )}
       </div>
     </div>
   );

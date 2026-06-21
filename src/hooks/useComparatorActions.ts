@@ -53,7 +53,7 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
     if (isSaving || !user) return;
     
     if (!selectedTariffId) {
-      alert('Por favor, selecciona una tarifa válida antes de continuar');
+      showResult('error', 'Selecciona una tarifa válida antes de continuar');
       return;
     }
     if (!selectedResult) return;
@@ -100,7 +100,7 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
 
   const handlePDF = () => {
     if (!selectedTariffId) {
-      alert('Por favor, selecciona una tarifa válida antes de continuar');
+      showResult('error', 'Selecciona una tarifa válida antes de continuar');
       return;
     }
     try {
@@ -112,7 +112,7 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
 
   const handleExcel = async () => {
     if (!selectedTariffId) {
-      alert('Por favor, selecciona una tarifa válida antes de continuar');
+      showResult('error', 'Selecciona una tarifa válida antes de continuar');
       return;
     }
     try {

@@ -50,6 +50,17 @@ export interface Notice {
   updated_at: string;
 }
 
+export interface CalculationData {
+  saving?: number;
+  segment?: string;
+  tax_model?: string;
+  pot_prices?: number;
+  best_tariff?: string;
+  available_tariffs?: unknown[];
+  client_data?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface ClientComparison {
   id: string;
   user_id: string;
@@ -58,7 +69,7 @@ export interface ClientComparison {
   client_address: string | null;
   target_tariff: string | null;
   target_segment: string | null;
-  calculation_data: Record<string, unknown>;
+  calculation_data: CalculationData;
   deleted_by_user: boolean;
   created_at: string;
   profiles?: {

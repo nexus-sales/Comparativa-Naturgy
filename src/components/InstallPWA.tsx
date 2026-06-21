@@ -36,10 +36,8 @@ export function InstallPWA() {
     // Mostrar el prompt nativo
     await deferredPrompt.prompt();
     
-    // Esperar a la elección del usuario
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
-    
+    await deferredPrompt.userChoice;
+
     // Limpiar el evento guardado
     setDeferredPrompt(null);
     setShowBanner(false);

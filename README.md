@@ -1,165 +1,109 @@
-﻿# Naturgy Pro — Comparativa Canarias (Vite + React + Supabase)
+# Naturgy Pro — Comparativa Canarias (Vite + React + Supabase)
 
 ## Configuración de Supabase
 
 1. Crea un proyecto en [Supabase](https://supabase.com).
-2. Ejecuta el SQL de `supabase/schema_v2.sql` en el SQL Editor de tu proyecto Supabase.
+2. Ejecuta el esquema SQL en el SQL Editor de tu proyecto Supabase (solicitar al equipo de desarrollo).
 3. Copia las credenciales (URL y Anon Key) en un archivo `.env` basado en `.env.example`.
 4. Habilita el método de autenticación `Email/Password`.
 
 ## Desarrollo
 
-'npm install'
-'npm run dev'
+```
+npm install
+npm run dev
+```
 
 ## Lógica de Seguridad (RLS)
 
-- **Comerciales**: Pueden ver todas las tarifas ('SELECT'), pero no editarlas.
-- **Administradores**: Tienen permisos totales ('ALL'). Para hacer a un usuario administrador, cambia el campo 'is_admin' a 'true' en la tabla 'public.profiles' para su 'id' correspondiente.
-
-## Mantenimiento y Correcciones Recientes
-
-### Junio 2026 — Energía reactiva, 3 decimales truncados y mejoras de exportación
-
-#### Energía reactiva (tarifas 3.0TD / 6.1TD — tipo `hex`)
-
-- Nuevo campo `reactiva?: number[]` y `reactivaRate?: number[]` (6 posiciones) en `SegCliente`.
-- `CalcResult` incluye `reactiva?: number` (coste total, positivo).
-- `calc()` suma la penalización reactiva al subtotal antes de aplicar el Impuesto Eléctrico, de modo que queda correctamente dentro de la base imponible.
-- `ComparatorView`: bloque de inputs P1–P6 (kVArh exceso + €/kVArh) visible solo en segmentos de 6 periodos. Línea "Reactiva (penalización)" en el desglose de cada tarifa.
-- PDF: bloque "ENERGÍA REACTIVA" con fila por periodo y línea final "COSTE REACTIVA", pintado solo cuando `potP === 6` y `r.reactiva > 0`.
-- Excel: filas `Energia reactiva` y `Compensacion excedentes` añadidas a `rowDefs` en ambas variantes (PYME y residencial).
-- `UserHistoryView`: el objeto `SegCliente` reconstruido al regenerar una comparativa guardada incluye `reactiva` y `reactivaRate` con guarda `Array.isArray`, de modo que las comparativas de 6 periodos conservan la reactiva al reabrirse desde el historial.
-- **Sin cambios en Supabase**: los arrays viajan dentro del JSONB `calculation_data.client_data` vía `{ ...c }`.
-
-#### Decimales: 3 cifras truncadas (sin redondeo)
-
-- `fmtEur` pasa a `d = 3` por defecto y usa `Math.trunc` en lugar de `toFixed` para evitar redondeos (`1,2349 €` → `1,234 €`).
-- `fmtRaw` aplica la misma truncación (mantiene `d = 2` por defecto para inputs).
-- PDF `fmt()`: elimina el `.replace(/,?0+$/, '')` interno → los importes en € muestran siempre 3 decimales fijos (`45,600 €`); los `.replace` en call sites de precios unitarios (€/kWh, €/kW, €/kVArh) siguen recortando ceros de relleno.
-- Excel: formato numérico `#,##0.000` aplicado a todas las celdas de importe; `fmtRaw` de "Mejor opción" pasa a 3 decimales.
-
-#### Excedentes kWh con decimales
-
-- Input "Excedentes kWh" pasa de `fmtRaw(enExc, 0)` a `fmtRaw(enExc, 3)` — evitaba que el descuento usase el entero en lugar del valor real con decimales.
-- PDF: la columna kWh de excedentes usa `fmt(c.enExc, 3)` en lugar de `fmt(c.enExc, 0)`.
-
-#### Avisos: fix de carga permanente para comerciales
-
-- `NoticesView.useEffect` refactorizado con `try/catch/finally`: si Supabase devuelve error, se loguea con `console.error`, `notices` queda vacío y `setLoading(false)` siempre se ejecuta en el `finally`. Antes la pantalla se quedaba en "Cargando avisos..." indefinidamente ante cualquier fallo de red.
+- **Comerciales**: Pueden ver todas las tarifas (`SELECT`), pero no editarlas.
+- **Administradores**: Tienen permisos totales (`ALL`). Para hacer a un usuario administrador, cambia el campo `is_admin` a `true` en la tabla `public.profiles` para su `id` correspondiente.
 
 ---
 
-### Junio 2026 — Importador de tarifas PYME + tipo tri6 (rama `importador-pyme`)
+## Historial de versiones
 
-Ampliación del modelo de datos y nuevo componente de importación masiva de las 36 tarifas de luz PYME de Naturgy.
+### v1.2.0 — Junio 2026 · Calculadora de Comisiones integrada
 
-#### Nuevo tipo de tarifa: `tri6`
+Nueva sección **Comisiones** disponible para todos los usuarios autenticados. Integra la herramienta de seguimiento de ventas previamente disponible como app independiente.
 
-| Tipo  | Periodos energía | Periodos potencia | Segmentos        |
-|-------|-----------------|-------------------|------------------|
-| `uni` | 1               | 2 ó 6             | pyme20, pyme30, pyme61 |
-| `tri` | 3               | 2                 | pyme20           |
-| `tri6`| 3               | 6                 | pyme30, pyme61   |
-| `hex` | 6               | 6                 | pyme30, pyme61   |
+#### Pestaña Comisiones (`src/components/commissions/CommissionsView.tsx`)
 
-- `tri6` añadido a `TarifaLocal.tipo` en `calculations.ts` y al mapa `nEnMap`.
-- `TariffForm` corregido: el número de periodos de potencia lo decide el segmento (`pot_p`), no el tipo; eliminado el forzado a `hex` para segmentos de 6 periodos.
+**🏢 Pyme**
+- Datos del cliente: nombre/razón social, CUPS, tarifa contratada, fecha de venta.
+- Consumo anual directo o desglose mes a mes (12 inputs).
+- Cálculo de comisión para 6 planes (Fijo/Variable × ONE/Luz/Supra) según tabla vigente desde 01/02/2026.
+- Tres tramos de cálculo: plana (≤10.000 kWh), fórmula por MWh (10.001–400.000 kWh), tabla fija (>400.000 kWh). N/C para consumos >1.000.000 kWh.
+- Selección del plan con un clic → añadir directamente a Mis Ventas.
 
-#### Constraints SQL necesarias (Supabase SQL Editor)
+**🏠 Residencial**
+- Selector de producto: Luz / Gas / Dual / Servicios.
+- Comisiones base editables (persistidas en `localStorage`).
+- Tramos de Rappel (4 tramos activables) y Adoc (3 tramos con referencia) configurables.
+- Comisión total = base + rappel activo.
 
-```sql
-ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS chk_ren_len;
-ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS chk_rpot_len;
-ALTER TABLE tariffs DROP CONSTRAINT IF EXISTS tariffs_type_check;
+**📋 Mis Ventas**
+- Sub-tabs Pyme / Residencial con selector de mes de cobro.
+- Fecha de activación editable por cliente; mes de cobro = activación + 1 mes (cálculo automático).
+- KPIs: nº clientes, total comisiones, media por cliente.
+- Exportación PDF (ventana de impresión nativa, sin dependencias extra).
+- Exportación Excel con hoja oculta `DATOS_SISTEMA` para backup/restore completo.
+- Botones `Guardar copia` / `Abrir copia` para migrar datos entre dispositivos.
 
-ALTER TABLE tariffs ADD CONSTRAINT chk_ren_len CHECK (
-  (type='uni'  AND array_length(r_en,1)=1) OR
-  (type='tri'  AND array_length(r_en,1)=3) OR
-  (type='tri6' AND array_length(r_en,1)=3) OR
-  (type='hex'  AND array_length(r_en,1)=6)
-);
-ALTER TABLE tariffs ADD CONSTRAINT chk_rpot_len CHECK (array_length(r_pot,1) IN (2,6));
-ALTER TABLE tariffs ADD CONSTRAINT tariffs_type_check CHECK (type IN ('uni','tri','tri6','hex'));
+#### Arquitectura
 
--- Segmento pyme361 unificado (si no existe ya pyme30/pyme61 por separado)
-INSERT INTO segments (id, label, tax_model, pot_p, bono_rate, excedente_rate, tax_imp_elec, tax_igic, tax_igic_red, tax_igic_7)
-SELECT 'pyme30','Pyme 3.0TD',tax_model,6,bono_rate,excedente_rate,tax_imp_elec,tax_igic,tax_igic_red,tax_igic_7
-FROM segments WHERE id='pyme20' ON CONFLICT (id) DO NOTHING;
+- `src/utils/commissionCalc.ts` — lógica de cálculo y tipos TypeScript (tablas de tramos, helpers de fecha/mes, defaults de Rappel/Adoc).
+- Todos los datos persisten en `localStorage` (`naturgy_ventas`, `naturgy_ventas_res`, `naturgy_res_com`, `naturgy_res_rappel`, `naturgy_res_adoc2`). Sin tablas nuevas en Supabase.
+- Lazy load con `React.lazy()` + `Suspense`: el chunk de Comisiones (~470 kB gzip ~150 kB) solo se descarga al abrir la pestaña por primera vez.
+- Dependencia añadida: `xlsx` (SheetJS) para lectura de backup Excel.
 
-INSERT INTO segments (id, label, tax_model, pot_p, bono_rate, excedente_rate, tax_imp_elec, tax_igic, tax_igic_red, tax_igic_7)
-SELECT 'pyme61','Pyme 6.1TD',tax_model,6,bono_rate,excedente_rate,tax_imp_elec,tax_igic,tax_igic_red,tax_igic_7
-FROM segments WHERE id='pyme20' ON CONFLICT (id) DO NOTHING;
-```
+---
 
-#### TariffImporter — importación masiva desde Excel o JSON
+### v1.1.1 — Junio 2026 · Dashboard como pantalla principal
 
-- Botón "Importar Excel PYME" en el panel admin de tarifas.
-- Acepta el Excel oficial `NC-Productos-Captacion-PYMES-*.xlsx` (hoja `JUN26_3_VP`) o el archivo de referencia `Tarifas pyme 36.json`.
-- Extrae las 36 tarifas (4 planes × 3 accesos × 3 variantes base/ONE/SUPRA) con detección automática de tipo y segmento.
-- Muestra tabla de revisión con nombres, segmentos, tipos y precios antes de confirmar.
-- Toggle "Desactivar tarifas anteriores de los mismos segmentos" (activo por defecto) para evitar duplicados: pone `is_active = false` a las tarifas viejas antes de insertar las nuevas.
-- Upsert por `name + segment_id`: actualiza si existe, crea si no existe. Nunca borra.
+#### Nueva pestaña "Inicio" (DashboardView)
 
-#### Mapeo de columnas Excel (hoja JUN26_3_VP)
+- `src/components/dashboard/DashboardView.tsx` — nuevo componente, sustituye al Comparador como pantalla de inicio tras el login.
+- Tab **Inicio** añadido al nav (icono `Home`); orden: Inicio → Comercial → Usuario → Historial → Avisos → Comisiones → Admin.
+- El banner de perfil incompleto se muestra también en el Dashboard.
 
-- Potencia: columnas C6–C11 (P1–P6), compartidas entre las 3 variantes.
-- Energía base: C12–C17 (uni/tri/hex) o **C14–C16** (tri6, desplazamiento +2 confirmado).
-- Energía ONE: C19–C24 (uni/tri/hex) o **C21–C23** (tri6).
-- Energía SUPRA: C26–C31 (uni/tri/hex) o **C28–C30** (tri6).
-- Nota: los planes Variable pyme30/pyme61 (tri6) usan fórmulas de mercado en el Excel; si las celdas devuelven error, usar `Tarifas pyme 36.json` como fuente.
+#### KPIs y gráficas
 
-### Mayo 2026 — Refactorización Arquitectural Completa (v2.0.0)
+- **Fila 1** — métricas globales del mes: ofertas, ahorro total, ahorro medio, comerciales activos (admin) / mis ofertas hoy (comercial).
+- **Fila 2** — desglose por segmento: Residencial, PYME 2.0TD, PYME 3.0TD, PYME 6.1TD con top tarifa más ofertada.
+- Gráficas con **Recharts 3.8.1**: línea de tendencia 6 meses, barras horizontales por comercial (admin), barras verticales por sector (comercial).
+- Widget de avisos activos y actividad reciente (últimas 5 comparativas).
+- Sin cambios en Supabase — reutiliza las mismas tablas (`client_comparisons`, `profiles`, `notices`).
 
-Auditoría de seguridad y calidad completa con reset de base de datos y refactorización integral del código.
+---
 
-#### Base de datos
+### v1.1.0 — Junio 2026 · Energía reactiva, importador PYME y fixes
 
-- Reset completo de Supabase: esquema único y definitivo `supabase/schema_v2.sql` reemplaza 13 migraciones inconsistentes.
-- Eliminados los bugs críticos de RLS: `is_admin()` renombrada a `is_user_admin()` de forma consistente (los fallos previos provocaban que las tarifas no se guardasen y que el historial desapareciese).
-- FK de `client_comparisons.user_id → profiles.id` para soporte correcto del JOIN en la API de Supabase.
+#### Energía reactiva (3.0TD / 6.1TD)
+- Campo `reactiva` en `SegCliente` y `CalcResult`; incluida en base imponible del Impuesto Eléctrico.
+- UI: inputs P1–P6 kVArh + €/kVArh visible en segmentos de 6 periodos.
+- PDF y Excel actualizados con bloque de reactiva.
+- Historial: `SegCliente` reconstruido incluye `reactiva` y `reactivaRate`.
 
-#### Estado global (Zustand)
+#### Importador de tarifas PYME
+- Botón "Importar Excel PYME" en panel admin.
+- Acepta `NC-Productos-Captacion-PYMES-*.xlsx` (hoja `JUN26_3_VP`) o JSON de referencia.
+- Detecta automáticamente tipo (`uni`/`tri`/`tri6`/`hex`) y segmento. Upsert por nombre + segmento.
+- Nuevo tipo `tri6`: 3 periodos energía + 6 periodos potencia (pyme30/pyme61).
 
-- Nuevo store `src/store/useAppStore.ts` con métodos `load()`, `refresh()` y `reset()`.
-- Eliminado el hack `window.refreshAppCache` (global JS inyectado al window).
-- Eliminado `src/hooks/useData.ts` (reemplazado por el store).
-- Cache local con TTL de 30 minutos e hidratación síncrona al inicio.
+#### Fixes y mejoras
+- `fmtEur` trunca a 3 decimales sin redondeo (`Math.trunc`).
+- `NoticesView`: `try/catch/finally` evita pantalla de carga infinita ante fallos de red.
+- `AdminView`: auditoría de tipos en historial, cast `CalculationData` correcto.
+- ESLint: regla `@typescript-eslint/no-unused-vars` configurada con `argsIgnorePattern: "^_"`.
 
-#### Seguridad
+---
 
-- Eliminada la constante `OWNER_ADMIN_EMAILS` con el email del admin en el bundle de cliente.
-- El rol de administrador se determina exclusivamente desde `profiles.is_admin` en Supabase.
+### v1.0.0 — Mayo 2026 · Refactorización Arquitectural Completa
 
-#### Calidad de código
-
-- Eliminados todos los tipos `any`: nuevo fichero `src/types/index.ts` con interfaces `Profile`, `Segment`, `Tariff` y `ClientComparison`.
-- Stale closure corregida en `useAuth.ts`: `checkAdminStatus` recibe el objeto `User` completo en lugar de cerrarse sobre el estado de React.
-- Bug de doble guardado corregido en `ComparatorView`: botones GUARDAR y PDF desactivados mientras `isSaving=true`.
-- Bug `hasLoaded` eliminado en `UserHistoryView`: la vista ahora puede refrescar datos; añadido botón "Actualizar".
-- Corrección de todos los caracteres mal codificados en la UI (UTF-8, visible como `◆` en el navegador).
-- Build limpio: 0 errores TypeScript (`tsc --noEmit` + `vite build`).
-
-### Mayo 2026 - Corrección de errores de compilación (Build Fix)
-Se han solucionado varios problemas de TypeScript que impedían el despliegue automático en Vercel:
-
-1.  **Contexto de Autenticación**: Se integró `useAuth()` en el componente `ComparatorView` de [src/App.tsx](src/App.tsx) para resolver errores de referencia de la variable `user` durante la exportación de PDFs y el guardado de historial.
-2.  **Validación de Tipos**: Se implementó un bypass seguro mediante casting en [src/App.tsx](src/App.tsx) para el campo `email` del cliente (requerido para el historial RGPD pero no definido en la interfaz base `SegCliente`).
-3.  **Corrección de UI/UX**: En [src/components/auth/AuthOverlay.tsx](src/components/auth/AuthOverlay.tsx), se eliminaron atributos no válidos en elementos HTML (propiedad `variant` en botones nativos) y se especificó el tipo de botón para evitar envíos de formulario involuntarios.
-4.  **Verificación de Despliegue**: Se confirmó la solución mediante un build exitoso (`npm run build`) eliminando errores `TS2552`, `TS2339` y `TS2322`.
-
-### Mayo 2026 - Historial Avanzado y Seguridad RLS (v1.1.0)
-Se ha implementado un sistema robusto de gestión de datos y seguridad:
-
-1. **Historial de Comparativas**: Nueva vista de Historial que permite a los colaboradores ver sus cálculos pasados y a los admins supervisar toda la actividad.
-2. **Re-generación de PDF**: Sistema de guardado mediante snapshots JSON que permite regenerar el documento PDF original en cualquier momento con exactitud.
-3. **Borrado Lógico (Soft Delete)**: Cuando un colaborador borra una comparativa, esta desaparece de su vista pero se mantiene una copia de seguridad accesible únicamente por el Administrador.
-4. **Seguridad RLS Avanzada**: Corrección de errores de recursión infinita en Supabase mediante el uso de funciones SECURITY DEFINER (is_user_admin).
-5. **Gestión de Roles**: Implementación de lógica diferenciada donde los colaboradores solo acceden a lo propio mientras los administradores tienen visión global del negocio.
-
-### Refactorización y Mejoras (Mayo 2026)
-- **Modularización Completa**: Se ha desglosado el archivo App.tsx (originalmente >2100 líneas) en componentes independientes (ComparatorView, AdminView, UserHistoryView, UserProfileView) para mejorar la mantenibilidad.
-- **Corrección de Bucle Infinito (Supabase RLS)**: Se implementó la función public.is_admin() con SECURITY DEFINER para romper la recursión infinita en las políticas de la tabla profiles.
-- **Estabilidad del Panel Admin**: Reparada la lógica de guardado de tarifas. Ahora valida y recorta los arrays de precios (_pot, _en) según el tipo de tarifa (uni, 	ri, hex) para cumplir con las restricciones de la base de datos.
-- **Accesibilidad y UI**: Se han añadido etiquetas label, id únicos y atributos ARIA en el comparador para mejorar la accesibilidad y depuración.
-- **Sincronización de Cache**: Se habilitó una función global efreshAppCache para asegurar que los cambios realizados en el panel de administración se reflejen instantáneamente en las vistas de usuario.
+- Reset completo de Supabase: esquema único y definitivo, 13 migraciones anteriores eliminadas.
+- RLS corregida: `is_user_admin()` con `SECURITY DEFINER` elimina recursión infinita.
+- Store Zustand (`useAppStore`) con `load()`, `refresh()`, `reset()` y cache TTL 30 min.
+- Eliminados todos los tipos `any`: `src/types/index.ts` con interfaces `Profile`, `Segment`, `Tariff`, `ClientComparison`, `CalculationData`.
+- Historial con soft delete, re-generación PDF desde snapshot JSON y vista admin global.
+- Build 0 errores TypeScript + ESLint.
