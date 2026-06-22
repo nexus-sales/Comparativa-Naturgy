@@ -7,6 +7,7 @@ import { AdminView } from "./components/admin/AdminView";
 import { UserHistoryView } from "./components/history/UserHistoryView";
 import { UserProfileView } from "./components/profile/UserProfileView";
 import { AuthStatus } from "./components/auth/AuthOverlay";
+import { ResetPasswordView } from "./components/auth/ResetPasswordView";
 import { InstallPWA } from "./components/InstallPWA";
 import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X, Bell, Home, Calculator } from "lucide-react";
 import { NoticesView } from "./components/notices/NoticesView";
@@ -93,6 +94,10 @@ function App() {
     const timer = setTimeout(() => { if (authLoading) setAuthTimeout(true); }, 6000);
     return () => clearTimeout(timer);
   }, [authLoading]);
+
+  if (window.location.pathname === '/reset-password') {
+    return <ResetPasswordView onComplete={() => { window.location.href = window.location.origin; }} />;
+  }
 
   if (authLoading && !authTimeout) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">

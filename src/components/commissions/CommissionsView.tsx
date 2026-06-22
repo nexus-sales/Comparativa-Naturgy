@@ -820,11 +820,21 @@ export function CommissionsView({ profile }: Props) {
   );
 }
 
+// ── HTML escape helper ────────────────────────────────────────────────────────
+function esc(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── PDF helpers ───────────────────────────────────────────────────────────────
 function buildPymePdfHtml(ventas: VentaPyme[], total: number, mes: string, colaborador: string): string {
   const fecha = new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Comisiones Pyme – ${mesLabel(mes)}</title>
+<title>Comisiones Pyme – ${esc(mesLabel(mes))}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',sans-serif;color:#1e293b;padding:32px;background:#fff}
@@ -845,8 +855,8 @@ tr:nth-child(even) td{background:#fafafa}
 <div class="header">
 <div><div class="logo">⚡ Naturgy <span>Colaboradores</span></div>
 <div style="font-size:12px;color:#64748b;margin-top:4px">Comisiones Pymes · Vigente desde 01/02/2026</div></div>
-<div class="meta"><strong>Comisiones ${mesLabel(mes)}</strong>
-${colaborador ? `<span style="display:block;font-size:13px;color:#1e293b;font-weight:700;margin-top:2px">👤 ${colaborador}</span>` : ""}
+<div class="meta"><strong>Comisiones ${esc(mesLabel(mes))}</strong>
+${colaborador ? `<span style="display:block;font-size:13px;color:#1e293b;font-weight:700;margin-top:2px">👤 ${esc(colaborador)}</span>` : ""}
 Generado: ${fecha}</div>
 </div>
 <h2>Ventas del mes · ${ventas.length} cliente${ventas.length !== 1 ? "s" : ""}</h2>
@@ -856,13 +866,13 @@ Generado: ${fecha}</div>
 </tr></thead><tbody>
 ${ventas.map((v, i) => `<tr>
 <td style="color:#94a3b8;font-size:11px">${i + 1}</td>
-<td><strong>${v.nombre}</strong></td>
-<td style="font-family:monospace;font-size:10px">${v.cups || "—"}</td>
-<td><span style="background:#f1f5f9;color:#475569;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${v.tarifa || "—"}</span></td>
+<td><strong>${esc(v.nombre)}</strong></td>
+<td style="font-family:monospace;font-size:10px">${esc(v.cups) || "—"}</td>
+<td><span style="background:#f1f5f9;color:#475569;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${esc(v.tarifa) || "—"}</span></td>
 <td class="num">${v.kwh.toLocaleString("es-ES")}</td>
-<td><span style="background:#fff7ed;color:#ED7004;border:1px solid #fed7aa;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${v.planLabel}</span></td>
+<td><span style="background:#fff7ed;color:#ED7004;border:1px solid #fed7aa;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${esc(v.planLabel)}</span></td>
 <td class="num" style="color:#ED7004;font-weight:700">${v.comision.toFixed(2).replace(".", ",")} €</td>
-<td>${v.fechaVenta}</td><td>${v.fechaActivacion || "—"}</td><td>${mesLabel(v.mesCobro)}</td>
+<td>${esc(v.fechaVenta)}</td><td>${esc(v.fechaActivacion) || "—"}</td><td>${esc(mesLabel(v.mesCobro))}</td>
 </tr>`).join("")}
 </tbody><tfoot><tr class="total-row">
 <td colspan="6" style="padding-left:10px">TOTAL COMISIONES</td>
@@ -877,7 +887,7 @@ ${ventas.map((v, i) => `<tr>
 function buildResPdfHtml(ventas: VentaRes[], total: number, mes: string, colaborador: string, rappel: number): string {
   const fecha = new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Comisiones Residencial – ${mesLabel(mes)}</title>
+<title>Comisiones Residencial – ${esc(mesLabel(mes))}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',sans-serif;color:#1e293b;padding:32px;background:#fff}
@@ -897,9 +907,9 @@ tr:nth-child(even) td{background:#fafafa}
 </style></head><body>
 <div class="header">
 <div><div class="logo">🏠 Naturgy <span>Residencial</span></div>
-<div style="font-size:12px;color:#64748b;margin-top:4px">Comisiones Residencial · ${mesLabel(mes)}</div></div>
-<div class="meta"><strong>Comisiones ${mesLabel(mes)}</strong>
-${colaborador ? `<span style="display:block;font-size:13px;color:#1e293b;font-weight:700;margin-top:2px">👤 ${colaborador}</span>` : ""}
+<div style="font-size:12px;color:#64748b;margin-top:4px">Comisiones Residencial · ${esc(mesLabel(mes))}</div></div>
+<div class="meta"><strong>Comisiones ${esc(mesLabel(mes))}</strong>
+${colaborador ? `<span style="display:block;font-size:13px;color:#1e293b;font-weight:700;margin-top:2px">👤 ${esc(colaborador)}</span>` : ""}
 Generado: ${fecha}</div>
 </div>
 <h2>Ventas del mes · ${ventas.length} cliente${ventas.length !== 1 ? "s" : ""}</h2>
@@ -908,13 +918,13 @@ Generado: ${fecha}</div>
 </tr></thead><tbody>
 ${ventas.map((v, i) => `<tr>
 <td style="color:#94a3b8;font-size:11px">${i + 1}</td>
-<td><strong>${v.nombre}</strong></td>
-<td style="font-family:monospace;font-size:10px">${v.cups || "—"}</td>
-<td style="font-weight:700;text-transform:uppercase">${v.producto}</td>
+<td><strong>${esc(v.nombre)}</strong></td>
+<td style="font-family:monospace;font-size:10px">${esc(v.cups) || "—"}</td>
+<td style="font-weight:700;text-transform:uppercase">${esc(v.producto)}</td>
 <td class="num">${v.comisionBase.toFixed(2).replace(".", ",")} €</td>
 <td class="num" style="color:#16a34a">${rappel > 0 ? "+" + rappel.toFixed(2).replace(".", ",") + " €" : "—"}</td>
 <td class="num" style="color:#7c3aed;font-weight:700">${(v.comisionBase + rappel).toFixed(2).replace(".", ",")} €</td>
-<td>${v.fechaVenta}</td><td>${v.fechaActivacion || "—"}</td><td>${mesLabel(v.mesCobro)}</td>
+<td>${esc(v.fechaVenta)}</td><td>${esc(v.fechaActivacion) || "—"}</td><td>${esc(mesLabel(v.mesCobro))}</td>
 </tr>`).join("")}
 </tbody><tfoot><tr class="total-row">
 <td colspan="6" style="padding-left:10px">TOTAL COMISIONES</td>
