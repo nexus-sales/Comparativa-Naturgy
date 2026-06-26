@@ -76,12 +76,12 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
           <p className={`text-xl font-black ${accentRes ? "text-orange-500" : "text-blue-600"}`}>{fmtEur(best.r.total, 2)}</p>
         </div>
         <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
-          <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO MENSUAL</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase">{c.dias > 0 ? `AHORRO PERÍODO (${c.dias}d)` : "AHORRO PERÍODO"}</p>
           <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh, 2) : "—"}</p>
         </div>
         <div className={`bg-white p-4 rounded-2xl border-2 ${bestAh > 0 ? "border-green-500" : "border-slate-200"}`}>
-          <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO ANUAL</p>
-          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 ? fmtEur(bestAh * 12, 2) : "—"}</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase">AHORRO ANUAL EST.</p>
+          <p className={`text-xl font-black ${bestAh > 0 ? "text-green-600" : "text-slate-400"}`}>{bestAh > 0 && c.dias > 0 ? fmtEur((bestAh / c.dias) * 365, 2) : "—"}</p>
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
                     t.id === selectedTariffId ? "bg-blue-100 border-x-2 border-b-2 border-blue-500" : ""
                   } ${t.id === best.t.id ? (accentRes ? "text-orange-500" : "text-blue-600") : "text-slate-700"}`}>
                     {fmtEur(r.total, 2)}
-                    {ah > 0.01 && <span className="block text-[9px] font-normal text-green-600">-{fmtEur(ah, 2)}</span>}
+                    {ah > 0.01 && <span className="block text-[9px] font-normal text-green-600">+{fmtEur(ah, 2)}</span>}
                   </td>
                 );
               })}

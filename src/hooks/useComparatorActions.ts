@@ -33,7 +33,13 @@ export function buildResults(taxModel: string, potP: number, c: SegCliente, segT
 }
 
 function confirmInvoiceDiscrepancy(c: SegCliente, calculatedTotal: number): boolean {
-  if (c.factura <= 0 || calculatedTotal <= 0) return true;
+  // Caso: factura en cero o vacía — el ahorro calculado no sería representativo
+  if (c.factura <= 0) {
+    return window.confirm(
+      `La factura del cliente está en 0 €.\n\nEl ahorro calculado no será representativo.\n\n¿Continuar igualmente?`
+    );
+  }
+  if (calculatedTotal <= 0) return true;
 
   const ratio = Math.abs(c.factura - calculatedTotal) / calculatedTotal;
   if (ratio <= INVOICE_DISCREPANCY_THRESHOLD) return true;
