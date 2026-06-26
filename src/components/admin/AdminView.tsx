@@ -499,7 +499,7 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
                   <div>
                     <div className="flex items-center gap-1.5">
                       <p className="font-bold text-slate-800 text-sm">{p.email}</p>
-                      {isTargetSuperAdmin && <Crown size={13} className="text-amber-500 flex-shrink-0" title="Super Administrador" />}
+                      {isTargetSuperAdmin && <Crown size={13} className="text-amber-500 flex-shrink-0" />}
                     </div>
                     <p className="text-xs text-slate-400">
                       {isTargetSuperAdmin ? "Super Administrador" : p.is_admin ? "Administrador" : "Comercial"}
