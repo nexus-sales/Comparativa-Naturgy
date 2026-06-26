@@ -52,8 +52,8 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex gap-2">
-        <button type="button" onClick={handlePDF} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs">PDF INFORME</button>
-        <button type="button" onClick={handleExcel} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs">EXCEL</button>
+        <button type="button" onClick={handlePDF} disabled={isSaving} className="flex-1 bg-[#002855] text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">PDF INFORME</button>
+        <button type="button" onClick={handleExcel} disabled={isSaving} className="flex-1 bg-green-700 text-white py-3 rounded-xl font-bold text-xs disabled:opacity-60">EXCEL</button>
         <button type="button" onClick={() => saveComp("SAVE")} disabled={isSaving} className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg disabled:opacity-60">
           {isSaving ? "Guardando..." : "GUARDAR"}
         </button>
