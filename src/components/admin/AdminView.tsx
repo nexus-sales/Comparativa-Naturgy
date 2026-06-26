@@ -94,32 +94,39 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
 
   const toggleApprove = async (id: string, current: boolean) => {
     const nextApproved = !current;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .update({ is_approved: nextApproved, is_blocked: !nextApproved })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (error) { showMsg('error', "Error al actualizar usuario: " + error.message); return; }
-    setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: nextApproved, is_blocked: !nextApproved } : p));
+    if (!data || data.length === 0) { showMsg('error', "Sin permiso para modificar este usuario. Comprueba las políticas RLS en Supabase."); return; }
+    setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_approved: nextApproved, is_blocked: !nextApproved } : p));
+    showMsg('success', nextApproved ? "Acceso aprobado." : "Acceso bloqueado.");
   };
 
   const toggleAdmin = async (id: string, current: boolean) => {
     setPendingConfirm(null);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .update({ is_admin: !current, is_approved: true, is_blocked: false })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (error) { showMsg('error', "Error al actualizar permisos: " + error.message); return; }
-    setProfiles(profiles.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true, is_blocked: false } : p));
+    if (!data || data.length === 0) { showMsg('error', "Sin permiso para modificar este usuario. Comprueba las políticas RLS en Supabase."); return; }
+    setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true, is_blocked: false } : p));
   };
 
   const deactivateUser = async (id: string) => {
     setPendingConfirm(null);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .update({ is_approved: false, is_blocked: true })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     if (error) { showMsg('error', "Error al dar de baja el acceso: " + error.message); return; }
-    setProfiles(profiles.map(p => p.id === id ? { ...p, is_approved: false, is_blocked: true } : p));
+    if (!data || data.length === 0) { showMsg('error', "Sin permiso para modificar este usuario. Comprueba las políticas RLS en Supabase."); return; }
+    setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_approved: false, is_blocked: true } : p));
     showMsg('success', "Acceso dado de baja. El historial se conserva para Admin.");
   };
 
