@@ -155,7 +155,7 @@ function pdfPage(
   });
 
   color([140, 140, 140] as any); norm(6);
-  tx('Creado para Cris Energy. @ todos los derechos reservados', L, y + 5);
+  tx('Creado por Grupo LMB @ todos los derechos reservados', L, y + 5);
   y += 6;
 
   fill([255, 244, 230] as any); stroke(or); doc.rect(L, y, CW, 7, 'FD'); vl(L + 110, y, 7);
@@ -301,7 +301,7 @@ function pdfPage(
   if (comercial.email) { color([100, 100, 100] as any); norm(6.5); tx(comercial.email, L + 70, y); y += 5; }
 
   color([140, 140, 140] as any); norm(6);
-  tx('Creado para Cris Energy. @ todos los derechos reservados', L, y);
+  tx('Creado por Grupo LMB @ todos los derechos reservados', L, y);
   y += 5;
 
   y = Math.max(y, 260); // Empujar el cuadro de firma hacia abajo si hay espacio
