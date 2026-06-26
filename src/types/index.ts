@@ -4,6 +4,7 @@ export interface Profile {
   full_name: string | null;
   phone: string | null;
   is_admin: boolean;
+  is_super_admin: boolean;
   is_approved: boolean;
   is_blocked: boolean | null;
   last_login_at: string | null;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star, Upload } from "lucide-react";
+import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star, Upload, Crown } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
@@ -18,9 +18,10 @@ interface AdminViewProps {
   segments: Segment[];
   tariffs: Tariff[];
   user: User;
+  isSuperAdmin: boolean;
 }
 
-export function AdminView({ segments, tariffs, user }: AdminViewProps) {
+export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewProps) {
   const { refresh: refreshStore } = useAppStore();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [history, setHistory] = useState<ClientComparison[]>([]);
@@ -36,7 +37,8 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
   type PendingConfirm =
     | { action: 'toggleAdmin'; id: string; current: boolean }
     | { action: 'deactivate'; id: string; email: string }
-    | { action: 'deleteTariff'; id: string };
+    | { action: 'deleteTariff'; id: string }
+    | { action: 'deleteProfile'; id: string; email: string };
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -139,6 +141,14 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
       showMsg('success', "Tarifa eliminada");
       void refreshStore();
     }
+  };
+
+  const deleteProfile = async (id: string) => {
+    setPendingConfirm(null);
+    const { error } = await supabase.from("profiles").delete().eq("id", id);
+    if (error) { showMsg('error', "Error al eliminar usuario: " + error.message); return; }
+    setProfiles(prev => prev.filter(p => p.id !== id));
+    showMsg('success', "Usuario eliminado del sistema.");
   };
 
   const closeForm = () => { setShowTariffForm(false); setEditingTariff(null); };
@@ -476,57 +486,96 @@ export function AdminView({ segments, tariffs, user }: AdminViewProps) {
 
       {view === "users" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {profiles.map(p => (
-            <div key={p.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-bold text-slate-800 text-sm">{p.email}</p>
-                  <p className="text-xs text-slate-400">{p.is_admin ? "Administrador" : "Comercial"}</p>
+          {profiles.map(p => {
+            const isSelf = p.id === user.id;
+            const isTargetSuperAdmin = p.is_super_admin;
+            // Regular admins cannot touch other admins or super admins
+            const canAct = isSuperAdmin ? !isSelf : (!p.is_admin && !isTargetSuperAdmin);
+            const canApprove = isSuperAdmin ? !isSelf && !isTargetSuperAdmin : !p.is_admin && !isTargetSuperAdmin;
+
+            return (
+              <div key={p.id} className={`p-4 bg-white border rounded-xl shadow-sm ${isTargetSuperAdmin ? "border-amber-300 bg-amber-50/30" : "border-slate-200"}`}>
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-slate-800 text-sm">{p.email}</p>
+                      {isTargetSuperAdmin && <Crown size={13} className="text-amber-500 flex-shrink-0" title="Super Administrador" />}
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {isTargetSuperAdmin ? "Super Administrador" : p.is_admin ? "Administrador" : "Comercial"}
+                    </p>
+                  </div>
+
+                  {pendingConfirm?.action === 'toggleAdmin' && pendingConfirm.id === p.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-purple-700 font-bold">{pendingConfirm.current ? "¿Quitar admin?" : "¿Hacer admin?"}</span>
+                      <button type="button" onClick={() => toggleAdmin(p.id, pendingConfirm.current)} className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">Sí</button>
+                      <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                    </div>
+                  ) : pendingConfirm?.action === 'deactivate' && pendingConfirm.id === p.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-red-600 font-bold">¿Dar de baja?</span>
+                      <button type="button" onClick={() => deactivateUser(p.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
+                      <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                    </div>
+                  ) : pendingConfirm?.action === 'deleteProfile' && pendingConfirm.id === p.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-red-700 font-bold">¿Eliminar usuario?</span>
+                      <button type="button" onClick={() => deleteProfile(p.id)} className="px-2 py-1 bg-red-700 text-white text-xs font-bold rounded-lg hover:bg-red-800">Sí</button>
+                      <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
+                    </div>
+                  ) : canAct ? (
+                    <div className="flex gap-2">
+                      {!isTargetSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => setPendingConfirm({ action: 'toggleAdmin', id: p.id, current: p.is_admin })}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
+                          title={p.is_admin ? "Quitar admin" : "Hacer admin"}
+                        >
+                          {p.is_admin ? "Admin ✓" : "Hacer admin"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPendingConfirm({ action: 'deactivate', id: p.id, email: p.email })}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Dar de baja acceso"
+                      >
+                        <UserX size={16} />
+                      </button>
+                      {isSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => setPendingConfirm({ action: 'deleteProfile', id: p.id, email: p.email })}
+                          className="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar usuario permanentemente"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ) : isSelf ? (
+                    <span className="text-xs text-slate-400 italic">Tu cuenta</span>
+                  ) : (
+                    <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                      <Crown size={12} /> Protegido
+                    </span>
+                  )}
                 </div>
-                {pendingConfirm?.action === 'toggleAdmin' && pendingConfirm.id === p.id ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-purple-700 font-bold">{pendingConfirm.current ? "¿Quitar admin?" : "¿Hacer admin?"}</span>
-                    <button type="button" onClick={() => toggleAdmin(p.id, pendingConfirm.current)} className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">Sí</button>
-                    <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
-                  </div>
-                ) : pendingConfirm?.action === 'deactivate' && pendingConfirm.id === p.id ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-red-600 font-bold">¿Dar de baja?</span>
-                    <button type="button" onClick={() => deactivateUser(p.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
-                    <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPendingConfirm({ action: 'toggleAdmin', id: p.id, current: p.is_admin })}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
-                      title={p.is_admin ? "Quitar admin" : "Hacer admin"}
-                    >
-                      {p.is_admin ? "Admin ✓" : "Hacer admin"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingConfirm({ action: 'deactivate', id: p.id, email: p.email })}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Dar de baja acceso"
-                    >
-                      <UserX size={16} />
-                    </button>
-                  </div>
+
+                {canApprove && (
+                  <button
+                    type="button"
+                    onClick={() => toggleApprove(p.id, p.is_approved)}
+                    className={`w-full mt-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_approved ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
+                  >
+                    {p.is_approved ? "🔒 Bloquear acceso" : "✓ Aprobar acceso"}
+                  </button>
                 )}
               </div>
-              {!p.is_admin && (
-                <button
-                  type="button"
-                  onClick={() => toggleApprove(p.id, p.is_approved)}
-                  className={`w-full mt-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_approved ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
-                >
-                  {p.is_approved ? "🔒 Bloquear acceso" : "✓ Aprobar acceso"}
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

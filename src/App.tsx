@@ -57,7 +57,7 @@ async function signOutAndReset(resetStore: () => void) {
 }
 
 function App() {
-  const { user, loading: authLoading, isAdmin, profile } = useAuth();
+  const { user, loading: authLoading, isAdmin, isSuperAdmin, profile } = useAuth();
   const { segments, tariffs, loading: dataLoading, error: dataError, load, refresh, reset } = useAppStore();
   type ActiveTab = "dashboard" | "comparator" | "admin" | "profile" | "history" | "notices" | "commissions";
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
@@ -215,7 +215,7 @@ function App() {
             )}
             {isAdmin && (
               <div className={effectiveTab === "admin" ? "" : "hidden"}>
-                <AdminView segments={segments} tariffs={tariffs} user={user} />
+                <AdminView segments={segments} tariffs={tariffs} user={user} isSuperAdmin={isSuperAdmin} />
               </div>
             )}
           </>

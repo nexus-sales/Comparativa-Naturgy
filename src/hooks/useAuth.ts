@@ -10,6 +10,7 @@ function fallbackProfile(user: User): Profile {
     full_name: null,
     phone: null,
     is_admin: false,
+    is_super_admin: false,
     is_approved: false,
     is_blocked: null,
     last_login_at: null,
@@ -44,6 +45,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
@@ -61,7 +63,9 @@ export function useAuth() {
 
         if (data) {
           setProfile(data as Profile);
-          setIsAdmin((data.is_admin ?? false) && !(data.is_blocked ?? false));
+          const active = !(data.is_blocked ?? false);
+          setIsAdmin((data.is_admin ?? false) && active);
+          setIsSuperAdmin((data.is_super_admin ?? false) && active);
         } else {
           setProfile(fallbackProfile(authUser));
           // Retry once after 2s — network may be reconnecting after sleep
@@ -85,6 +89,7 @@ export function useAuth() {
       setUser(null);
       setProfile(null);
       setIsAdmin(false);
+      setIsSuperAdmin(false);
       setLoading(false);
     }
 
@@ -118,6 +123,7 @@ export function useAuth() {
         setUser(null);
         setProfile(null);
         setIsAdmin(false);
+        setIsSuperAdmin(false);
         setLoading(false);
         return;
       }
@@ -173,6 +179,7 @@ export function useAuth() {
           setUser(null);
           setProfile(null);
           setIsAdmin(false);
+          setIsSuperAdmin(false);
         }
       } catch { /* ignore — will retry on next interaction */ }
     };
@@ -187,5 +194,5 @@ export function useAuth() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { user, loading, isAdmin, profile };
+  return { user, loading, isAdmin, isSuperAdmin, profile };
 }
