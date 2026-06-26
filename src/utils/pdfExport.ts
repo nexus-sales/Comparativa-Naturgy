@@ -269,20 +269,20 @@ function pdfPage(
   color(navy); bold(10); tx(fmtE(c.factura), L + 130, y + 8, { align: 'right' });
   color([120, 120, 120] as any); norm(6); tx('AHORRO', L + 134, y + 3.5);
   if (ahorro > 0.001) {
-    color(ahCol); bold(10); tx('- ' + fmtE(Math.abs(ahorro)), R - 2, y + 8, { align: 'right' });
-  } else if (ahorro < -0.001) {
     color(ahCol); bold(10); tx('+ ' + fmtE(Math.abs(ahorro)), R - 2, y + 8, { align: 'right' });
+  } else if (ahorro < -0.001) {
+    color(ahCol); bold(10); tx('- ' + fmtE(Math.abs(ahorro)), R - 2, y + 8, { align: 'right' });
   } else {
     color([150, 150, 150] as any); bold(10); tx('SIN DIF.', R - 2, y + 8, { align: 'right' });
   }
   y += 9;
   fill([255, 244, 230] as any); stroke(or); doc.rect(L, y, CW, 7, 'FD'); vl(L + 68, y, 7);
-  color(or); bold(7.5); tx(ahorro < -0.01 ? 'NATURGY PUEDE MEJORAR SU FACTURA' : '**OFERTA TIEMPO LIMITADO', L + 2, y + 4.5);
+  color(or); bold(7.5); tx(ahorro > 0.01 ? 'NATURGY PUEDE MEJORAR SU FACTURA' : '**OFERTA TIEMPO LIMITADO', L + 2, y + 4.5);
   color([100, 100, 100] as any); norm(7); tx('AHORRO ESTIMADO', L + 70, y + 4.5);
   if (ahorro > 0.001) {
-    color(ahCol); bold(9); tx('-' + pct + '%', R - 2, y + 4.5, { align: 'right' });
-  } else if (ahorro < -0.001) {
     color(ahCol); bold(9); tx('+' + pct + '%', R - 2, y + 4.5, { align: 'right' });
+  } else if (ahorro < -0.001) {
+    color(ahCol); bold(9); tx('-' + pct + '%', R - 2, y + 4.5, { align: 'right' });
   } else {
     color([150, 150, 150] as any); bold(9); tx('0%', R - 2, y + 4.5, { align: 'right' });
   }

@@ -317,7 +317,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
                   <div className="flex-1 font-bold text-slate-800 text-sm">{t.nombre}</div>
                   <div className="text-right">
                     <div className="font-black text-[#002855]">{fmtEur(r.total, 2)}</div>
-                    {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"-":"+"}{fmtEur(Math.abs(ah), 2)}</div>}
+                    {c.factura>0 && <div className={`text-[10px] font-bold ${ah>0.005?"text-green-600":"text-red-500"}`}>{ah>0?"+":"-"}{fmtEur(Math.abs(ah), 2)}</div>}
                   </div>
                 </div>
                 {isOpen && (
