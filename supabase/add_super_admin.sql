@@ -38,6 +38,13 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Superusuario de Postgres (Table Editor, migraciones): sin restricción.
+  -- auth.uid() devuelve NULL fuera de una sesión autenticada, por lo que el
+  -- trigger trataría al DBA como un usuario sin privilegios. Este bypass lo evita.
+  IF current_user IN ('postgres', 'supabase_admin', 'service_role') THEN
+    RETURN NEW;
+  END IF;
+
   -- Super admin: unrestricted
   IF public.is_user_super_admin() THEN
     RETURN NEW;
