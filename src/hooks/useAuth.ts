@@ -105,7 +105,13 @@ export function useAuth() {
 
         if (session?.user) {
           setUser(session.user);
-          await checkAdminStatus(session.user);
+          // Don't await: the profile lookup is a second network round-trip and
+          // isn't needed to know *whether* there's a session. Letting the app
+          // shell render as soon as auth is known (instead of after both calls)
+          // roughly halves time-to-first-paint, especially when Supabase's
+          // connection pooler is cold. checkAdminStatus has its own try/catch
+          // and updates profile/isAdmin/loading-gated access reactively.
+          checkAdminStatus(session.user);
         }
       } catch (err) {
         console.error("Auth init error:", err);
