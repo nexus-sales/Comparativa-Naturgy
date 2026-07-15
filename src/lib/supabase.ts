@@ -9,11 +9,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // In-memory promise chain: serialises auth calls within this tab without
 // touching navigator.locks or localStorage. Each call is chained onto the
-// previous one; the chain itself never stays rejected so it can't deadlock.
+// previous one. The chain advances after LOCK_TIMEOUT_MS even if `fn` never
+// settles, so one hung call (e.g. a stuck getSession() on mount) can't
+// permanently block every later sign-in/session call in this tab.
+const LOCK_TIMEOUT_MS = 15_000;
 let authChain: Promise<unknown> = Promise.resolve();
 const lock = <R,>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
-  const run = authChain.then(fn, fn);                          // runs fn after the previous call, pass or fail
-  authChain = run.then(() => undefined, () => undefined);      // keep the chain always resolved
+  const run = authChain.then(fn, fn);
+  authChain = Promise.race([
+    run.then(() => undefined, () => undefined),
+    new Promise<undefined>((resolve) => setTimeout(resolve, LOCK_TIMEOUT_MS)),
+  ]);
   return run;
 };
 

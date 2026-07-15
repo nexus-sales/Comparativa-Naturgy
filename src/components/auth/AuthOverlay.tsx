@@ -2,6 +2,19 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { HelpCircle, X, Eye, EyeOff } from 'lucide-react';
 
+const AUTH_TIMEOUT_MS = 15_000;
+
+// Bounds any single auth call so a hung request can't leave the UI stuck on
+// "Cargando..." forever — surfaces a retryable error instead.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Tiempo de espera agotado. Comprueba tu conexión e inténtalo de nuevo.')), ms)
+    ),
+  ]);
+}
+
 export const AuthStatus = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -26,7 +39,7 @@ export const AuthStatus = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { error } = await withTimeout(supabase.auth.signUp({
           email,
           password,
           options: {
@@ -35,14 +48,14 @@ export const AuthStatus = () => {
               accepted_terms: true,
             }
           }
-        });
+        }), AUTH_TIMEOUT_MS);
         if (error) throw error;
         setMessage('Registro casi completado. Revisa tu email para confirmar tu cuenta.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await withTimeout(supabase.auth.signInWithPassword({
           email,
           password,
-        });
+        }), AUTH_TIMEOUT_MS);
         if (error) {
           if (error.message.includes('blocked')) {
             throw new Error('Tu cuenta ha sido suspendida. Contacta con el administrador.');
@@ -63,12 +76,17 @@ export const AuthStatus = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setLoading(false);
-    if (error) setError(error.message);
-    else setMessage('Se ha enviado un enlace de recuperación a tu email.');
+    try {
+      const { error } = await withTimeout(supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      }), AUTH_TIMEOUT_MS);
+      if (error) setError(error.message);
+      else setMessage('Se ha enviado un enlace de recuperación a tu email.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al enviar el email de recuperación');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
