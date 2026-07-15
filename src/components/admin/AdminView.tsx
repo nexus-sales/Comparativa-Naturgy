@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase, withTimeout } from "../../lib/supabase";
 import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star, Upload, Crown } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur } from "../../utils/calculations";
@@ -839,8 +839,8 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
       const request = isEdit
         ? supabase.from("tariffs").update(payload).eq("id", tariff!.id)
         : supabase.from("tariffs").insert([payload]);
-      
-      const { error } = await request;
+
+      const { error } = await withTimeout(request);
 
 
       if (error) {

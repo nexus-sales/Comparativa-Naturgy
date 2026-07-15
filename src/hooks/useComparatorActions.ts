@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, withTimeout } from "../lib/supabase";
 import { calc, fmtEur, CHART_COLS } from "../utils/calculations";
 import { exportPDF, type ComercialData } from "../utils/pdfExport";
 import { exportExcel } from "../utils/excelExport";
@@ -98,7 +98,7 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
       }
     };
 
-    const { error } = await supabase.from("client_comparisons").insert(payload);
+    const { error } = await withTimeout(supabase.from("client_comparisons").insert(payload));
     if (error) throw error;
   };
 

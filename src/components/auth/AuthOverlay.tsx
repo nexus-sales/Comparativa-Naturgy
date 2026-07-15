@@ -1,19 +1,8 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase, withTimeout } from '../../lib/supabase';
 import { HelpCircle, X, Eye, EyeOff } from 'lucide-react';
 
 const AUTH_TIMEOUT_MS = 15_000;
-
-// Bounds any single auth call so a hung request can't leave the UI stuck on
-// "Cargando..." forever — surfaces a retryable error instead.
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Tiempo de espera agotado. Comprueba tu conexión e inténtalo de nuevo.')), ms)
-    ),
-  ]);
-}
 
 export const AuthStatus = () => {
   const [loading, setLoading] = useState(false);

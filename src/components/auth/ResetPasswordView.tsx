@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase, withTimeout } from '../../lib/supabase';
 import { Eye, EyeOff, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface Props {
@@ -24,12 +24,12 @@ export function ResetPasswordView({ onComplete }: Props) {
     const type = params.get('type');
 
     if (type === 'recovery' && accessToken && refreshToken) {
-      supabase.auth
-        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+      withTimeout(supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }))
         .then(({ error: err }) => {
           if (err) setError('El enlace de recuperación es inválido o ha expirado. Solicita uno nuevo.');
           else setReady(true);
-        });
+        })
+        .catch(() => setError('Tiempo de espera agotado al validar el enlace. Recarga la página e inténtalo de nuevo.'));
     } else {
       setError('Enlace incompleto. Asegúrate de haber abierto el enlace completo del email.');
     }
@@ -47,15 +47,20 @@ export function ResetPasswordView({ onComplete }: Props) {
     }
     setLoading(true);
     setError(null);
-    const { error: err } = await supabase.auth.updateUser({ password });
-    if (err) {
-      setError(err.message);
+    try {
+      const { error: err } = await withTimeout(supabase.auth.updateUser({ password }));
+      if (err) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
+      await withTimeout(supabase.auth.signOut({ scope: 'local' }));
+      setDone(true);
+      setTimeout(onComplete, 2500);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al guardar la contraseña');
       setLoading(false);
-      return;
     }
-    await supabase.auth.signOut({ scope: 'local' });
-    setDone(true);
-    setTimeout(onComplete, 2500);
   };
 
   if (done) {

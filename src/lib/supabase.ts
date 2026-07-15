@@ -32,3 +32,15 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
     lock,
   },
 })
+
+// Every supabase-js call (auth, REST inserts/selects, etc.) reads the
+// current session through the lock above before it can fire its request. If
+// that lock is still stuck on a previous hung call, the new call waits
+// silently with no feedback and no way to retry. Wrap call sites with this
+// so the UI always gets a result within `ms` instead of hanging forever.
+export function withTimeout<T>(promise: PromiseLike<T>, ms = 15_000, message = 'Tiempo de espera agotado. Comprueba tu conexión e inténtalo de nuevo.'): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
