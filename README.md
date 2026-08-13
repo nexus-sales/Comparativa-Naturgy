@@ -1,27 +1,77 @@
-# Naturgy Pro — Comparativa Canarias (Vite + React + Supabase)
+# Naturgy Pro — Comparativa Canarias (Vite + React + Express + PostgreSQL)
 
-## Configuración de Supabase
+Admin único, autocontenida: sin Supabase ni ningún servicio externo. El
+frontend (Vite/React) habla con una API propia (`server/`, Express) que lee y
+escribe directamente en Postgres.
 
-1. Crea un proyecto en [Supabase](https://supabase.com).
-2. Ejecuta el esquema SQL en el SQL Editor de tu proyecto Supabase (solicitar al equipo de desarrollo).
-3. Copia las credenciales (URL y Anon Key) en un archivo `.env` basado en `.env.example`.
-4. Habilita el método de autenticación `Email/Password`.
+## Stack
+
+- **Frontend**: Vite 8 + React 19 + TypeScript, SPA.
+- **Backend**: Express (`server/index.js`) — sirve la API bajo `/api/*` y, en
+  producción, también los estáticos del build de Vite (un único proceso/puerto).
+- **Base de datos**: PostgreSQL propio, esquema en `db/init.sql` (sin RLS,
+  sin tabla de usuarios — un solo admin).
+- **Auth**: contraseña única vía `ADMIN_PASSWORD`, cookie de sesión firmada
+  con HMAC-SHA256, rate limiting de login por IP.
+
+## Variables de entorno
+
+Copia `.env.example` a `.env` y rellena:
+
+```
+DATABASE_URL      # postgres://user:pass@host:5432/db
+DATABASE_SSL      # vacío (por defecto, sin TLS) | "require" | "strict"
+ADMIN_PASSWORD    # contraseña de acceso a la app
+SESSION_SECRET    # cadena aleatoria larga para firmar la cookie de sesión
+PORT              # opcional, por defecto 3000
+```
 
 ## Desarrollo
 
 ```
 npm install
-npm run dev
+psql "$DATABASE_URL" -f db/init.sql   # una vez, para crear el esquema
+npm run dev:full                       # vite + servidor API en paralelo
 ```
 
-## Lógica de Seguridad (RLS)
+`npm run dev` (solo frontend) y `npm run dev:server` (solo API) también
+existen por separado si prefieres dos terminales — Vite hace proxy de
+`/api` hacia `http://localhost:3000` en desarrollo.
 
-- **Comerciales**: Pueden ver todas las tarifas (`SELECT`), pero no editarlas.
-- **Administradores**: Tienen permisos totales (`ALL`). Para hacer a un usuario administrador, cambia el campo `is_admin` a `true` en la tabla `public.profiles` para su `id` correspondiente.
+## Producción / Dokploy
+
+- `npm run build` compila el frontend a `dist/`; `npm start` arranca
+  `server/index.js`, que sirve la API y esos estáticos en el mismo proceso.
+- `nixpacks.toml` fija Node 22.
+- **Las migraciones no viajan con el despliegue**: tras el primer deploy hay
+  que aplicar `db/init.sql` a mano contra la base de datos del servicio.
+- El catálogo de tarifas (`tariffs`) no lleva datos de partida — se rellena
+  a mano o con el importador de Excel/JSON del panel Admin.
 
 ---
 
 ## Historial de versiones
+
+### v2.0.0 — Agosto 2026 · Migración a servidor propio (fin de Supabase)
+
+- Sustituido Supabase (Auth + PostgREST) por un backend Express propio
+  (`server/`) sobre PostgreSQL, desplegado en VPS propio vía Dokploy/Nixpacks.
+- Auth multiusuario con roles/aprobación → **admin único** con contraseña
+  vía `ADMIN_PASSWORD`, cookie de sesión firmada y rate limiting de login.
+  Eliminados: registro público, confirmación por email, reset de contraseña
+  por email, panel de gestión de usuarios en Admin.
+- Esquema nuevo en `db/init.sql`: `segments`, `tariffs`, `client_comparisons`,
+  `notices` — sin RLS ni tabla `profiles`. `client_comparisons.user_id` y
+  `notices.created_by` eliminados (no aplica con un solo usuario). Tablas
+  vacías al desplegar: no se migró histórico de Supabase.
+- Datos del comercial (nombre/teléfono/email para PDF/Excel) ya no viven en
+  una tabla `profiles`: se guardan en `localStorage` (pestaña Usuario).
+- `src/lib/supabase.ts` → `src/lib/api.ts`; todos los componentes que
+  llamaban al cliente de Supabase ahora hablan con la API propia.
+- Compresión gzip añadida en el servidor (`compression`) — sin ella el
+  bundle principal (~1,1MB) se servía sin comprimir y tardaba ~80s en cargar.
+
+---
 
 ### v1.2.0 — Junio 2026 · Calculadora de Comisiones integrada
 
