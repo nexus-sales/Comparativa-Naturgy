@@ -1,77 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase";
+import { useState } from "react";
 import { Users } from "lucide-react";
-import type { User } from "@supabase/supabase-js";
-import type { Profile } from "../../types";
+import { useComercialSettings } from "../../hooks/useComercialSettings";
 
-interface UserProfileViewProps {
-  user: User;
-  profile: Profile | null;
-  isAdmin: boolean;
-}
-
-export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps) {
-  const [saving, setSaving] = useState(false);
+export function UserProfileView() {
+  const { settings, save } = useComercialSettings();
+  const [formData, setFormData] = useState(settings);
   const [message, setMessage] = useState("");
-  const [formData, setFormData] = useState({
-    full_name: "",
-    phone: ""
-  });
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    setFormData({
-      full_name: profile?.full_name || "",
-      phone: profile?.phone || ""
-    });
-  }, [profile, user]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id) {
-      setMessage("Error: no hay sesión activa.");
-      return;
-    }
-
-    setSaving(true);
-    setMessage("");
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    try {
-      const cleanStr = (s: string) => s.replace(/[<>"{}$%]/g, "").trim();
-
-      const payload = {
-        id: user.id,
-        full_name: cleanStr(formData.full_name),
-        phone: cleanStr(formData.phone)
-      };
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(payload)
-        .eq('id', user.id)
-        .abortSignal(controller.signal);
-
-      clearTimeout(timeoutId);
-
-      if (error) {
-        console.error("Update error details:", error);
-        throw error;
-      }
-
-      setMessage("✓ Perfil actualizado correctamente.");
-    } catch (err: unknown) {
-      clearTimeout(timeoutId);
-      console.error("Profile save error:", err);
-      if (err instanceof Error && err.name === 'AbortError') {
-        setMessage("Error al guardar: Tiempo de espera agotado. Revisa tu conexión.");
-      } else {
-        setMessage("Error al guardar: " + (err instanceof Error ? err.message : "Error de red o permisos RLS"));
-      }
-    } finally {
-      setSaving(false);
-    }
+    const cleanStr = (s: string) => s.replace(/[<>"{}$%]/g, "").trim();
+    save({
+      full_name: cleanStr(formData.full_name),
+      phone: cleanStr(formData.phone),
+      email: cleanStr(formData.email),
+    });
+    setMessage("✓ Datos guardados correctamente.");
+    setTimeout(() => setMessage(""), 3000);
   };
 
   return (
@@ -81,8 +26,8 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
           <Users size={32} />
         </div>
         <div>
-          <h2 className="text-2xl font-extrabold text-[#002855]">Mi Perfil</h2>
-          <p className="text-slate-500">Configura tus datos para que aparezcan en las comparativas</p>
+          <h2 className="text-2xl font-extrabold text-[#002855]">Datos del comercial</h2>
+          <p className="text-slate-500">Aparecen en los informes PDF y Excel que generes</p>
         </div>
       </div>
 
@@ -95,8 +40,7 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
               placeholder="Ej: Juan Pérez"
               value={formData.full_name}
-              onChange={e => setFormData({...formData, full_name: e.target.value})}
-              required
+              onChange={e => setFormData({ ...formData, full_name: e.target.value })}
             />
           </div>
           <div className="col-span-1">
@@ -106,37 +50,33 @@ export function UserProfileView({ user, profile, isAdmin }: UserProfileViewProps
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
               placeholder="600 000 000"
               value={formData.phone}
-              onChange={e => setFormData({...formData, phone: e.target.value})}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
             />
           </div>
           <div className="col-span-1 sm:col-span-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">Email Profesional</label>
             <input
               type="email"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 outline-none"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
               placeholder="tu@email.com"
-              value={profile?.email || user?.email || ""}
-              readOnly
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
         </div>
 
         {message && (
-          <div className={`p-4 rounded-xl text-sm font-medium ${message.includes('Error') ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'}`}>
+          <div className="p-4 rounded-xl text-sm font-medium bg-green-50 text-green-700 border border-green-100">
             {message}
           </div>
         )}
 
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="text-xs text-slate-400">
-            Rol actual: <span className="font-bold text-blue-600 uppercase">{isAdmin ? "Administrador" : "Comercial"}</span>
-          </div>
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
           <button
             type="submit"
-            disabled={saving}
             className="bg-[#002855] text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-800 transition-all shadow-lg flex items-center gap-2"
           >
-            {saving ? "Guardando..." : "Guardar Cambios"}
+            Guardar Cambios
           </button>
         </div>
       </form>

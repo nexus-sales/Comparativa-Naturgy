@@ -1,16 +1,3 @@
-export interface Profile {
-  id: string;
-  email: string;
-  full_name: string | null;
-  phone: string | null;
-  is_admin: boolean;
-  is_super_admin: boolean;
-  is_approved: boolean;
-  is_blocked: boolean | null;
-  last_login_at: string | null;
-  accepted_terms_at: string | null;
-}
-
 export interface Segment {
   id: string;
   label: string;
@@ -46,7 +33,6 @@ export interface Notice {
   expires_at: string | null;
   is_highlighted: boolean;
   is_active: boolean;
-  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,7 +50,6 @@ export interface CalculationData {
 
 export interface ClientComparison {
   id: string;
-  user_id: string;
   client_name: string | null;
   client_email: string | null;
   client_address: string | null;
@@ -73,9 +58,13 @@ export interface ClientComparison {
   calculation_data: CalculationData;
   deleted_by_user: boolean;
   created_at: string;
-  profiles?: {
-    email: string | null;
-    full_name: string | null;
-    phone: string | null;
-  } | null;
+}
+
+// Comercial's own contact info, shown on client-facing PDF/Excel exports.
+// Persisted client-side only (localStorage) — single-admin app, no backend
+// "profile" concept needed.
+export interface ComercialSettings {
+  full_name: string;
+  phone: string;
+  email: string;
 }

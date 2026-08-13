@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase, withTimeout } from "../../lib/supabase";
-import { Shield, Trash2, Pencil, Plus, FileText, Users, X, UserX, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star, Upload, Crown } from "lucide-react";
+import { api, withTimeout } from "../../lib/api";
+import { Shield, Trash2, Pencil, Plus, FileText, X, Bell, Zap, Wrench, Newspaper, Archive, RotateCcw, Star, Upload } from "lucide-react";
 import { KPICard } from "../KPICard";
 import { fmtEur } from "../../utils/calculations";
 import { useAppStore } from "../../store/useAppStore";
 import { toSectorFilter } from "../../utils/sectors";
-import type { Segment, Tariff, ClientComparison, Profile, Notice } from "../../types";
-import type { User } from "@supabase/supabase-js";
+import type { Segment, Tariff, ClientComparison, Notice } from "../../types";
 
 const NOTICE_TYPE_CFG = {
   tarifa:   { label: 'Tarifa',   Icon: Zap,       badgeCls: 'bg-orange-100 text-orange-700', borderCls: 'border-l-orange-400' },
@@ -17,28 +16,21 @@ const NOTICE_TYPE_CFG = {
 interface AdminViewProps {
   segments: Segment[];
   tariffs: Tariff[];
-  user: User;
-  isSuperAdmin: boolean;
 }
 
-export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewProps) {
+export function AdminView({ segments, tariffs }: AdminViewProps) {
   const { refresh: refreshStore } = useAppStore();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [history, setHistory] = useState<ClientComparison[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [showNoticeForm, setShowNoticeForm] = useState(false);
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
-  const [view, setView] = useState<"tariffs" | "users" | "history" | "notices">("tariffs");
+  const [view, setView] = useState<"tariffs" | "history" | "notices">("tariffs");
   const [showTariffForm, setShowTariffForm] = useState(false);
   const [editingTariff, setEditingTariff] = useState<Tariff | null>(null);
   const [showImporter, setShowImporter] = useState(false);
   const [filterSegment, setFilterSegment] = useState<string>("all");
   const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  type PendingConfirm =
-    | { action: 'toggleAdmin'; id: string; current: boolean }
-    | { action: 'deactivate'; id: string; email: string }
-    | { action: 'deleteTariff'; id: string }
-    | { action: 'deleteProfile'; id: string; email: string };
+  type PendingConfirm = { action: 'deleteTariff'; id: string };
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -53,102 +45,35 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
   useEffect(() => {
     let active = true;
 
-    const fetchProfiles = async () => {
-      const { data, error } = await supabase.from("profiles").select("*").order("email");
-      if (!active) return;
-      if (error) console.error("Error loading profiles:", error);
-      else if (data) setProfiles(data);
-    };
-
     const fetchNotices = async () => {
-      const { data, error } = await supabase
-        .from('notices')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await api.notices.list();
       if (!active) return;
       if (error) console.error('Error loading notices:', error);
-      else if (data) setNotices(data as Notice[]);
+      else setNotices(data ?? []);
     };
 
     const fetchAdminHistory = async () => {
-      const { data, error } = await supabase.from("client_comparisons")
-        .select("*, profiles(email)")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const { data, error } = await api.comparisons.list(500);
       if (!active) return;
-      if (error) {
-        console.error("Admin History Error (Join failed):", error);
-        const { data: sData } = await supabase.from("client_comparisons")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (active && sData) setHistory(sData);
-      } else if (data) {
-        setHistory(data);
-      }
+      if (error) console.error("Admin History Error:", error);
+      else setHistory(data ?? []);
     };
 
-    void fetchProfiles();
     void fetchNotices();
     void fetchAdminHistory();
 
     return () => { active = false; };
   }, []);
 
-  const toggleApprove = async (id: string, current: boolean) => {
-    const nextApproved = !current;
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ is_approved: nextApproved, is_blocked: !nextApproved })
-      .eq("id", id)
-      .select("id");
-    if (error) { showMsg('error', "Error al actualizar usuario: " + error.message); return; }
-    if (!data || data.length === 0) { showMsg('error', "Sin permiso para modificar este usuario. Comprueba las políticas RLS en Supabase."); return; }
-    setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_approved: nextApproved, is_blocked: !nextApproved } : p));
-    showMsg('success', nextApproved ? "Acceso aprobado." : "Acceso bloqueado.");
-  };
-
-  const toggleAdmin = async (id: string, current: boolean) => {
-    setPendingConfirm(null);
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ is_admin: !current, is_approved: true, is_blocked: false })
-      .eq("id", id)
-      .select("id");
-    if (error) { showMsg('error', "Error al actualizar permisos: " + error.message); return; }
-    if (!data || data.length === 0) { showMsg('error', "Sin permiso para modificar este usuario. Comprueba las políticas RLS en Supabase."); return; }
-    setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_admin: !current, is_approved: true, is_blocked: false } : p));
-  };
-
-  const deactivateUser = async (id: string) => {
-    setPendingConfirm(null);
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({ is_approved: false, is_blocked: true })
-      .eq("id", id)
-      .select("id");
-    if (error) { showMsg('error', "Error al dar de baja el acceso: " + error.message); return; }
-    if (!data || data.length === 0) { showMsg('error', "Sin permiso para modificar este usuario. Comprueba las políticas RLS en Supabase."); return; }
-    setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_approved: false, is_blocked: true } : p));
-    showMsg('success', "Acceso dado de baja. El historial se conserva para Admin.");
-  };
-
   const deleteTariff = async (id: string) => {
     setPendingConfirm(null);
-    const { error } = await supabase.from("tariffs").delete().eq("id", id);
+    const { error } = await api.tariffs.remove(id);
     if (error) {
       showMsg('error', "Error al borrar: " + error.message);
     } else {
       showMsg('success', "Tarifa eliminada");
       void refreshStore();
     }
-  };
-
-  const deleteProfile = async (id: string) => {
-    setPendingConfirm(null);
-    const { error } = await supabase.from("profiles").delete().eq("id", id);
-    if (error) { showMsg('error', "Error al eliminar usuario: " + error.message); return; }
-    setProfiles(prev => prev.filter(p => p.id !== id));
-    showMsg('success', "Usuario eliminado del sistema.");
   };
 
   const closeForm = () => { setShowTariffForm(false); setEditingTariff(null); };
@@ -175,7 +100,6 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
           <button type="button" onClick={() => setView("tariffs")} className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "tariffs"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Tarifas</button>
           <button type="button" onClick={() => setView("history")} className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "history"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Historial</button>
-          <button type="button" onClick={() => setView("users")}   className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "users"    ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>Usuarios</button>
           <button type="button" onClick={() => setView("notices")} className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${view === "notices"  ? "bg-white shadow-sm text-blue-900" : "text-slate-500"}`}>
             <Bell size={14} />Avisos
             {notices.filter(n => n.is_active).length > 0 && (
@@ -278,7 +202,7 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
 
       {view === "history" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <KPICard title="Total Global" value={filteredHistory.length} icon={<FileText className="text-blue-500" size={20} />} />
             <KPICard title="Ahorro Acumulado" value={fmtEur(filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data.saving ?? 0), 0))} icon={<div className="text-green-500 font-bold">€</div>} />
             <KPICard
@@ -286,21 +210,14 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
               value={fmtEur(filteredHistory.length ? filteredHistory.reduce((acc, curr) => acc + (curr.calculation_data.saving ?? 0), 0) / filteredHistory.length : 0)}
               icon={<div className="text-emerald-500 font-bold">⌀</div>}
             />
-            <KPICard title="Top Comercial" value={
-              Object.entries(filteredHistory.reduce<Record<string, number>>((acc, curr) => {
-                const name = curr.profiles?.email?.split('@')[0] || 'Desconocido';
-                acc[name] = (acc[name] || 0) + 1;
-                return acc;
-              }, {})).sort((a, b) => b[1] - a[1])[0]?.[0] || "-"
-            } icon={<Users className="text-orange-500" size={20} />} />
           </div>
 
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400 uppercase">Tarifa:</span>
-              <select 
+              <select
                 title="Filtrar por Tarifa"
-                value={historyFilterTariff} 
+                value={historyFilterTariff}
                 onChange={(e) => setHistoryFilterTariff(e.target.value)}
                 className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
               >
@@ -310,9 +227,9 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400 uppercase">Sector:</span>
-              <select 
+              <select
                 title="Filtrar por Sector"
-                value={historyFilterSegment} 
+                value={historyFilterSegment}
                 onChange={(e) => setHistoryFilterSegment(e.target.value)}
                 className="text-sm border-none bg-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
               >
@@ -337,7 +254,6 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                   <tr>
                     <th scope="col" className="px-6 py-4">Fecha</th>
-                    <th scope="col" className="px-6 py-4">Comercial</th>
                     <th scope="col" className="px-6 py-4">Cliente</th>
                     <th scope="col" className="px-6 py-4">Sector</th>
                     <th scope="col" className="px-6 py-4 text-right">Ahorro</th>
@@ -350,9 +266,6 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
                       <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
                           {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </td>
-                        <td className="px-6 py-4 font-bold text-blue-700">
-                          {item.profiles?.email?.split('@')[0] || 'Desconocido'}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-800">{item.client_name}</td>
                         <td className="px-6 py-4">
@@ -450,7 +363,7 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
                     <button
                       type="button"
                       onClick={async () => {
-                        const { error } = await supabase.from('notices').update({ is_active: !notice.is_active }).eq('id', notice.id);
+                        const { error } = await api.notices.update(notice.id, { is_active: !notice.is_active });
                         if (!error) setNotices(prev => prev.map(n => n.id === notice.id ? { ...n, is_active: !notice.is_active } : n));
                         else showMsg('error', 'Error al actualizar aviso: ' + error.message);
                       }}
@@ -467,7 +380,6 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
 
           {(showNoticeForm || editingNotice) && (
             <NoticeForm
-              user={user}
               notice={editingNotice ?? undefined}
               onClose={() => { setShowNoticeForm(false); setEditingNotice(null); }}
               onSaved={(saved) => {
@@ -483,106 +395,11 @@ export function AdminView({ segments, tariffs, user, isSuperAdmin }: AdminViewPr
           )}
         </div>
       )}
-
-      {view === "users" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {profiles.map(p => {
-            const isSelf = p.id === user.id;
-            const isTargetSuperAdmin = p.is_super_admin;
-            // Regular admins cannot touch other admins or super admins
-            const canAct = isSuperAdmin ? !isSelf : (!p.is_admin && !isTargetSuperAdmin);
-            const canApprove = isSuperAdmin ? !isSelf && !isTargetSuperAdmin : !p.is_admin && !isTargetSuperAdmin;
-
-            return (
-              <div key={p.id} className={`p-4 bg-white border rounded-xl shadow-sm ${isTargetSuperAdmin ? "border-amber-300 bg-amber-50/30" : "border-slate-200"}`}>
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-bold text-slate-800 text-sm">{p.email}</p>
-                      {isTargetSuperAdmin && <Crown size={13} className="text-amber-500 flex-shrink-0" />}
-                    </div>
-                    <p className="text-xs text-slate-400">
-                      {isTargetSuperAdmin ? "Super Administrador" : p.is_admin ? "Administrador" : "Comercial"}
-                    </p>
-                  </div>
-
-                  {pendingConfirm?.action === 'toggleAdmin' && pendingConfirm.id === p.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-purple-700 font-bold">{pendingConfirm.current ? "¿Quitar admin?" : "¿Hacer admin?"}</span>
-                      <button type="button" onClick={() => toggleAdmin(p.id, pendingConfirm.current)} className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700">Sí</button>
-                      <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
-                    </div>
-                  ) : pendingConfirm?.action === 'deactivate' && pendingConfirm.id === p.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-red-600 font-bold">¿Dar de baja?</span>
-                      <button type="button" onClick={() => deactivateUser(p.id)} className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600">Sí</button>
-                      <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
-                    </div>
-                  ) : pendingConfirm?.action === 'deleteProfile' && pendingConfirm.id === p.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-red-700 font-bold">¿Eliminar usuario?</span>
-                      <button type="button" onClick={() => deleteProfile(p.id)} className="px-2 py-1 bg-red-700 text-white text-xs font-bold rounded-lg hover:bg-red-800">Sí</button>
-                      <button type="button" onClick={() => setPendingConfirm(null)} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">No</button>
-                    </div>
-                  ) : canAct ? (
-                    <div className="flex gap-2">
-                      {!isTargetSuperAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => setPendingConfirm({ action: 'toggleAdmin', id: p.id, current: p.is_admin })}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_admin ? "bg-purple-50 text-purple-700" : "bg-slate-100 text-slate-500 hover:bg-purple-50 hover:text-purple-700"}`}
-                          title={p.is_admin ? "Quitar admin" : "Hacer admin"}
-                        >
-                          {p.is_admin ? "Admin ✓" : "Hacer admin"}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setPendingConfirm({ action: 'deactivate', id: p.id, email: p.email })}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Dar de baja acceso"
-                      >
-                        <UserX size={16} />
-                      </button>
-                      {isSuperAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => setPendingConfirm({ action: 'deleteProfile', id: p.id, email: p.email })}
-                          className="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Eliminar usuario permanentemente"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  ) : isSelf ? (
-                    <span className="text-xs text-slate-400 italic">Tu cuenta</span>
-                  ) : (
-                    <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
-                      <Crown size={12} /> Protegido
-                    </span>
-                  )}
-                </div>
-
-                {canApprove && (
-                  <button
-                    type="button"
-                    onClick={() => toggleApprove(p.id, p.is_approved)}
-                    className={`w-full mt-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${p.is_approved ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
-                  >
-                    {p.is_approved ? "🔒 Bloquear acceso" : "✓ Aprobar acceso"}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
 
-function NoticeForm({ notice, onClose, onSaved, user }: { notice?: Notice; onClose: () => void; onSaved: (n: Notice) => void; user: User }) {
+function NoticeForm({ notice, onClose, onSaved }: { notice?: Notice; onClose: () => void; onSaved: (n: Notice) => void }) {
   const isEdit = !!notice;
   const [form, setForm] = useState({
     type:           notice?.type           ?? 'tarifa' as 'tarifa' | 'servicio' | 'noticia',
@@ -617,36 +434,15 @@ function NoticeForm({ notice, onClose, onSaved, user }: { notice?: Notice; onClo
       is_active:      form.is_active,
     };
 
-    // 15s timeout so a hung request surfaces as an error instead of spinning forever.
-    const controller = new AbortController();
-    const withTimeout = <T,>(req: PromiseLike<T>) => Promise.race([
-      req,
-      new Promise<T>((_, reject) => {
-        const t = window.setTimeout(() => reject(new DOMException('Timeout', 'AbortError')), 15000);
-        controller.signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Timeout', 'AbortError')); });
-      }),
-    ]);
-
     try {
-      if (isEdit) {
-        const { data, error } = await withTimeout(
-          supabase.from('notices').update(payload).eq('id', notice!.id).abortSignal(controller.signal).select().maybeSingle()
-        );
-        if (error) { setFormMsg({ type: 'error', text: 'Error al guardar: ' + error.message }); return; }
-        if (data) onSaved(data as Notice);
-        else onSaved({ ...notice!, ...payload } as Notice); // RLS may block read-back; use local copy
-      } else {
-        const { data, error } = await withTimeout(
-          supabase.from('notices').insert([{ ...payload, created_by: user.id }]).abortSignal(controller.signal).select().maybeSingle()
-        );
-        if (error) { setFormMsg({ type: 'error', text: 'Error al crear: ' + error.message }); return; }
-        if (data) onSaved(data as Notice);
-      }
+      const { data, error } = isEdit
+        ? await withTimeout(api.notices.update(notice!.id, payload))
+        : await withTimeout(api.notices.create(payload));
+
+      if (error) { setFormMsg({ type: 'error', text: (isEdit ? 'Error al guardar: ' : 'Error al crear: ') + error.message }); return; }
+      if (data) onSaved(data);
     } catch (err) {
-      const msg = err instanceof Error && err.name === 'AbortError'
-        ? 'Tiempo de espera agotado al guardar. Revisa la conexión y vuelve a intentarlo.'
-        : 'Error inesperado: ' + (err instanceof Error ? err.message : String(err));
-      setFormMsg({ type: 'error', text: msg });
+      setFormMsg({ type: 'error', text: err instanceof Error ? err.message : 'Error inesperado al guardar' });
     } finally {
       setSaving(false);
     }
@@ -836,12 +632,10 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         sva: cleanNum(form.sva),
         requires_auth: form.requires_auth,
       };
-      const request = isEdit
-        ? supabase.from("tariffs").update(payload).eq("id", tariff!.id)
-        : supabase.from("tariffs").insert([payload]);
 
-      const { error } = await withTimeout(request);
-
+      const { error } = isEdit
+        ? await withTimeout(api.tariffs.update(tariff!.id, payload))
+        : await withTimeout(api.tariffs.create(payload));
 
       if (error) {
         setFormMsg({ type: 'error', text: "Error al guardar: " + error.message });
@@ -854,10 +648,7 @@ function TariffForm({ segments, onClose, tariff }: { segments: Segment[]; onClos
         onClose();
       }
     } catch (err) {
-      const timeoutMsg = err instanceof Error && err.name === 'AbortError'
-        ? "Tiempo de espera agotado al guardar. Revisa la conexion y vuelve a intentarlo."
-        : "Error inesperado: " + (err instanceof Error ? err.message : String(err));
-      setFormMsg({ type: 'error', text: timeoutMsg });
+      setFormMsg({ type: 'error', text: err instanceof Error ? err.message : "Error inesperado al guardar" });
       setSaving(false);
     }
   };
@@ -1085,7 +876,7 @@ function TariffImporter({
         const digits     = accessMatch[1].replace('.', ''); // "20", "30", "61"
         const segment_id = digits === '20' ? 'pyme20' : digits === '30' ? 'pyme30' : 'pyme61';
         const meta       = resolvePlanMeta(baseName, digits);
-        if (!meta) return; // GAS or unrecognised plan
+        if (!meta) return; // GAS o plan no reconocido
 
         const { type } = meta;
         const enN  = ({ uni: 1, uni6: 1, tri: 3, tri6: 3, hex: 6 } as Record<string, number>)[type] ?? 1;
@@ -1130,25 +921,24 @@ function TariffImporter({
     try {
       // 1. Deactivate old tariffs in the same segments that are not being updated
       if (replaceSegments && toDeactivate.length) {
-        const { error } = await supabase.from('tariffs')
-          .update({ is_active: false })
-          .in('id', toDeactivate.map(t => t.id));
-        if (error) throw new Error(error.message);
+        const { error } = await api.tariffs.deactivate(toDeactivate.map(t => t.id));
+        if (error) throw error;
       }
 
       // 2. Update matching tariffs (same name + segment)
       const toUpdate = rows.filter(r => r.existingId);
       for (const r of toUpdate) {
         const { existingId, ...payload } = r;
-        const { error } = await supabase.from('tariffs').update(payload).eq('id', existingId!);
-        if (error) throw new Error(error.message);
+        const { error } = await api.tariffs.update(existingId!, payload);
+        if (error) throw error;
       }
 
       // 3. Insert new tariffs
       const toInsert = rows.filter(r => !r.existingId);
-      if (toInsert.length) {
-        const { error } = await supabase.from('tariffs').insert(toInsert.map(({ existingId: _, ...p }) => p));
-        if (error) throw new Error(error.message);
+      for (const r of toInsert) {
+        const { existingId: _, ...payload } = r;
+        const { error } = await api.tariffs.create(payload);
+        if (error) throw error;
       }
 
       await useAppStore.getState().refresh();

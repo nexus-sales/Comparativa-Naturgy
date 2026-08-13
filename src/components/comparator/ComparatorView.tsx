@@ -1,23 +1,19 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { supabase } from "../../lib/supabase";
+import { api, withTimeout } from "../../lib/api";
 import { calc, fmtEur, fmtRaw, makeDefaultClient, CHART_COLS, SEG_DEFS, SVE_CATALOG, SVE_SEGMENT_IDS } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
-import type { ComercialData } from "../../utils/pdfExport";
 import { CompPane } from "./CompPane";
 import { Trash2, AlertTriangle, Shield } from "lucide-react";
 import type { Chart as ChartInstance } from "chart.js";
-import type { Segment, Tariff, Profile } from "../../types";
-import type { User } from "@supabase/supabase-js";
+import type { Segment, Tariff } from "../../types";
+import { useComercialSettings } from "../../hooks/useComercialSettings";
 
 interface ComparatorViewProps {
   segments: Segment[];
   tariffs: Tariff[];
-  isAdmin: boolean;
-  profile: Profile | null;
-  user: User;
 }
 
-export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: ComparatorViewProps) {
+export function ComparatorView({ segments, tariffs }: ComparatorViewProps) {
   const [clients, setClients] = useState<Record<string, SegCliente>>({});
   const hasInitializedClients = useRef(false);
   const [requestedActiveSeg, setActiveSeg] = useState("res");
@@ -43,11 +39,12 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
     : segmentDefs[0]?.id ?? requestedActiveSeg;
   const activeSector = activeSeg === "res" ? "res" : "pyme";
 
-  const [comercialData, setComercialData] = useState<ComercialData>({
-    nombre: profile?.full_name || "Comercial",
-    telefono: profile?.phone || "",
-    email: profile?.email || user?.email || ""
-  });
+  const { settings: comercialSettings } = useComercialSettings();
+  const comercialData = {
+    nombre: comercialSettings.full_name || "Comercial",
+    telefono: comercialSettings.phone || "",
+    email: comercialSettings.email || ""
+  };
 
   useEffect(() => {
     if (segments.length > 0 && !hasInitializedClients.current) {
@@ -67,18 +64,6 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
       hasInitializedClients.current = true;
     }
   }, [segments]);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (profile) {
-      setComercialData({
-        nombre: profile.full_name || "Comercial",
-        telefono: profile.phone || "",
-        email: profile.email || user?.email || ""
-      });
-    }
-  }, [profile, user]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const segDef = segmentDefs.find(s => s.id === activeSeg) ?? segmentDefs[0] ?? SEG_DEFS[0];
 
@@ -172,14 +157,14 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
 
   const saveFiscalConfig = async (segId: string) => {
     const c = clients[segId];
-    const { error } = await supabase.from("segments").update({
+    const { error } = await withTimeout(api.segments.update(segId, {
       bono_rate: c.bonoRate,
       excedente_rate: c.excedenteRate,
       tax_imp_elec: c.taxImpElec,
       tax_igic: c.taxIGIC,
       tax_igic_red: c.taxIGICRed,
       tax_igic_7: c.taxIGIC7
-    }).eq("id", segId);
+    }));
     if (error) {
       setFiscalMsg({ type: 'error', text: error.message });
     } else {
@@ -554,9 +539,9 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
               </div>
             )}
             <div className="mb-4"><label htmlFor={`${activeSeg}-fac`} className="block text-xs font-bold text-blue-700 mb-1">Factura Actual (€)</label><input id={`${activeSeg}-fac`} placeholder="0,00" type="text" className="w-full p-2.5 bg-blue-50 border-blue-200 rounded-lg text-sm font-bold text-blue-700" value={inputValues[`${activeSeg}-fac`] ?? fmtRaw(clients[activeSeg]?.factura,2)} onChange={e=>{const v=e.target.value; setInputValues(p=>({...p,[`${activeSeg}-fac`]:v})); const n=parseFloat(v.replace(/\./g,"").replace(",",".")); if(!isNaN(n)) upClient(activeSeg,"factura",n);}} onBlur={()=>setInputValues(p=>{const n={...p}; delete n[`${activeSeg}-fac`]; return n;})}/></div>
-            {isAdmin && (
+            {(
               <div className="mt-6 pt-4 border-t border-red-100 bg-red-50/50 p-4 rounded-xl">
-                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={12}/> Configuración Fiscal (Admin)</p>
+                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Shield size={12}/> Configuración Fiscal</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                   <div><label htmlFor={`${activeSeg}-tax-imp`} className="text-[10px] text-slate-500">Imp. Elec %</label><input id={`${activeSeg}-tax-imp`} type="number" step="0.001" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.taxImpElec || 0} onChange={e=>upClient(activeSeg,"taxImpElec",+e.target.value)}/></div>
                   <div><label htmlFor={`${activeSeg}-tax-bono`} className="text-[10px] text-slate-500">Bono Social €/d</label><input id={`${activeSeg}-tax-bono`} type="number" step="0.000001" className="w-full p-2 text-xs border rounded" value={clients[activeSeg]?.bonoRate || 0} onChange={e=>upClient(activeSeg,"bonoRate",+e.target.value)}/></div>
@@ -581,7 +566,7 @@ export function ComparatorView({ segments, tariffs, isAdmin, profile, user }: Co
             ? <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-sm text-center">
                 Introduce las fechas de inicio y fin de la factura para calcular los días del período.
               </div>
-            : <CompPane segId={activeSeg} activeSeg={activeSeg} c={clients[activeSeg]} taxModel={getSegMeta(activeSeg).taxModel} potP={getSegMeta(activeSeg).potP} segTariffs={getSegTariffs(activeSeg).filter(t => t.selected)} segDef={segDef} segLabel={segDef.label} user={user} comercialData={comercialData} />
+            : <CompPane segId={activeSeg} activeSeg={activeSeg} c={clients[activeSeg]} taxModel={getSegMeta(activeSeg).taxModel} potP={getSegMeta(activeSeg).potP} segTariffs={getSegTariffs(activeSeg).filter(t => t.selected)} segDef={segDef} segLabel={segDef.label} comercialData={comercialData} />
         )}
       </div>
     </div>

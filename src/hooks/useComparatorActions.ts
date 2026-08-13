@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { supabase, withTimeout } from "../lib/supabase";
+import { api, withTimeout } from "../lib/api";
 import { calc, fmtEur, CHART_COLS } from "../utils/calculations";
 import { exportPDF, type ComercialData } from "../utils/pdfExport";
 import { exportExcel } from "../utils/excelExport";
 import type { SegCliente, TarifaLocal } from "../utils/calculations";
-import type { User } from "@supabase/supabase-js";
 
 export interface ComparatorActionsParams {
-  user: User;
   segLabel: string;
   taxModel: string;
   potP: number;
@@ -49,7 +47,7 @@ function confirmInvoiceDiscrepancy(c: SegCliente, calculatedTotal: number): bool
   );
 }
 
-export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTariffs, comercialData, selectedTariffId }: ComparatorActionsParams) {
+export function useComparatorActions({ segLabel, taxModel, potP, c, segTariffs, comercialData, selectedTariffId }: ComparatorActionsParams) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [saveMsg, setSaveMsg] = useState('');
   const isSaving = saveStatus === 'saving';
@@ -79,7 +77,6 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
   const persistComparison = async (source: "save" | "pdf") => {
     const sEsc = (s: unknown): string => typeof s === "string" ? s.replace(/[<>"{}$%]/g, "").trim() : "";
     const payload = {
-      user_id: user.id,
       client_name: sEsc(c.nombre) || "S/N",
       client_address: sEsc(c.dir),
       target_tariff: selectedResult.t.nombre,
@@ -98,12 +95,12 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
       }
     };
 
-    const { error } = await withTimeout(supabase.from("client_comparisons").insert(payload));
+    const { error } = await withTimeout(api.comparisons.create(payload));
     if (error) throw error;
   };
 
   const saveComp = async (act: "SAVE" | "PDF") => {
-    if (isSaving || !user) return;
+    if (isSaving) return;
     if (!validateSelectedTariff()) return;
     if (!confirmInvoiceDiscrepancy(c, selectedResult.r.total)) return;
 
@@ -123,7 +120,7 @@ export function useComparatorActions({ user, segLabel, taxModel, potP, c, segTar
   };
 
   const handlePDF = async () => {
-    if (isSaving || !user) return;
+    if (isSaving) return;
     if (!validateSelectedTariff()) return;
     if (!confirmInvoiceDiscrepancy(c, selectedResult.r.total)) return;
 

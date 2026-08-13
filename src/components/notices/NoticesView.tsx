@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../lib/api";
 import { ArrowDown, ArrowUp, Bell, Zap, Wrench, Newspaper, Star } from "lucide-react";
 import type { Notice } from "../../types";
 
@@ -96,15 +96,11 @@ export function NoticesView() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchNotices = async () => {
       try {
-        const { data, error } = await supabase
-          .from('notices')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+        const { data, error } = await api.notices.list(true);
         if (error) throw error;
-        if (data) setNotices(data as Notice[]);
+        setNotices(data ?? []);
       } catch (err) {
         console.error('Error cargando avisos:', err);
         setNotices([]);
@@ -112,7 +108,7 @@ export function NoticesView() {
         setLoading(false);
       }
     };
-    void fetch();
+    void fetchNotices();
   }, []);
 
   const sorted   = useMemo(() => sortNotices(notices, sortOrder), [notices, sortOrder]);

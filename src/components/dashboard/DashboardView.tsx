@@ -11,12 +11,11 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { supabase } from "../../lib/supabase";
+import { api, withTimeout } from "../../lib/api";
 import { fmtEur } from "../../utils/calculations";
 import { toSectorFilter } from "../../utils/sectors";
 import { KPICard } from "../KPICard";
 import type { ClientComparison, Notice } from "../../types";
-import type { User } from "@supabase/supabase-js";
 import {
   TrendingUp,
   FileText,
@@ -64,12 +63,10 @@ function sectorColor(label: string): string {
 }
 
 interface DashboardViewProps {
-  user: User;
-  isAdmin: boolean;
   onNavigate: (tab: ActiveTab) => void;
 }
 
-export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps) {
+export function DashboardView({ onNavigate }: DashboardViewProps) {
   const [comparisons, setComparisons] = useState<ClientComparison[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,80 +75,24 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15000);
 
     try {
-      let compQuery = supabase
-        .from("client_comparisons")
-        .select("*")
-        .neq("deleted_by_user", true);
-
-      if (!isAdmin) compQuery = compQuery.eq("user_id", user.id);
-
-      const { data: compData, error: compErr } = await compQuery
-        .order("created_at", { ascending: false })
-        .limit(500)
-        .abortSignal(ctrl.signal);
-
+      const { data: compData, error: compErr } = await withTimeout(api.comparisons.list(500));
       if (compErr) throw compErr;
+      setComparisons(compData ?? []);
 
-      let result = (compData ?? []) as ClientComparison[];
-
-      if (isAdmin && result.length > 0) {
-        const userIds = [...new Set(result.map((c) => c.user_id))];
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, email, full_name, phone")
-          .in("id", userIds)
-          .abortSignal(ctrl.signal);
-
-        if (profilesData) {
-          const pm = Object.fromEntries(
-            (
-              profilesData as Array<{
-                id: string;
-                email: string | null;
-                full_name: string | null;
-                phone: string | null;
-              }>
-            ).map((p) => [p.id, p])
-          );
-          result = result.map((c) => ({
-            ...c,
-            profiles: pm[c.user_id]
-              ? {
-                  email: pm[c.user_id].email,
-                  full_name: pm[c.user_id].full_name,
-                  phone: pm[c.user_id].phone,
-                }
-              : null,
-          }));
-        }
-      }
-
-      setComparisons(result);
-
-      const { data: noticesData } = await supabase
-        .from("notices")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(3)
-        .abortSignal(ctrl.signal);
-
-      setNotices((noticesData ?? []) as Notice[]);
+      const { data: noticesData } = await withTimeout(api.notices.list(true));
+      setNotices((noticesData ?? []).slice(0, 3));
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
+      if (err instanceof Error && err.message.includes("Tiempo de espera")) {
         setError("Tiempo de espera agotado. Pulsa Actualizar para reintentar.");
       } else {
         setError(err instanceof Error ? err.message : String(err));
       }
     } finally {
-      clearTimeout(timer);
       setLoading(false);
     }
-  }, [isAdmin, user.id]);
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchData(); }, [fetchData]);
@@ -163,11 +104,9 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
     totalSavingsMonth,
     avgSavingMonth,
     lineData,
-    comercialData,
     sectorData,
     segGroups,
     recentComparisons,
-    barHeight,
   } = useMemo(() => {
     const n = new Date();
     const monthStart = new Date(n.getFullYear(), n.getMonth(), 1).toISOString();
@@ -190,35 +129,11 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
       };
     });
 
-    const byComercialMap = new Map<string, { name: string; count: number }>();
-    if (isAdmin) {
-      thisMonth.forEach((c) => {
-        if (!byComercialMap.has(c.user_id)) {
-          const name =
-            c.profiles?.full_name ||
-            c.profiles?.email?.split("@")[0] ||
-            "Comercial";
-          byComercialMap.set(c.user_id, { name, count: 0 });
-        }
-        byComercialMap.get(c.user_id)!.count++;
-      });
-    }
-    const comercialData = [...byComercialMap.entries()]
-      .map(([uid, v]) => ({
-        uid,
-        name: uid === user.id ? `${v.name} (Tú)` : v.name,
-        ofertas: v.count,
-        isMe: uid === user.id,
-      }))
-      .sort((a, b) => b.ofertas - a.ofertas);
-
     const sectorMap = new Map<string, number>();
-    if (!isAdmin) {
-      thisMonth.forEach((c) => {
-        const s = toSectorFilter(c.target_segment || c.calculation_data.segment) || "Otro";
-        sectorMap.set(s, (sectorMap.get(s) || 0) + 1);
-      });
-    }
+    thisMonth.forEach((c) => {
+      const s = toSectorFilter(c.target_segment || c.calculation_data.segment) || "Otro";
+      sectorMap.set(s, (sectorMap.get(s) || 0) + 1);
+    });
     const sectorData = [...sectorMap.entries()].map(([sector, ofertas]) => ({ sector, ofertas }));
 
     const segGroups = {
@@ -229,7 +144,6 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
     };
 
     const recentComparisons = comparisons.slice(0, 5);
-    const barHeight = isAdmin ? Math.max(150, comercialData.length * 46) : 160;
 
     return {
       today,
@@ -237,13 +151,11 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
       totalSavingsMonth,
       avgSavingMonth,
       lineData,
-      comercialData,
       sectorData,
       segGroups,
       recentComparisons,
-      barHeight,
     };
-  }, [comparisons, isAdmin, user.id]);
+  }, [comparisons]);
 
   const noticeColor = (n: Notice) => {
     if (n.is_highlighted) return "bg-orange-500";
@@ -260,8 +172,6 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
           <h2 className="text-2xl font-extrabold text-[#002855]">Dashboard</h2>
           <p className="text-slate-400 text-sm">
             {new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
-            {" · "}
-            {isAdmin ? "Vista global · todos los comerciales" : "Mis estadísticas"}
           </p>
         </div>
         <button
@@ -288,7 +198,7 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
       {/* KPIs globales */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
-          title={isAdmin ? "Ofertas este mes" : "Mis ofertas (mes)"}
+          title="Ofertas (mes)"
           value={loading ? "…" : thisMonth.length}
           icon={<FileText className="text-orange-500" size={20} />}
         />
@@ -303,12 +213,8 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
           icon={<TrendingUp className="text-blue-500" size={20} />}
         />
         <KPICard
-          title={isAdmin ? "Comerciales activos" : "Mis ofertas hoy"}
-          value={
-            loading ? "…" : isAdmin
-              ? new Set(thisMonth.map((c) => c.user_id)).size
-              : comparisons.filter((c) => c.created_at.startsWith(today)).length
-          }
+          title="Ofertas hoy"
+          value={loading ? "…" : comparisons.filter((c) => c.created_at.startsWith(today)).length}
           icon={<Users className="text-purple-500" size={20} />}
         />
       </div>
@@ -378,58 +284,18 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
           )}
         </div>
 
-        {/* Barras: por comercial (admin) o por sector (comercial) */}
+        {/* Barras: por sector */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-1">
-            <Users size={16} className={isAdmin ? "text-blue-500" : "text-orange-500"} />
-            <h3 className="font-bold text-slate-700 text-sm">
-              {isAdmin ? "Ofertas por comercial (mes)" : "Por sector (mes)"}
-            </h3>
+            <Users size={16} className="text-orange-500" />
+            <h3 className="font-bold text-slate-700 text-sm">Por sector (mes)</h3>
           </div>
-          {isAdmin && (
-            <p className="text-[10px] text-slate-400 mb-3 flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Tú
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-300 inline-block" /> Otros
-              </span>
-            </p>
-          )}
           {loading ? (
             <div className="h-40 flex items-center justify-center text-slate-300 text-sm animate-pulse">
               Cargando…
             </div>
-          ) : isAdmin ? (
-            <ResponsiveContainer width="100%" height={barHeight}>
-              <BarChart
-                data={comercialData}
-                layout="vertical"
-                margin={{ top: 0, right: 12, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={90}
-                  tick={{ fontSize: 11, fill: "#64748b" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12, border: "1px solid #f1f5f9", fontSize: 12 }}
-                  labelStyle={{ fontWeight: 700, color: "#002855" }}
-                />
-                <Bar dataKey="ofertas" radius={[0, 5, 5, 0]}>
-                  {comercialData.map((entry) => (
-                    <Cell key={entry.uid} fill={entry.isMe ? "#22c55e" : "#93c5fd"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
           ) : (
-            <ResponsiveContainer width="100%" height={barHeight}>
+            <ResponsiveContainer width="100%" height={160}>
               <BarChart data={sectorData} margin={{ top: 0, right: 12, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
                 <XAxis dataKey="sector" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
@@ -476,7 +342,6 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
               <thead className="bg-slate-50 border-y border-slate-100">
                 <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <th scope="col" className="px-5 py-2.5 text-left">Fecha</th>
-                  {isAdmin && <th scope="col" className="px-5 py-2.5 text-left">Comercial</th>}
                   <th scope="col" className="px-5 py-2.5 text-left">Cliente</th>
                   <th scope="col" className="px-5 py-2.5 text-left">Sector</th>
                   <th scope="col" className="px-5 py-2.5 text-right">Ahorro</th>
@@ -493,11 +358,6 @@ export function DashboardView({ user, isAdmin, onNavigate }: DashboardViewProps)
                           day: "2-digit", month: "2-digit", year: "2-digit",
                         })}
                       </td>
-                      {isAdmin && (
-                        <td className="px-5 py-3 text-blue-700 font-medium text-xs">
-                          {c.profiles?.email?.split("@")[0] || "—"}
-                        </td>
-                      )}
                       <td className="px-5 py-3 font-medium text-slate-800 text-xs max-w-[140px] truncate">
                         {c.client_name || "—"}
                       </td>

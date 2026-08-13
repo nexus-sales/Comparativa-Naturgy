@@ -3,7 +3,6 @@ import { useComparatorActions, buildResults, fmtEur } from "../../hooks/useCompa
 import type { ComercialData } from "../../utils/pdfExport";
 import { makeDefaultClient, SVE_CATALOG } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
-import type { User } from "@supabase/supabase-js";
 
 interface CompPaneProps {
   segId: string;
@@ -14,11 +13,10 @@ interface CompPaneProps {
   segTariffs: TarifaLocal[];
   segDef: { id: string; label: string; color: string };
   segLabel: string;
-  user: User;
   comercialData: ComercialData;
 }
 
-export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segDef, segLabel, user, comercialData }: CompPaneProps) {
+export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segDef, segLabel, comercialData }: CompPaneProps) {
   const safeClient = c ?? makeDefaultClient(activeSeg);
   const fallbackTariff: TarifaLocal = {
     id: "__fallback__",
@@ -39,7 +37,7 @@ export function CompPane({ segId, activeSeg, c, taxModel, potP, segTariffs, segD
   const [selectedTariffId, setSelectedTariffId] = useState<string>(best?.t?.id || "");
 
   const { saveStatus, saveMsg, isSaving, saveComp, handlePDF, handleExcel } = useComparatorActions({
-    user, segLabel, taxModel, potP, c: safeClient, segTariffs: safeTariffs, comercialData, selectedTariffId
+    segLabel, taxModel, potP, c: safeClient, segTariffs: safeTariffs, comercialData, selectedTariffId
   });
 
   if (!c || (!+c.factura && c.en.every(v => !+v)))

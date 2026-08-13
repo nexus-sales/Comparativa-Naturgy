@@ -7,7 +7,7 @@ import {
   type PlanTipo, type PlanPlan,
 } from "../../utils/commissionCalc";
 import { fmtEur } from "../../utils/calculations";
-import type { Profile } from "../../types";
+import type { ComercialSettings } from "../../types";
 
 const TARIFAS = [
   { value: "", label: "— Seleccionar plan —", tipo: "" },
@@ -33,7 +33,7 @@ function saveLS(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* silent */ }
 }
 
-interface Props { profile: Profile | null; }
+interface Props { profile: ComercialSettings; }
 
 export function CommissionsView({ profile }: Props) {
   const [tab, setTab] = useState<"pyme" | "res" | "ventas">("pyme");

@@ -1,10 +1,9 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { api, withTimeout } from '../lib/api';
 import type { Segment, Tariff } from '../types';
 
 const CACHE_KEY = 'naturgy_cache_v2';
 const CACHE_TTL = 30 * 60 * 1000;
-const SUPABASE_TIMEOUT_MS = 15000;
 
 interface CachePayload {
   segments: Segment[];
@@ -51,13 +50,8 @@ export const useAppStore = create<AppStore>((set) => ({
 
   load: async () => {
     set({ loading: true, error: null });
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), SUPABASE_TIMEOUT_MS);
     try {
-      const [segResult, tarResult] = await Promise.all([
-        supabase.from('segments').select('*').order('id').abortSignal(controller.signal),
-        supabase.from('tariffs').select('*').eq('is_active', true).order('segment_id').order('name').abortSignal(controller.signal),
-      ]);
+      const [segResult, tarResult] = await withTimeout(Promise.all([api.segments.list(), api.tariffs.list()]));
       if (segResult.error || tarResult.error) {
         set({ error: 'Error al cargar los datos. Comprueba tu conexión e inténtalo de nuevo.', loading: false });
         return;
@@ -68,21 +62,14 @@ export const useAppStore = create<AppStore>((set) => ({
       writeCache(segments, tariffs);
     } catch {
       set({ error: 'Error de conexión al cargar los datos.', loading: false });
-    } finally {
-      window.clearTimeout(timeout);
     }
   },
 
   refresh: async () => {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), SUPABASE_TIMEOUT_MS);
     try {
-      const [segResult, tarResult] = await Promise.all([
-        supabase.from('segments').select('*').order('id').abortSignal(controller.signal),
-        supabase.from('tariffs').select('*').eq('is_active', true).order('segment_id').order('name').abortSignal(controller.signal),
-      ]);
+      const [segResult, tarResult] = await withTimeout(Promise.all([api.segments.list(), api.tariffs.list()]));
       if (segResult.error || tarResult.error) {
-        set({ error: 'Error al actualizar los datos desde Supabase.' });
+        set({ error: 'Error al actualizar los datos.' });
         return;
       }
       const segments = segResult.data ?? [];
@@ -91,8 +78,6 @@ export const useAppStore = create<AppStore>((set) => ({
       writeCache(segments, tariffs);
     } catch {
       set({ error: 'Error de conexión al actualizar los datos.' });
-    } finally {
-      window.clearTimeout(timeout);
     }
   },
 

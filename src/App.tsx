@@ -1,13 +1,12 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import { supabase } from "./lib/supabase";
 import { useAuth } from "./hooks/useAuth";
 import { useAppStore } from "./store/useAppStore";
+import { useComercialSettings } from "./hooks/useComercialSettings";
 import { ComparatorView } from "./components/comparator/ComparatorView";
 import { AdminView } from "./components/admin/AdminView";
 import { UserHistoryView } from "./components/history/UserHistoryView";
 import { UserProfileView } from "./components/profile/UserProfileView";
 import { AuthStatus } from "./components/auth/AuthOverlay";
-import { ResetPasswordView } from "./components/auth/ResetPasswordView";
 import { InstallPWA } from "./components/InstallPWA";
 import { Shield, Clock, Pencil, Users, HelpCircle, AlertTriangle, X, Bell, Home, Calculator } from "lucide-react";
 import { NoticesView } from "./components/notices/NoticesView";
@@ -21,9 +20,7 @@ function clearAppStorage() {
   const clearKnownKeys = (storage: Storage) => {
     const keys = Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter((key): key is string => !!key);
     keys.forEach((key) => {
-      if (key.startsWith("naturgy_") || /^sb-.+-auth-token$/.test(key)) {
-        storage.removeItem(key);
-      }
+      if (key.startsWith("naturgy_")) storage.removeItem(key);
     });
   };
 
@@ -31,20 +28,9 @@ function clearAppStorage() {
   clearKnownKeys(sessionStorage);
 }
 
-async function signOutAndReset(resetStore: () => void) {
-  const redirectToLogin = () => {
-    window.location.href = window.location.origin + window.location.pathname + "?t=" + Date.now();
-  };
-
+async function signOutAndReset(logout: () => Promise<void>, resetStore: () => void) {
   try {
-    const signOut = supabase.auth.signOut();
-    const timeout = new Promise<{ error: Error }>((resolve) => {
-      window.setTimeout(() => resolve({ error: new Error("Sign out timeout") }), 3000);
-    });
-    const { error } = await Promise.race([signOut, timeout]);
-    if (error) console.warn("Supabase signOut error:", error);
-  } catch (err) {
-    console.error("Error critico en signOutAndReset:", err);
+    await logout();
   } finally {
     try {
       clearAppStorage();
@@ -52,42 +38,29 @@ async function signOutAndReset(resetStore: () => void) {
     } catch (storageErr) {
       console.warn("Error clearing local app state:", storageErr);
     }
-    redirectToLogin();
+    window.location.href = window.location.origin + window.location.pathname + "?t=" + Date.now();
   }
 }
 
 function App() {
-  const { user, loading: authLoading, isAdmin, isSuperAdmin, profile } = useAuth();
+  const { authenticated, loading: authLoading, login, logout } = useAuth();
   const { segments, tariffs, loading: dataLoading, error: dataError, load, refresh, reset } = useAppStore();
+  const { settings: comercialSettings } = useComercialSettings();
   type ActiveTab = "dashboard" | "comparator" | "admin" | "profile" | "history" | "notices" | "commissions";
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [showAppHelp, setShowAppHelp] = useState(false);
 
-  const isBlocked = profile?.is_blocked === true;
-  const canLoadData = !!user && !authLoading && !isBlocked && (isAdmin || profile?.is_approved === true);
-
   useEffect(() => {
-    if (!canLoadData) return;
+    if (!authenticated || authLoading) return;
     if (segments.length === 0) {
       load();
     } else {
       refresh();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canLoadData]);
+  }, [authenticated, authLoading]);
 
-  // Don't drop admin tab during transient auth re-checks (isAdmin might briefly be false)
-  const effectiveTab = (!isAdmin && !authLoading && activeTab === "admin") ? "dashboard" : activeTab;
-  const isProfileIncomplete = !!user && (!profile || !profile.full_name || !profile.phone);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (user && !authLoading && !isAdmin && (!profile || !profile.full_name) && activeTab === "comparator") {
-      setActiveTab("profile");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile, isAdmin, authLoading]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  const isProfileIncomplete = authenticated && (!comercialSettings.full_name || !comercialSettings.phone);
 
   const [authTimeout, setAuthTimeout] = useState(false);
   useEffect(() => {
@@ -95,47 +68,13 @@ function App() {
     return () => clearTimeout(timer);
   }, [authLoading]);
 
-  if (window.location.pathname === '/reset-password') {
-    return <ResetPasswordView onComplete={() => { window.location.href = window.location.origin; }} />;
-  }
-
   if (authLoading && !authTimeout) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
     </div>
   );
 
-  if (!user) return <AuthStatus />;
-
-  if (isBlocked || (!isAdmin && profile?.is_approved === false)) return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <header className="bg-[#002855] text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">Comparativa Tarifas Naturgy</h1>
-            <p className="text-xs text-blue-200">Herramienta comercial · Canarias</p>
-          </div>
-          <button onClick={() => signOutAndReset(reset)} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10">Salir</button>
-        </div>
-        <div className="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-blue-800"></div>
-      </header>
-      <main className="max-w-2xl mx-auto px-4 py-12">
-        <div className="bg-white border border-amber-200 rounded-2xl p-8 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="bg-amber-100 p-2 rounded-lg text-amber-700"><AlertTriangle size={24} /></div>
-            <div>
-              <h2 className="text-xl font-bold text-[#002855]">{isBlocked ? "Cuenta bloqueada" : "Cuenta pendiente de aprobacion"}</h2>
-              <p className="text-slate-600 mt-2">
-                {isBlocked
-                  ? "Tu usuario no tiene acceso activo. Contacta con el administrador."
-                  : "Tu usuario ya ha iniciado sesion, pero todavia no tiene permiso para ver las tarifas. Cuando un administrador apruebe la cuenta, se activara el acceso."}
-              </p>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+  if (!authenticated) return <AuthStatus onLogin={login} />;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -149,27 +88,26 @@ function App() {
             </div>
           </div>
           <nav className="flex items-center gap-0.5 sm:gap-1 bg-blue-900/50 p-1 rounded-xl overflow-x-auto flex-1 sm:flex-none mx-2 sm:mx-0">
-            <TabButton active={effectiveTab === "dashboard"}  onClick={() => setActiveTab("dashboard")}  icon={<Home size={16} />}   label="Inicio" />
-            <TabButton active={effectiveTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />}  label="Comercial" />
-            <TabButton active={effectiveTab === "profile"}    onClick={() => setActiveTab("profile")}    icon={<Pencil size={16} />} label="Usuario" />
-            <TabButton active={effectiveTab === "history"}    onClick={() => setActiveTab("history")}    icon={<Clock size={16} />}  label="Historial" />
-            <TabButton active={effectiveTab === "notices"}      onClick={() => setActiveTab("notices")}      icon={<Bell size={16} />}       label="Avisos" />
-            <TabButton active={effectiveTab === "commissions"} onClick={() => setActiveTab("commissions")} icon={<Calculator size={16} />} label="Comisiones" />
-            {isAdmin && <TabButton active={effectiveTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />}
+            <TabButton active={activeTab === "dashboard"}  onClick={() => setActiveTab("dashboard")}  icon={<Home size={16} />}   label="Inicio" />
+            <TabButton active={activeTab === "comparator"} onClick={() => setActiveTab("comparator")} icon={<Users size={16} />}  label="Comercial" />
+            <TabButton active={activeTab === "profile"}    onClick={() => setActiveTab("profile")}    icon={<Pencil size={16} />} label="Usuario" />
+            <TabButton active={activeTab === "history"}    onClick={() => setActiveTab("history")}    icon={<Clock size={16} />}  label="Historial" />
+            <TabButton active={activeTab === "notices"}      onClick={() => setActiveTab("notices")}      icon={<Bell size={16} />}       label="Avisos" />
+            <TabButton active={activeTab === "commissions"} onClick={() => setActiveTab("commissions")} icon={<Calculator size={16} />} label="Comisiones" />
+            <TabButton active={activeTab === "admin"} onClick={() => setActiveTab("admin")} icon={<Shield size={16} />} label="Admin" />
           </nav>
           <div className="flex items-center gap-2 sm:gap-4 text-sm flex-shrink-0">
-            <span className="text-blue-200 hidden lg:inline text-xs">{user.email}</span>
             <button onClick={() => setShowAppHelp(true)} className="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2">
               <HelpCircle size={16} /><span className="hidden sm:inline text-xs">Ayuda</span>
             </button>
-            <button onClick={() => signOutAndReset(reset)} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10 text-xs font-bold">Salir</button>
+            <button onClick={() => signOutAndReset(logout, reset)} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10 text-xs font-bold">Salir</button>
           </div>
         </div>
         <div className="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-blue-800"></div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {isProfileIncomplete && (effectiveTab === "comparator" || effectiveTab === "dashboard") && (
+        {isProfileIncomplete && (activeTab === "comparator" || activeTab === "dashboard") && (
           <div className="mb-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-6 shadow-lg text-white flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
@@ -180,7 +118,7 @@ function App() {
                 <p className="text-orange-100 text-sm">Añade tus datos aquí para que aparezcan en los informes PDF que generes.</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => setActiveTab("profile")}
               className="bg-white text-orange-600 px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:bg-orange-50 transition-colors whitespace-nowrap"
             >
@@ -203,21 +141,19 @@ function App() {
           </div>
         ) : (
           <>
-            {effectiveTab === "dashboard"  && <DashboardView user={user} isAdmin={isAdmin} onNavigate={setActiveTab} />}
-            {effectiveTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} isAdmin={isAdmin} profile={profile} user={user} />}
-            {effectiveTab === "profile"    && <UserProfileView user={user} profile={profile} isAdmin={isAdmin} />}
-            {effectiveTab === "history"    && <UserHistoryView user={user} isAdmin={isAdmin} />}
-            {effectiveTab === "notices"      && <NoticesView />}
-            {effectiveTab === "commissions" && (
+            {activeTab === "dashboard"  && <DashboardView onNavigate={setActiveTab} />}
+            {activeTab === "comparator" && <ComparatorView segments={segments} tariffs={tariffs} />}
+            {activeTab === "profile"    && <UserProfileView />}
+            {activeTab === "history"    && <UserHistoryView />}
+            {activeTab === "notices"      && <NoticesView />}
+            {activeTab === "commissions" && (
               <Suspense fallback={<div className="flex items-center justify-center p-12"><div className="animate-pulse text-slate-400 font-bold">Cargando comisiones...</div></div>}>
-                <CommissionsView profile={profile} />
+                <CommissionsView profile={comercialSettings} />
               </Suspense>
             )}
-            {isAdmin && (
-              <div className={effectiveTab === "admin" ? "" : "hidden"}>
-                <AdminView segments={segments} tariffs={tariffs} user={user} isSuperAdmin={isSuperAdmin} />
-              </div>
-            )}
+            <div className={activeTab === "admin" ? "" : "hidden"}>
+              <AdminView segments={segments} tariffs={tariffs} />
+            </div>
           </>
         )}
       </main>

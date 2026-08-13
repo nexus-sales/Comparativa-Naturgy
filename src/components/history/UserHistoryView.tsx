@@ -1,20 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../lib/supabase";
+import { api, withTimeout } from "../../lib/api";
 import { fmtEur } from "../../utils/calculations";
 import type { SegCliente, TarifaLocal } from "../../utils/calculations";
 import { exportPDF } from "../../utils/pdfExport";
 import { toSectorFilter } from "../../utils/sectors";
+import { useComercialSettings } from "../../hooks/useComercialSettings";
 import { Trash2, Clock, FileText, Users, RefreshCw, AlertCircle } from "lucide-react";
 import { KPICard } from "../KPICard";
-import type { User } from "@supabase/supabase-js";
 import type { ClientComparison } from "../../types";
 
-interface UserHistoryViewProps {
-  user: User;
-  isAdmin: boolean;
-}
-
-export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
+export function UserHistoryView() {
+  const { settings: comercialSettings } = useComercialSettings();
   const [history, setHistory] = useState<ClientComparison[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -27,59 +23,20 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      let query = supabase
-        .from("client_comparisons")
-        .select("*")
-        .neq("deleted_by_user", true);
-
-      if (!isAdmin) query = query.eq("user_id", user.id);
-
-      const { data, error } = await query
-        .order("created_at", { ascending: false })
-        .limit(200)
-        .abortSignal(controller.signal);
-
+      const { data, error } = await withTimeout(api.comparisons.list(200));
       if (error) throw error;
-
-      const comparisons = (data ?? []) as ClientComparison[];
-
-      if (isAdmin && comparisons.length > 0) {
-        const userIds = [...new Set(comparisons.map(c => c.user_id))];
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, email, full_name, phone")
-          .in("id", userIds);
-
-        if (profilesData) {
-          const pm = Object.fromEntries(
-            (profilesData as Array<{ id: string; email: string | null; full_name: string | null; phone: string | null }>)
-              .map(p => [p.id, p])
-          );
-          setHistory(comparisons.map(c => ({
-            ...c,
-            profiles: pm[c.user_id]
-              ? { email: pm[c.user_id].email, full_name: pm[c.user_id].full_name, phone: pm[c.user_id].phone }
-              : null,
-          })));
-          return;
-        }
-      }
-
-      setHistory(comparisons);
+      setHistory(data ?? []);
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (err instanceof Error && err.message.includes("Tiempo de espera")) {
         setFetchError('Tiempo de espera agotado. Pulsa "Actualizar" para reintentar.');
       } else {
         setFetchError(err instanceof Error ? err.message : String(err));
       }
     } finally {
-      clearTimeout(timeout);
       setLoading(false);
     }
-  }, [isAdmin, user.id]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +47,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [fetchHistory, user.id]);
+  }, [fetchHistory]);
 
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === 'visible') fetchHistory(); };
@@ -134,14 +91,8 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
             <Clock size={32} />
           </div>
           <div>
-            <h2 className="text-2xl font-extrabold text-[#002855]">
-              {isAdmin ? "Panel de Control" : "Mis Comparativas"}
-            </h2>
-            <p className="text-slate-500">
-              {isAdmin
-                ? "Estadísticas y registro global de ofertas"
-                : "Consulta y recupera tus comparativas guardadas anteriormente"}
-            </p>
+            <h2 className="text-2xl font-extrabold text-[#002855]">Mis Comparativas</h2>
+            <p className="text-slate-500">Consulta y recupera tus comparativas guardadas anteriormente</p>
           </div>
         </div>
         <button
@@ -222,7 +173,6 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                 <tr>
                   <th scope="col" className="px-6 py-4">Fecha</th>
-                  {isAdmin && <th scope="col" className="px-6 py-4">Comercial</th>}
                   <th scope="col" className="px-6 py-4">Cliente</th>
                   <th scope="col" className="px-6 py-4">Sector</th>
                   <th scope="col" className="px-6 py-4 text-right">Ahorro</th>
@@ -238,11 +188,6 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                       <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
                         {new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      {isAdmin && (
-                        <td className="px-6 py-4 font-medium text-blue-700">
-                          {item.profiles?.email?.split('@')[0] || 'Desconocido'}
-                        </td>
-                      )}
                       <td className="px-6 py-4">
                         <div className="font-bold text-slate-800">{item.client_name}</div>
                         <div className="text-[10px] text-slate-400 truncate max-w-[200px]">{item.client_address || 'Sin dirección'}</div>
@@ -300,9 +245,9 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                               if (!segTariffs.length) { setActionError("No hay tarifas guardadas en esta comparativa."); return; }
                               try {
                                 exportPDF(segLabel, taxModel, potP, c, segTariffs, {
-                                  nombre: item.profiles?.full_name || "Comercial Naturgy",
-                                  telefono: item.profiles?.phone || "",
-                                  email: item.profiles?.email || "",
+                                  nombre: comercialSettings.full_name || "Comercial Naturgy",
+                                  telefono: comercialSettings.phone || "",
+                                  email: comercialSettings.email || "",
                                 });
                               } catch (e) {
                                 setActionError('Error al generar PDF: ' + (e instanceof Error ? e.message : String(e)));
@@ -319,10 +264,7 @@ export function UserHistoryView({ user, isAdmin }: UserHistoryViewProps) {
                               <button
                                 type="button"
                                 onClick={async () => {
-                                  const { error } = await supabase
-                                    .from("client_comparisons")
-                                    .update({ deleted_by_user: true })
-                                    .eq("id", item.id);
+                                  const { error } = await api.comparisons.softDelete(item.id);
                                   if (error) {
                                     setActionError("Error al borrar: " + error.message);
                                     setTimeout(() => setActionError(null), 5000);
