@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cookie from "cookie";
@@ -23,6 +24,12 @@ for (const name of ["DATABASE_URL", "ADMIN_PASSWORD", "SESSION_SECRET"]) {
 
 const app = express();
 app.set("trust proxy", 1); // Dokploy sits behind a reverse proxy — needed for req.ip
+
+// Vercel compressed responses at the CDN automatically; our own Express
+// server doesn't unless told to. Without this the ~1.1MB main JS bundle
+// goes out raw instead of ~350KB gzipped — on a modest VPS uplink that's
+// the difference between the app loading and the browser hanging on it.
+app.use(compression());
 
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
