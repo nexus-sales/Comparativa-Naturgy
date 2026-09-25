@@ -7,6 +7,7 @@ import {
   type PlanTipo, type PlanPlan,
 } from "../../utils/commissionCalc";
 import { fmtEur } from "../../utils/calculations";
+import { validarBackup } from "../../utils/validarBackup";
 import type { ComercialSettings } from "../../types";
 
 const TARIFAS = [
@@ -232,13 +233,18 @@ export function CommissionsView({ profile }: Props) {
         const ws = wb.Sheets["DATOS_SISTEMA"];
         if (!ws) throw new Error("No es un archivo de backup válido");
         const jsonStr = (XLSX.utils.sheet_to_json(ws) as Array<{ json: string }>)[0].json;
-        const data = JSON.parse(jsonStr);
+        // Validar ANTES de tocar el estado: ver validarBackup.ts.
+        const data = validarBackup(JSON.parse(jsonStr));
         if (data.ventas)          setVentas(data.ventas);
         if (data.ventasRes)       setVentasRes(data.ventasRes);
         if (data.resComisiones)   setResComisiones(data.resComisiones);
         if (data.resRappelTramos) setResRappelTramos(data.resRappelTramos);
         if (data.resAdocTramos)   setResAdocTramos(data.resAdocTramos);
-      } catch { /* silent — archivo inválido */ }
+      } catch (err) {
+        // Antes era silencioso; ahora que se rechazan copias con datos no
+        // válidos, callarlo haría parecer que importar no hace nada.
+        window.alert(err instanceof Error ? err.message : "No se pudo importar la copia de seguridad.");
+      }
     };
     reader.readAsBinaryString(file);
     e.target.value = "";
@@ -869,7 +875,7 @@ ${ventas.map((v, i) => `<tr>
 <td><strong>${esc(v.nombre)}</strong></td>
 <td style="font-family:monospace;font-size:10px">${esc(v.cups) || "—"}</td>
 <td><span style="background:#f1f5f9;color:#475569;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${esc(v.tarifa) || "—"}</span></td>
-<td class="num">${v.kwh.toLocaleString("es-ES")}</td>
+<td class="num">${esc(v.kwh.toLocaleString("es-ES"))}</td>
 <td><span style="background:#fff7ed;color:#ED7004;border:1px solid #fed7aa;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${esc(v.planLabel)}</span></td>
 <td class="num" style="color:#ED7004;font-weight:700">${v.comision.toFixed(2).replace(".", ",")} €</td>
 <td>${esc(v.fechaVenta)}</td><td>${esc(v.fechaActivacion) || "—"}</td><td>${esc(mesLabel(v.mesCobro))}</td>
